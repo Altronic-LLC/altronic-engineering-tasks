@@ -4,6 +4,8 @@ import { Footer } from "@/components/Footer";
 import { ListView } from "@/views/ListView";
 import { KanbanView } from "@/views/KanbanView";
 import { DetailView } from "@/views/DetailView";
+import { ProjectView } from "@/views/ProjectView";
+import { AdminProjectsView } from "@/views/AdminProjectsView";
 
 export function App() {
   return (
@@ -15,6 +17,8 @@ export function App() {
           <Route path="/list" element={<Navigate to="/" replace />} />
           <Route path="/kanban" element={<KanbanView />} />
           <Route path="/task/:id" element={<DetailView />} />
+          <Route path="/project/:id" element={<ProjectView />} />
+          <Route path="/admin/projects" element={<AdminProjectsView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

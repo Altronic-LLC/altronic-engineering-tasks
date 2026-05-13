@@ -7,7 +7,9 @@ import type { Task, ProjectReference } from "@/types/task";
 //
 // When the admin returns the client ID and you switch to real Graph mode,
 // the structure of these objects matches what taskMapper.ts produces, so
-// every component just keeps working.
+// every component just keeps working. The childTasks field is left empty
+// here and populated at load time by attachTaskRelationships() in
+// src/lib/taskGraph.ts — same as the real-Graph path.
 // =============================================================================
 
 export const MOCK_PROJECTS: ProjectReference[] = [
@@ -46,6 +48,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 46,
     editorLookupId: 122,
     parentProject: projectByName("0000-Engineering Apps"),
+    relatedProjects: [],
+    parentTask: null,
+    childTasks: [],
     assigned: [SARAH, RAY],
     watchers: [THOMAS],
     comments: [
@@ -53,8 +58,8 @@ export const MOCK_TASKS: Task[] = [
         timestamp: new Date("2024-07-18T19:28:33"),
         authorName: "Sarah Shaffer",
         authorEmail: "sarah.shaffer@hoerbiger.com",
-        bodyHtml:
-          "<div><p>PO has been received and entered. Closing this out.</p></div>",
+        bodyHtml: "<div><p>PO has been received and entered. Closing this out.</p></div>",
+        attachments: [],
       },
     ],
     hasAttachments: true,
@@ -75,6 +80,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 215,
     editorLookupId: 122,
     parentProject: projectByName("0000-Engineering Apps"),
+    relatedProjects: [projectByName("0003-Engineering Task List")],
+    parentTask: null,
+    childTasks: [],
     assigned: [RAY],
     watchers: [],
     comments: [],
@@ -95,6 +103,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 122,
     editorLookupId: 122,
     parentProject: projectByName("0000-Engineering Apps"),
+    relatedProjects: [],
+    parentTask: null,
+    childTasks: [],
     assigned: [RAY, CHANDANA],
     watchers: [],
     comments: [
@@ -103,6 +114,7 @@ export const MOCK_TASKS: Task[] = [
         authorName: "Ray White",
         authorEmail: "ray.white@hoerbiger.com",
         bodyHtml: "<p>Release tonight when you have a second.</p>",
+        attachments: [],
       },
     ],
     hasAttachments: false,
@@ -122,6 +134,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 122,
     editorLookupId: 122,
     parentProject: projectByName("0003-Engineering Task List"),
+    relatedProjects: [],
+    parentTask: null,
+    childTasks: [],
     assigned: [RAY],
     watchers: [],
     comments: [
@@ -130,6 +145,7 @@ export const MOCK_TASKS: Task[] = [
         authorName: "Ray White",
         authorEmail: "ray.white@hoerbiger.com",
         bodyHtml: "<p>This should be working as expected now. Please advise.</p>",
+        attachments: [],
       },
     ],
     hasAttachments: false,
@@ -149,6 +165,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 87,
     editorLookupId: 122,
     parentProject: projectByName("0000-Engineering Apps"),
+    relatedProjects: [],
+    parentTask: null,
+    childTasks: [],
     assigned: [THOMAS, RAY],
     watchers: [],
     comments: [
@@ -158,6 +177,7 @@ export const MOCK_TASKS: Task[] = [
         authorEmail: "ray.white@hoerbiger.com",
         bodyHtml:
           "<p>Thomas, per our discussion, there are only a few people able to delete items. There is no need to waste the time to create this. Training on using the system for users is suffice.</p>",
+        attachments: [],
       },
     ],
     hasAttachments: false,
@@ -177,6 +197,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 134,
     editorLookupId: 122,
     parentProject: projectByName("0003-Engineering Task List"),
+    relatedProjects: [],
+    parentTask: { id: 47, numberedTitle: "", status: "BACKLOG" }, // resolved at load time
+    childTasks: [],
     assigned: [CHANDANA, RAY],
     watchers: [RAY],
     comments: [],
@@ -197,6 +220,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 134,
     editorLookupId: 198,
     parentProject: projectByName("0003-Engineering Task List"),
+    relatedProjects: [],
+    parentTask: { id: 47, numberedTitle: "", status: "BACKLOG" }, // resolved at load time
+    childTasks: [],
     assigned: [CHANDANA, RAY, FEMI],
     watchers: [],
     comments: [
@@ -205,6 +231,7 @@ export const MOCK_TASKS: Task[] = [
         authorName: "femi Olugbon",
         authorEmail: "femi.olugbon@hoerbiger.com",
         bodyHtml: "<p>It is fine now, thanks!</p>",
+        attachments: [],
       },
     ],
     hasAttachments: false,
@@ -225,6 +252,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 178,
     editorLookupId: 156,
     parentProject: projectByName("0017-AMP-5000 Refresh"),
+    relatedProjects: [projectByName("0030-Field Trial Tooling")],
+    parentTask: null,
+    childTasks: [],
     assigned: [STEVEN, AMANDA],
     watchers: [RAY],
     comments: [
@@ -234,12 +264,14 @@ export const MOCK_TASKS: Task[] = [
         authorEmail: "amanda.hoagland@hoerbiger.com",
         bodyHtml:
           "<p><strong><u>Steven Landreth</u></strong> we have 2 AMP-5000 panels in process. One has been requested for Jon Nance and the other could be used for Engineering or Sales. Can you please send me back the redlines so we can complete the build? We can use them until the new drawings are complete since the ECN has been released.</p>",
+        attachments: [],
       },
       {
         timestamp: new Date("2025-11-24T12:33:00"),
         authorName: "Steven Landreth",
         authorEmail: "steven.landreth@hoerbiger.com",
         bodyHtml: "",
+        attachments: [],
       },
       {
         timestamp: new Date("2025-11-24T12:27:00"),
@@ -247,6 +279,7 @@ export const MOCK_TASKS: Task[] = [
         authorEmail: "steven.landreth@hoerbiger.com",
         bodyHtml:
           "<p><strong><u>Ray White</u></strong>, regarding your statement of, \"can we get the AMP-5000 running at the shop\". Are you referring to the engine by the engineering garage? If so, its been modified enough where I am not sure it could be classified as an AMP-5000 any more. See the pic of the inside of the panel.</p><p>Field testing documentation is thin and the best chance to get any more field testing feedback will be from the 2 units for GCS. I'll leave this task in HOLD for now. Any additional field testing data can still be entered into this task.</p><p><a href=\"#\">IMG_7684.jpg</a></p>",
+        attachments: [],
       },
     ],
     hasAttachments: true,
@@ -266,6 +299,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 215,
     editorLookupId: 215,
     parentProject: projectByName("0021-CleanBurn Telemetry"),
+    relatedProjects: [],
+    parentTask: null,
+    childTasks: [],
     assigned: [BRANDON, RAY],
     watchers: [CHANDANA],
     comments: [],
@@ -286,6 +322,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 215,
     editorLookupId: 122,
     parentProject: projectByName("0021-CleanBurn Telemetry"),
+    relatedProjects: [],
+    parentTask: { id: 91, numberedTitle: "", status: "BACKLOG" }, // resolved at load time
+    childTasks: [],
     assigned: [BRANDON],
     watchers: [RAY, AMANDA],
     comments: [],
@@ -306,6 +345,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 156,
     editorLookupId: 156,
     parentProject: projectByName("0030-Field Trial Tooling"),
+    relatedProjects: [],
+    parentTask: null,
+    childTasks: [],
     assigned: [AMANDA, STEVEN],
     watchers: [RAY],
     comments: [
@@ -314,6 +356,7 @@ export const MOCK_TASKS: Task[] = [
         authorName: "Amanda Hoagland",
         authorEmail: "amanda.hoagland@hoerbiger.com",
         bodyHtml: "<p>Blocked on the new sensor calibration values from the lab.</p>",
+        attachments: [],
       },
     ],
     hasAttachments: false,
@@ -333,6 +376,9 @@ export const MOCK_TASKS: Task[] = [
     authorLookupId: 215,
     editorLookupId: 215,
     parentProject: projectByName("0030-Field Trial Tooling"),
+    relatedProjects: [projectByName("0021-CleanBurn Telemetry")],
+    parentTask: { id: 102, numberedTitle: "", status: "BACKLOG" }, // resolved at load time
+    childTasks: [],
     assigned: [BRANDON],
     watchers: [],
     comments: [],

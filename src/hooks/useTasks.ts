@@ -1,15 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addComment,
+  createProject,
   createTask,
   deleteTask,
   getTask,
   listProjects,
   listTasks,
+  setAssigned,
+  setParentProject,
+  setParentTask,
+  setRelatedProjects,
   setTaskStatus,
+  setWatchers,
+  unwatchTask,
   updateTaskFields,
+  watchTask,
 } from "@/api/tasks";
-import type { Status, Task } from "@/types/task";
+import type {
+  CommentAttachment,
+  Person,
+  Status,
+  Task,
+} from "@/types/task";
 
 const TASK_LIST_KEY = ["tasks", "list"] as const;
 const TASK_DETAIL_KEY = (id: number) => ["tasks", "detail", id] as const;
@@ -76,6 +89,86 @@ export function useUpdateTaskFields() {
   });
 }
 
+export function useSetParentTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, parentId }: { id: number; parentId: number | null }) =>
+      setParentTask(id, parentId),
+    onSuccess: (task) => {
+      qc.setQueryData(TASK_DETAIL_KEY(task.id), task);
+      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
+    },
+  });
+}
+
+export function useSetParentProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, projectLookupId }: { id: number; projectLookupId: number | null }) =>
+      setParentProject(id, projectLookupId),
+    onSuccess: (task) => {
+      qc.setQueryData(TASK_DETAIL_KEY(task.id), task);
+      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
+    },
+  });
+}
+
+export function useSetRelatedProjects() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, lookupIds }: { id: number; lookupIds: number[] }) =>
+      setRelatedProjects(id, lookupIds),
+    onSuccess: (task) => {
+      qc.setQueryData(TASK_DETAIL_KEY(task.id), task);
+      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
+    },
+  });
+}
+
+export function useSetAssigned() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, people }: { id: number; people: Person[] }) => setAssigned(id, people),
+    onSuccess: (task) => {
+      qc.setQueryData(TASK_DETAIL_KEY(task.id), task);
+      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
+    },
+  });
+}
+
+export function useSetWatchers() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, people }: { id: number; people: Person[] }) => setWatchers(id, people),
+    onSuccess: (task) => {
+      qc.setQueryData(TASK_DETAIL_KEY(task.id), task);
+      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
+    },
+  });
+}
+
+export function useWatchTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, person }: { id: number; person: Person }) => watchTask(id, person),
+    onSuccess: (task) => {
+      qc.setQueryData(TASK_DETAIL_KEY(task.id), task);
+      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
+    },
+  });
+}
+
+export function useUnwatchTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, person }: { id: number; person: Person }) => unwatchTask(id, person),
+    onSuccess: (task) => {
+      qc.setQueryData(TASK_DETAIL_KEY(task.id), task);
+      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
+    },
+  });
+}
+
 export function useAddComment() {
   const qc = useQueryClient();
   return useMutation({
@@ -84,7 +177,12 @@ export function useAddComment() {
       comment,
     }: {
       id: number;
-      comment: { authorName: string; authorEmail: string; bodyHtml: string };
+      comment: {
+        authorName: string;
+        authorEmail: string;
+        bodyHtml: string;
+        attachments?: CommentAttachment[];
+      };
     }) => addComment(id, comment),
     onSuccess: (task) => {
       qc.setQueryData(TASK_DETAIL_KEY(task.id), task);
@@ -106,5 +204,13 @@ export function useDeleteTask() {
   return useMutation({
     mutationFn: deleteTask,
     onSuccess: () => qc.invalidateQueries({ queryKey: TASK_LIST_KEY }),
+  });
+}
+
+export function useCreateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createProject,
+    onSuccess: () => qc.invalidateQueries({ queryKey: PROJECTS_KEY }),
   });
 }

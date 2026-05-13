@@ -1,4 +1,5 @@
-import type { Comment } from "@/types/task";
+import { Paperclip } from "lucide-react";
+import type { Comment, CommentAttachment } from "@/types/task";
 
 interface CommentThreadProps {
   comments: Comment[];
@@ -20,16 +21,26 @@ export function CommentThread({ comments }: CommentThreadProps) {
           {c.bodyHtml ? (
             <div
               className="comment-html"
-              // Note: This trusts the HTML stored in SharePoint. The values
-              // come from authenticated users via the existing tooling, so
-              // it's the same trust model as the Power Apps version. If you
-              // ever expose this to lower-trust input, run it through a
-              // sanitiser like DOMPurify before rendering.
+              // Trusts the HTML stored in SharePoint. Values come from
+              // authenticated users via existing tooling, so same trust model
+              // as the Power Apps version. If this is ever exposed to
+              // lower-trust input, sanitize with DOMPurify first.
               dangerouslySetInnerHTML={{ __html: c.bodyHtml }}
             />
+          ) : c.attachments && c.attachments.length > 0 ? (
+            <div className="text-xs italic text-fg-muted">(attachment only — no text)</div>
           ) : (
-            <div className="text-xs italic text-fg-muted">(empty comment — file attachment only)</div>
+            <div className="text-xs italic text-fg-muted">(empty comment)</div>
           )}
+
+          {c.attachments && c.attachments.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {c.attachments.map((a) => (
+                <CommentAttachmentView key={a.id} attachment={a} />
+              ))}
+            </div>
+          )}
+
           <div className="mt-2 text-right text-xs text-fg-muted">
             {c.timestamp.toLocaleString(undefined, {
               month: "numeric",
@@ -44,4 +55,47 @@ export function CommentThread({ comments }: CommentThreadProps) {
       ))}
     </div>
   );
+}
+
+function CommentAttachmentView({ attachment }: { attachment: CommentAttachment }) {
+  const isImage = attachment.contentType.startsWith("image/");
+
+  if (isImage && attachment.objectUrl) {
+    return (
+      <a
+        href={attachment.objectUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="block overflow-hidden rounded-md border border-border bg-surface-2 transition-shadow hover:shadow-md"
+      >
+        <img
+          src={attachment.objectUrl}
+          alt={attachment.filename}
+          className="max-h-48 max-w-xs object-contain"
+        />
+        <div className="border-t border-border px-2 py-1 text-[11px] text-fg-muted">
+          {attachment.filename}
+        </div>
+      </a>
+    );
+  }
+
+  return (
+    <a
+      href={attachment.objectUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-2 rounded-md border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-fg transition-colors hover:bg-surface"
+    >
+      <Paperclip className="h-3.5 w-3.5 text-fg-muted" />
+      <span className="font-medium">{attachment.filename}</span>
+      <span className="text-fg-muted">{formatBytes(attachment.sizeBytes)}</span>
+    </a>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

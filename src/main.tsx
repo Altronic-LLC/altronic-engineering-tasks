@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App";
 import { AuthProvider } from "./auth/AuthProvider";
+import { AuthGate } from "./auth/AuthGate";
 import "./styles/globals.css";
 
 // React Query client. Defaults are tuned for this app's read-heavy access
@@ -14,7 +15,11 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 30_000,
       refetchOnWindowFocus: false,
-      retry: 1,
+      retry: (failureCount, error) => {
+        // Don't retry session-expired — let the AuthGate handle re-login.
+        if (error instanceof Error && error.name === "SessionExpiredError") return false;
+        return failureCount < 1;
+      },
     },
   },
 });
@@ -29,7 +34,14 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter basename={basename}>
-          <App />
+          {/*
+            AuthGate decides whether to render the app or the SignInPage.
+            In demo mode (USE_MOCK), it's a transparent passthrough.
+            In real mode, shows SignInPage until the user is authenticated.
+          */}
+          <AuthGate>
+            <App />
+          </AuthGate>
         </BrowserRouter>
       </QueryClientProvider>
     </AuthProvider>

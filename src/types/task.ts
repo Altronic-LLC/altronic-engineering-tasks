@@ -65,12 +65,47 @@ export interface Comment {
   authorEmail: string;
   /** HTML body as authored. Render through a sanitizer before injecting. */
   bodyHtml: string;
+  /** Attachments captured with the comment. Empty array if none. */
+  attachments?: CommentAttachment[];
+}
+
+/**
+ * A file or image attached to a comment.
+ *
+ * In demo/mock mode these live in memory only — `objectUrl` is a blob URL
+ * from URL.createObjectURL(). When real mode is wired up, attachments will
+ * be uploaded to a SharePoint document library with rules to be defined
+ * later; at that point we'll add a `sharepointUrl` field and the upload
+ * step will go through src/api/attachments.ts.
+ */
+export interface CommentAttachment {
+  /** Stable id within the comment (used as a React key). */
+  id: string;
+  /** Original filename as the user uploaded it. */
+  filename: string;
+  /** MIME type from the File object (e.g. "image/png"). */
+  contentType: string;
+  /** File size in bytes. */
+  sizeBytes: number;
+  /** Blob URL for previewing during the session. Revoke when no longer needed. */
+  objectUrl?: string;
 }
 
 /** A parent project reference, resolved from the lookup. */
 export interface ProjectReference {
   lookupId: number;
   title: string; // e.g. "0000-Engineering Apps"
+}
+
+/**
+ * A bare reference to another task — just the bits we need to render a
+ * pill/link without re-fetching the full task. Used for parent and child
+ * task references.
+ */
+export interface TaskRef {
+  id: number;
+  numberedTitle: string;
+  status: Status;
 }
 
 /** The fully-shaped task we work with in the UI. */
@@ -96,6 +131,15 @@ export interface Task {
   editorLookupId: number;
   /** Parent project — null if not set. */
   parentProject: ProjectReference | null;
+  /** Other related projects (multi-value lookup). Empty array if none. */
+  relatedProjects: ProjectReference[];
+  /** Parent task — null if this task is top-level. */
+  parentTask: TaskRef | null;
+  /**
+   * Child tasks (derived — not stored on the task itself; computed by
+   * scanning other tasks whose parent points at this one).
+   */
+  childTasks: TaskRef[];
   /** People the task is assigned to. */
   assigned: Person[];
   /** People watching for updates. */
@@ -132,6 +176,23 @@ export interface GraphItemFields {
   AuthorLookupId?: string | number;
   EditorLookupId?: string | number;
   Parent_x0020_Project_x0020_ReferLookupId?: string | number;
+  /**
+   * Multi-value related-projects lookup. SharePoint returns multi-value
+   * lookup fields as an array of { LookupId, LookupValue } objects under
+   * `<FieldName>` (not `<FieldName>LookupId`). The field's actual internal
+   * name needs to be verified — `ProjectReference` is the best guess from
+   * our PowerShell exploration (it came back as `{}`, which is the empty
+   * state for a multi-value lookup). Run the column-discovery query in
+   * CLAUDE.md against the task list to confirm.
+   */
+  ProjectReference?: unknown;
+  /**
+   * Parent task lookup. Internal field name TBD — common patterns are
+   * `ParentTaskLookupId` or `Parent_x0020_Task_x0020_ReferLookupId`. Run
+   * column discovery to confirm. The mapper falls back gracefully when
+   * the field is absent so the app keeps working until we know the name.
+   */
+  ParentTaskLookupId?: string | number;
   Attachments?: boolean;
   Communication?: string;
   /** Person-or-group fields are returned as hashtables/objects. Shape varies. */

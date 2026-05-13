@@ -1,4 +1,4 @@
-import { InteractionRequiredAuthError } from "@azure/msal-browser";
+import { BrowserAuthError, InteractionRequiredAuthError } from "@azure/msal-browser";
 import { getMsalInstance } from "@/auth/AuthProvider";
 import { graphScopes } from "@/auth/msalConfig";
 import { GRAPH_BASE, USE_MOCK } from "./config";
@@ -10,9 +10,9 @@ import { GRAPH_BASE, USE_MOCK } from "./config";
  * because the user needs to consent or re-authenticate, falls back to a
  * popup login.
  *
- * @param path  Either a path starting with "/" (relative to graph.microsoft.com/v1.0)
- *              or a full absolute URL (e.g. an @odata.nextLink).
- * @param init  Fetch options. Authorization and Content-Type are added automatically.
+ * If the interactive popup also fails (user closed it, popup blocked,
+ * network error), throws SessionExpiredError so callers can show a
+ * graceful "please sign in again" UI instead of a raw error.
  */
 export async function graphFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (USE_MOCK) {
@@ -24,8 +24,9 @@ export async function graphFetch<T>(path: string, init: RequestInit = {}): Promi
 
   const account = instance.getActiveAccount();
   if (!account) {
-    // No active account — kick off interactive login.
-    await instance.loginPopup({ scopes: graphScopes });
+    // No active account — caller should have routed to SignInPage. Throw
+    // SessionExpiredError so the gate re-renders cleanly.
+    throw new SessionExpiredError("Not signed in");
   }
 
   let accessToken: string;
@@ -37,8 +38,18 @@ export async function graphFetch<T>(path: string, init: RequestInit = {}): Promi
     accessToken = result.accessToken;
   } catch (err) {
     if (err instanceof InteractionRequiredAuthError) {
-      const result = await instance.acquireTokenPopup({ scopes: graphScopes });
-      accessToken = result.accessToken;
+      // Silent refresh failed — trigger a popup to re-authenticate.
+      try {
+        const result = await instance.acquireTokenPopup({ scopes: graphScopes });
+        accessToken = result.accessToken;
+      } catch (popupErr) {
+        // Popup blocked, user cancelled, or popup errored — bubble up as
+        // a session-expired so the app can show a friendly re-sign-in UI.
+        if (popupErr instanceof BrowserAuthError) {
+          throw new SessionExpiredError(popupErr.message);
+        }
+        throw popupErr;
+      }
     } else {
       throw err;
     }
@@ -58,10 +69,15 @@ export async function graphFetch<T>(path: string, init: RequestInit = {}): Promi
 
   if (!response.ok) {
     const body = await response.text();
+    // 401 from Graph indicates the token was rejected — most often a
+    // session that expired between the silent-acquire and the request.
+    // Treat as session-expired.
+    if (response.status === 401) {
+      throw new SessionExpiredError(`Graph returned 401: ${body}`);
+    }
     throw new GraphError(response.status, response.statusText, body, url);
   }
 
-  // Some Graph endpoints (PATCH, DELETE) return 204 with no body.
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
@@ -70,9 +86,7 @@ export async function graphFetch<T>(path: string, init: RequestInit = {}): Promi
  * Walk @odata.nextLink pages until all items are collected. Used for lists
  * that may have more than the default page size (200 items at a time).
  */
-export async function graphFetchAll<T>(
-  path: string,
-): Promise<T[]> {
+export async function graphFetchAll<T>(path: string): Promise<T[]> {
   let url: string | undefined = path;
   const all: T[] = [];
   while (url) {
@@ -92,5 +106,17 @@ export class GraphError extends Error {
   ) {
     super(`Graph ${status} ${statusText} at ${url}: ${body}`);
     this.name = "GraphError";
+  }
+}
+
+/**
+ * Thrown when the user's MSAL session has expired or they cancelled an
+ * interactive sign-in prompt. The app should treat this as "needs to sign
+ * in again" — not as a generic error.
+ */
+export class SessionExpiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SessionExpiredError";
   }
 }

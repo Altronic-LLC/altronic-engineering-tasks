@@ -4,6 +4,7 @@ import type {
   Label,
   Person,
   Priority,
+  ProjectReference,
   Status,
   Task,
 } from "@/types/task";
@@ -39,6 +40,17 @@ export function toTask(item: GraphListItem): Task {
     parentProject: f.Parent_x0020_Project_x0020_ReferLookupId
       ? { lookupId: toInt(f.Parent_x0020_Project_x0020_ReferLookupId, 0), title: "" }
       : null,
+    relatedProjects: parseProjectLookupMulti(f.ProjectReference),
+    parentTask: f.ParentTaskLookupId
+      ? {
+          id: toInt(f.ParentTaskLookupId, 0),
+          numberedTitle: "",
+          status: "BACKLOG",
+        }
+      : null,
+    // childTasks is computed after all tasks are loaded — see
+    // attachChildTasks() in src/lib/taskGraph.ts. The mapper leaves it empty.
+    childTasks: [],
     assigned: parsePersonField(f.Assigned),
     watchers: parsePersonField(f.Watchers),
     comments: parseCommunication(f.Communication as string),
@@ -123,4 +135,40 @@ function parsePersonField(raw: unknown): Person[] {
   }
 
   return people;
+}
+
+/**
+ * Multi-value lookup field handling. SharePoint returns these as either:
+ *
+ *   [{ LookupId: 274, LookupValue: "0000-Engineering Apps" }, ...]
+ *
+ * or, depending on Graph version / field config, as an object with a
+ * `results` array. We accept both.
+ *
+ * The `title` comes from LookupValue when present. If it's missing, the
+ * caller (or a separate resolution pass via listProjects()) needs to fill
+ * it in by looking up the project list item.
+ */
+function parseProjectLookupMulti(raw: unknown): ProjectReference[] {
+  if (!raw) return [];
+
+  // Some SP responses wrap in { results: [...] }
+  const items = Array.isArray(raw)
+    ? raw
+    : typeof raw === "object" && raw !== null && Array.isArray((raw as { results?: unknown }).results)
+    ? (raw as { results: unknown[] }).results
+    : [];
+
+  const refs: ProjectReference[] = [];
+  for (const entry of items) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const obj = entry as Record<string, unknown>;
+    const lookupId = toInt(obj.LookupId ?? obj.lookupId, 0);
+    if (!lookupId) continue;
+    refs.push({
+      lookupId,
+      title: (obj.LookupValue as string) ?? (obj.title as string) ?? "",
+    });
+  }
+  return refs;
 }

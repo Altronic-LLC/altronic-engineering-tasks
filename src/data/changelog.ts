@@ -20,6 +20,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.2.0",
+    date: "2026-05-13",
+    changes: [
+      "Add picture and file attachments to comments, with drag-and-drop or click-to-attach",
+      "Add parent project picker on the task detail page (dropdown of projects from SharePoint Project Overview list)",
+      "Add multi-select 'Related Projects' field on each task; click a project chip to navigate to that project's overview",
+      "Add a new project-overview page that lists every task linked to a given project (as parent or related)",
+      "Add an Admin → Projects page where authorized users can create new project references",
+      "Add parent / child task links: select a parent task on the detail page, see linked children listed below the description; clicking either navigates between them",
+      "Cycle detection prevents a task from being its own ancestor",
+      "Add Watch / Watching toggle that adds you to the SharePoint Watchers field (drives existing Power Automate watcher emails)",
+      "Make Priority, Category, Labels, Due Date, and Assigned editable directly from the detail page sidebar",
+      "Sign-in identity now drives the comment author and watch toggle (demo user in mock mode, MSAL account in real mode)",
+      "Add a branded sign-in landing page shown when no user is authenticated (real mode only — demo mode bypasses sign-in automatically)",
+      "Add a user menu in the header with initials avatar, full name, email, and Sign out",
+      "Handle expired sessions gracefully: silent token refresh tries first, falls back to a sign-in popup, falls back to the sign-in page if all else fails",
+      "Treat Microsoft Graph 401 responses as a session-expired event rather than a generic error",
+    ],
+  },
+  {
+    version: "0.1.4",
+    date: "2026-05-13",
+    changes: [
+      "Disable Kanban drag-and-drop on phones (tablets and desktop still drag normally)",
+      "On phones, tap a card to open it; change status from the detail page's Status dropdown",
+      "Add a small hint at the top of the Kanban view on phones explaining the change",
+    ],
+  },
+  {
     version: "0.1.3",
     date: "2026-05-13",
     changes: [
