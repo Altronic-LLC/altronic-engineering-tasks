@@ -20,6 +20,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.2.2",
+    date: "2026-05-13",
+    changes: [
+      "Demo mode now shows the sign-in page on every fresh tab, with a 'Continue as Demo User' button to bypass",
+      "The 'Reset demo' menu item now clears the bypass so the sign-in page reappears after a reload",
+    ],
+  },
+  {
+    version: "0.2.1",
+    date: "2026-05-13",
+    changes: [
+      "Disable Kanban drag-and-drop on phones (tablets and desktop still drag normally)",
+      "On phones, tap a card to open it; change status from the detail page's Status dropdown",
+      "Add a small hint at the top of the Kanban view on phones explaining the change",
+    ],
+  },
+  {
     version: "0.2.0",
     date: "2026-05-13",
     changes: [
@@ -43,9 +60,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: "0.1.4",
     date: "2026-05-13",
     changes: [
-      "Disable Kanban drag-and-drop on phones (tablets and desktop still drag normally)",
-      "On phones, tap a card to open it; change status from the detail page's Status dropdown",
-      "Add a small hint at the top of the Kanban view on phones explaining the change",
+      "(Skipped — these changes shipped as part of v0.2.1)",
     ],
   },
   {

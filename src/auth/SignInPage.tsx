@@ -1,28 +1,45 @@
 import { useState } from "react";
-import { LogIn } from "lucide-react";
+import { LogIn, PlayCircle } from "lucide-react";
 import { getMsalInstance } from "@/auth/AuthProvider";
 import { graphScopes } from "@/auth/msalConfig";
+import { USE_MOCK } from "@/api/config";
 import { Brandmark } from "@/components/brand/Brandmark";
 import { Wordmark } from "@/components/brand/Wordmark";
 
+interface SignInPageProps {
+  /**
+   * Demo-mode-only callback. When defined (which AuthGate does in mock
+   * mode), an additional "Continue as Demo User" button appears below the
+   * Microsoft sign-in button. Click it to bypass straight into the app.
+   *
+   * In real mode this prop is undefined and the bypass button isn't shown.
+   */
+  onDemoBypass?: () => void;
+}
+
 /**
- * Sign-in landing page. Shown when:
- *   - We're in real mode (USE_MOCK is false), AND
- *   - No MSAL account is signed in.
+ * Sign-in landing page. Shown by AuthGate in two situations:
  *
- * This is a full-page gate — users must sign in to reach any task data.
- * In demo mode (USE_MOCK=true) the AuthProvider tree skips MSAL entirely
- * and renders the app directly, so this page never appears in the demo.
- *
- * The actual sign-in is a popup, not a redirect. After successful sign-in
- * MSAL fires LOGIN_SUCCESS which AuthProvider listens for; the parent
- * AuthGate component then re-renders and shows the app.
+ *   1. Real mode + no MSAL account → users must sign in with Microsoft.
+ *   2. Demo mode (USE_MOCK) → users see this page once per tab session
+ *      and can either pretend to sign in with Microsoft (currently does
+ *      nothing useful in demo because there's no client ID) or click
+ *      "Continue as Demo User" to bypass.
  */
-export function SignInPage() {
+export function SignInPage({ onDemoBypass }: SignInPageProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSignIn() {
+    if (USE_MOCK) {
+      // In demo mode there's no real auth backend. Tell the user how to
+      // proceed rather than firing a popup that would just fail.
+      setError(
+        'This is a preview of the sign-in page. Click "Continue as Demo User" below to enter the demo.',
+      );
+      return;
+    }
+
     const msal = getMsalInstance();
     if (!msal) {
       setError("Authentication is not configured.");
@@ -32,10 +49,9 @@ export function SignInPage() {
     setError(null);
     try {
       await msal.loginPopup({ scopes: graphScopes });
-      // On success, the AuthProvider's LOGIN_SUCCESS handler sets the
-      // active account, and the parent re-renders. Nothing more to do here.
+      // On success, AuthProvider's LOGIN_SUCCESS handler sets the active
+      // account, and the parent AuthGate re-renders to show the app.
     } catch (err) {
-      // User closed the popup, popup was blocked, etc.
       const message =
         err instanceof Error ? err.message : "Sign-in was cancelled or failed.";
       setError(message);
@@ -73,6 +89,31 @@ export function SignInPage() {
               <LogIn className="h-4 w-4" />
               {busy ? "Opening sign-in…" : "Sign in with Microsoft"}
             </button>
+
+            {/* Demo-only bypass. Shown when AuthGate passes onDemoBypass,
+                which only happens in mock mode. */}
+            {onDemoBypass && (
+              <>
+                <div className="mt-6 flex w-full items-center gap-3 text-[11px] uppercase tracking-wider text-fg-muted">
+                  <div className="h-px flex-1 bg-border" />
+                  Demo mode
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                <button
+                  onClick={onDemoBypass}
+                  className="mt-4 inline-flex items-center gap-2 rounded-md border border-border bg-surface px-5 py-2.5 text-sm font-medium text-fg transition-colors hover:bg-surface-2"
+                >
+                  <PlayCircle className="h-4 w-4" />
+                  Continue as Demo User
+                </button>
+
+                <p className="mt-3 max-w-sm text-[11px] text-fg-muted">
+                  Demo mode uses mock data — no real SharePoint connection.
+                  Reload the tab to see this page again.
+                </p>
+              </>
+            )}
 
             {error && (
               <div className="mt-4 max-w-sm rounded-md border border-cooper-red/30 bg-cooper-red/10 px-3 py-2 text-xs text-cooper-red">

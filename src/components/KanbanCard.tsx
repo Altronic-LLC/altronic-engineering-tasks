@@ -15,12 +15,20 @@ import {
 interface KanbanCardProps {
   task: Task;
   onOpen: (id: number) => void;
+  /**
+   * When true, the card acts as a plain "tap to open" button rather than
+   * a draggable. Used on phones where dragging across columns is awkward.
+   */
+  dragDisabled?: boolean;
 }
 
-export function KanbanCard({ task, onOpen }: KanbanCardProps) {
+export function KanbanCard({ task, onOpen, dragDisabled = false }: KanbanCardProps) {
+  // useSortable still has to be called unconditionally (rules of hooks),
+  // but we pass `disabled` so dnd-kit knows not to wire up listeners.
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: "task", task },
+    disabled: dragDisabled,
   });
 
   const style = {
@@ -28,21 +36,8 @@ export function KanbanCard({ task, onOpen }: KanbanCardProps) {
     transition,
   };
 
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      // The ENTIRE card is the drag handle — listeners and attributes are
-      // spread onto the outer div so picking up the card anywhere works.
-      // The PointerSensor has a 6px activation distance, so a click without
-      // movement doesn't trigger drag (and the Open button still works).
-      {...attributes}
-      {...listeners}
-      className={cn(
-        "group cursor-grab rounded-lg border bg-surface p-3 shadow-sm transition-shadow active:cursor-grabbing",
-        isDragging ? "border-accent opacity-50 shadow-lg" : "border-border hover:border-fg-muted hover:shadow-md",
-      )}
-    >
+  const cardContent = (
+    <>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-fg-muted">
@@ -53,20 +48,24 @@ export function KanbanCard({ task, onOpen }: KanbanCardProps) {
           </div>
         </div>
 
-        {/* Open-detail button. onPointerDown stops dnd-kit from claiming the
-            event so clicking the button doesn't initiate a drag. */}
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpen(task.id);
-          }}
-          className="shrink-0 rounded p-1 text-fg-muted opacity-0 transition-opacity hover:bg-surface-2 hover:text-fg group-hover:opacity-100"
-          aria-label="Open task"
-          title="Open task"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-        </button>
+        {/* When drag is enabled, this is the explicit "open" affordance
+            (since the whole card is the drag handle). When drag is off,
+            the whole card is the open button, so this icon would be
+            redundant and we hide it. */}
+        {!dragDisabled && (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen(task.id);
+            }}
+            className="shrink-0 rounded p-1 text-fg-muted opacity-0 transition-opacity hover:bg-surface-2 hover:text-fg group-hover:opacity-100"
+            aria-label="Open task"
+            title="Open task"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       {task.parentProject && (
@@ -102,6 +101,46 @@ export function KanbanCard({ task, onOpen }: KanbanCardProps) {
           <AttachmentIndicator has={task.hasAttachments} />
         </div>
       </div>
+    </>
+  );
+
+  // Two render modes:
+  // 1. dragDisabled — the card is a <button> that opens the task on tap.
+  //    No grab cursor, no drag listeners, but still sits inside SortableContext
+  //    so the column layout is identical to the drag-enabled version.
+  // 2. drag enabled — the card is a <div> with drag listeners spread onto it,
+  //    and the small "open" icon (rendered above) handles the open action.
+  if (dragDisabled) {
+    return (
+      <button
+        ref={setNodeRef}
+        style={style}
+        onClick={() => onOpen(task.id)}
+        className="block w-full rounded-lg border border-border bg-surface p-3 text-left shadow-sm transition-all hover:border-fg-muted hover:shadow-md active:scale-[0.99]"
+      >
+        {cardContent}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      // The ENTIRE card is the drag handle — listeners and attributes are
+      // spread onto the outer div so picking up the card anywhere works.
+      // PointerSensor activation distance (6px) ensures a click without
+      // movement doesn't trigger drag — the small Open button still works.
+      {...attributes}
+      {...listeners}
+      className={cn(
+        "group cursor-grab rounded-lg border bg-surface p-3 shadow-sm transition-shadow active:cursor-grabbing",
+        isDragging
+          ? "border-accent opacity-50 shadow-lg"
+          : "border-border hover:border-fg-muted hover:shadow-md",
+      )}
+    >
+      {cardContent}
     </div>
   );
 }

@@ -33,7 +33,13 @@ export function UserMenu() {
   function handleSignOut() {
     setOpen(false);
     if (USE_MOCK) {
-      // No real session — just reload so the placeholder resets.
+      // Clear the demo-bypass flag so the sign-in page shows again, then
+      // reload to reset the demo state.
+      try {
+        window.sessionStorage.removeItem("aets:demo-signin-bypassed");
+      } catch {
+        // sessionStorage might be unavailable; the reload still happens.
+      }
       window.location.reload();
       return;
     }
