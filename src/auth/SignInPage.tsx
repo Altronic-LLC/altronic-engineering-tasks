@@ -76,9 +76,9 @@ export function SignInPage({ onDemoBypass }: SignInPageProps) {
             </div>
 
             <p className="mt-8 max-w-sm text-sm text-fg-muted">
-              Sign in with your Altronic / Hoerbiger Microsoft account to view
-              and manage engineering tasks. You'll only see data you already
-              have access to in SharePoint.
+              Sign in with your altronic-llc email to view and manage
+              engineering tasks. You'll only see data you already have access
+              to in SharePoint.
             </p>
 
             <button

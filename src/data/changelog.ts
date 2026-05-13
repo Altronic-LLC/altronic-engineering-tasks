@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.2.3",
+    date: "2026-05-13",
+    changes: [
+      "Update sign-in page copy: 'Sign in with your altronic-llc email'",
+    ],
+  },
+  {
     version: "0.2.2",
     date: "2026-05-13",
     changes: [
