@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.2",
+    date: "2026-05-14",
+    changes: [
+      "Add the Altronic brandmark and wordmark to the top of the printable task view",
+      "Add a confidential-information footer to the printable view ('Confidential — Altronic internal use only. Not to be shared externally.') plus a Confidential badge in the header",
+    ],
+  },
+  {
     version: "0.3.1",
     date: "2026-05-14",
     changes: [

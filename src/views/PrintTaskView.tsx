@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useTask, useTasks } from "@/hooks/useTasks";
 import { sanitiseHtml } from "@/lib/sanitiseHtml";
+import { Brandmark } from "@/components/brand/Brandmark";
+import { Wordmark } from "@/components/brand/Wordmark";
 import type { Comment } from "@/types/task";
 
 /**
@@ -40,8 +42,22 @@ export function PrintTaskView() {
   return (
     <div className="mx-auto max-w-[800px] bg-white p-8 text-black print:p-0">
       <header className="mb-5 border-b border-gray-300 pb-3">
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-black">
+            <Brandmark className="h-9 w-auto shrink-0" />
+            <div className="flex flex-col leading-tight">
+              <Wordmark className="h-3.5 w-auto" />
+              <p className="mt-1 font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                Engineering Task System
+              </p>
+            </div>
+          </div>
+          <div className="rounded-sm border border-gray-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-700">
+            Confidential
+          </div>
+        </div>
         <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-          Altronic Engineering — Project Task
+          Project Task
         </div>
         <h1 className="font-display text-2xl font-bold leading-tight text-black">
           {task.numberedTitle}
@@ -128,8 +144,13 @@ export function PrintTaskView() {
         )}
       </section>
 
-      <footer className="mt-8 border-t border-gray-300 pt-2 text-[10px] text-gray-500">
-        Printed {formatDate(new Date())}
+      <footer className="mt-8 border-t border-gray-300 pt-2 text-[10px] text-gray-600">
+        <div className="font-semibold uppercase tracking-wider text-gray-700">
+          Confidential — Altronic internal use only. Not to be shared externally.
+        </div>
+        <div className="mt-0.5 text-gray-500">
+          Printed {formatDate(new Date())}
+        </div>
       </footer>
     </div>
   );
