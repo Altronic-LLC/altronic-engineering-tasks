@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Plus, X } from "lucide-react";
+import { Check, ChevronDown, Loader2, Plus, X } from "lucide-react";
 import {
   useCreateTask,
   useProjects,
@@ -474,7 +474,7 @@ export function TaskFormModal({ mode, task, onClose }: TaskFormModalProps) {
             </FieldLabel>
 
             <FieldLabel label="Related Projects">
-              <RelatedProjectChips
+              <RelatedProjectPicker
                 projects={projects}
                 selected={relatedProjectIds}
                 excludeParent={parentProjectId === "" ? undefined : parentProjectId}
@@ -549,7 +549,12 @@ function FieldLabel({
   );
 }
 
-function RelatedProjectChips({
+/**
+ * Multi-select dropdown for Related Projects. Clicking the trigger opens
+ * a panel of checkboxes; selecting items adds chips that show the current
+ * selection alongside the trigger. Closes on outside click or ESC.
+ */
+function RelatedProjectPicker({
   projects,
   selected,
   excludeParent,
@@ -560,30 +565,124 @@ function RelatedProjectChips({
   excludeParent: number | undefined;
   onToggle: (id: number) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click. Don't bind the listener until the panel is open
+  // — saves a tiny amount of work and avoids cross-modal interference.
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
   const available = projects.filter((p) => p.lookupId !== excludeParent);
+  const selectedProjects = available.filter((p) => selected.includes(p.lookupId));
+
   if (available.length === 0) {
     return <span className="text-xs text-fg-muted">No projects available.</span>;
   }
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {available.map((p) => {
-        const active = selected.includes(p.lookupId);
-        return (
-          <button
-            key={p.lookupId}
-            type="button"
-            onClick={() => onToggle(p.lookupId)}
-            className={cn(
-              "rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
-              active
-                ? "border-accent bg-accent/10 text-accent"
-                : "border-border bg-surface text-fg-muted hover:border-fg-muted hover:text-fg",
-            )}
-          >
-            {p.title}
-          </button>
-        );
-      })}
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={cn(
+          "flex w-full items-center justify-between gap-2 rounded-md border bg-surface px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-accent/20",
+          open ? "border-accent" : "border-border hover:border-fg-muted",
+        )}
+      >
+        <span className="min-w-0 flex-1 truncate">
+          {selectedProjects.length === 0 ? (
+            <span className="text-fg-muted">Select projects…</span>
+          ) : (
+            <span className="text-fg">
+              {selectedProjects.length} selected
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-fg-muted transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+
+      {/* Selected chips shown below the trigger so users can see their
+          choices at a glance without re-opening the dropdown. Clicking
+          the X on a chip removes that selection. */}
+      {selectedProjects.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {selectedProjects.map((p) => (
+            <span
+              key={p.lookupId}
+              className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent/10 px-2 py-0.5 text-xs text-accent"
+            >
+              {p.title}
+              <button
+                type="button"
+                onClick={() => onToggle(p.lookupId)}
+                className="rounded p-0.5 hover:bg-accent/20"
+                aria-label={`Remove ${p.title}`}
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div
+          role="listbox"
+          aria-multiselectable="true"
+          className="scroll-elegant absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-border bg-surface shadow-lg"
+        >
+          {available.map((p) => {
+            const active = selected.includes(p.lookupId);
+            return (
+              <button
+                key={p.lookupId}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => onToggle(p.lookupId)}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-surface-2",
+                  active && "bg-accent/5",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+                    active ? "border-accent bg-accent" : "border-border bg-bg",
+                  )}
+                  aria-hidden="true"
+                >
+                  {active && <Check className="h-3 w-3 text-white" />}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-fg">{p.title}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
