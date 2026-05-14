@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.1",
+    date: "2026-05-14",
+    changes: [
+      "Fix Print button bouncing to the sign-in screen — the printable view now opens directly without re-asking for a demo bypass in the new tab",
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-05-14",
     changes: [
