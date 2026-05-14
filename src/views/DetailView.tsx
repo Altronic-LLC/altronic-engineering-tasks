@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -9,6 +9,7 @@ import {
   Flag,
   FolderOpen,
   GitBranch,
+  Pencil,
   Plus,
   Tag,
   User,
@@ -43,6 +44,7 @@ import { wouldCreateCycle } from "@/lib/taskGraph";
 import { sanitiseHtml } from "@/lib/sanitiseHtml";
 import { CommentThread } from "@/components/CommentThread";
 import { CommentComposer } from "@/components/CommentComposer";
+import { TaskFormModal } from "@/components/TaskFormModal";
 import { LabelChip, StatusBadge, statusColor } from "@/components/atoms";
 import { cn } from "@/lib/cn";
 
@@ -63,6 +65,7 @@ export function DetailView() {
   const setAssigned = useSetAssigned();
   const watchTask = useWatchTask();
   const unwatchTask = useUnwatchTask();
+  const [showEdit, setShowEdit] = useState(false);
 
   // Build the set of people who appear on any task for the Assigned picker.
   const allPeople: Person[] = useMemo(() => {
@@ -244,6 +247,13 @@ export function DetailView() {
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:bg-surface-2"
               >
                 Copy task link
+              </button>
+              <button
+                onClick={() => setShowEdit(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:bg-surface-2"
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
               </button>
               <button
                 onClick={handleWatchToggle}
@@ -503,10 +513,20 @@ export function DetailView() {
                   ? "Nobody is watching this task"
                   : task.watchers.map((w) => w.displayName).join(", ")}
               </Field>
+
+              {task.softwareRevision && (
+                <Field icon={<Tag />} label="Software Revision">
+                  <code className="text-xs">{task.softwareRevision}</code>
+                </Field>
+              )}
             </div>
           </div>
         </aside>
       </div>
+
+      {showEdit && (
+        <TaskFormModal mode="edit" task={task} onClose={() => setShowEdit(false)} />
+      )}
     </div>
   );
 }

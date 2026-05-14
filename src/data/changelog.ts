@@ -20,6 +20,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.2.5",
+    date: "2026-05-13",
+    changes: [
+      "Add 'New Task' button on the List and Kanban views that opens a full task-creation form",
+      "Add an 'Edit' button on the task detail page that opens the same form pre-filled, so all fields can be edited in one place",
+      "The form covers title, description, status, priority, category, due date, labels, parent project, parent task, related projects, assignees, watchers, and software revision",
+      "Default new tasks to Priority = Medium (matches the Power App default)",
+      "Cycle detection in the parent-task picker prevents a task from being made its own ancestor",
+      "ESC closes the modal; click outside to dismiss; title input is focused on open",
+      "Demo mode now persists tasks and projects to localStorage so changes survive a refresh — Reset Demo clears them",
+      "Add Software Revision field to the task type and surface it on the detail sidebar when set",
+    ],
+  },
+  {
     version: "0.2.4",
     date: "2026-05-13",
     changes: [

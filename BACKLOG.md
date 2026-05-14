@@ -63,6 +63,9 @@ them after a real-mode shakedown:
 - **Verify the multi-value related-projects field's internal name** —
   currently assumed to be `ProjectReference`. If it's not, same edits as
   above plus `ProjectReference` references throughout.
+- **Verify the Software Revision field's internal name** in SharePoint.
+  Currently assumed to be `SoftwareRevision`. Power App labels it
+  "Software Revision" but the column's internal name may differ.
 - **Verify the projects-list ID** and set `VITE_SP_PROJECTS_LIST_ID`. Run
   the lookup-discovery PowerShell snippet from CLAUDE.md once the parent
   app registration is in place.

@@ -144,6 +144,12 @@ export interface Task {
   assigned: Person[];
   /** People watching for updates. */
   watchers: Person[];
+  /**
+   * Software revision string — free-text field used for tracking which
+   * firmware / app version a task targets. The SharePoint internal field
+   * name needs to be verified; the mapper assumes `SoftwareRevision`.
+   */
+  softwareRevision: string;
   /** Parsed comments, newest first. */
   comments: Comment[];
   /** Whether the item has SharePoint attachments. */
@@ -193,6 +199,11 @@ export interface GraphItemFields {
    * the field is absent so the app keeps working until we know the name.
    */
   ParentTaskLookupId?: string | number;
+  /**
+   * Software revision text field. Internal name assumed `SoftwareRevision`;
+   * verify against the actual SharePoint column. Free-text in the Power App.
+   */
+  SoftwareRevision?: string;
   Attachments?: boolean;
   Communication?: string;
   /** Person-or-group fields are returned as hashtables/objects. Shape varies. */

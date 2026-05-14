@@ -3,6 +3,7 @@ import { LogOut, User } from "lucide-react";
 import { getMsalInstance } from "@/auth/AuthProvider";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { USE_MOCK } from "@/api/config";
+import { resetMockStore } from "@/api/tasks";
 import { cn } from "@/lib/cn";
 
 /**
@@ -33,13 +34,14 @@ export function UserMenu() {
   function handleSignOut() {
     setOpen(false);
     if (USE_MOCK) {
-      // Clear the demo-bypass flag so the sign-in page shows again, then
-      // reload to reset the demo state.
+      // Reset the demo: clear sign-in bypass and the persisted mock store
+      // so the user gets a fresh demo (sign-in page first, original tasks).
       try {
         window.sessionStorage.removeItem("aets:demo-signin-bypassed");
       } catch {
         // sessionStorage might be unavailable; the reload still happens.
       }
+      resetMockStore();
       window.location.reload();
       return;
     }

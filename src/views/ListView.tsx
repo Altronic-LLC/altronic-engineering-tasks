@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Plus } from "lucide-react";
 import { useProjects, useTasks } from "@/hooks/useTasks";
 import { StatusPills } from "@/components/StatusPills";
 import { FilterBar, EMPTY_FILTERS, type Filters } from "@/components/FilterBar";
 import { TaskRow } from "@/components/TaskRow";
+import { TaskFormModal } from "@/components/TaskFormModal";
 import type { Person, Status, Task } from "@/types/task";
 
 type StatusFilter = Status | "ALL_ACTIVE" | null;
@@ -14,6 +16,7 @@ export function ListView() {
   const { data: projects = [] } = useProjects();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL_ACTIVE");
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [showNewTask, setShowNewTask] = useState(false);
 
   const people = useMemo(() => collectPeople(tasks), [tasks]);
   const filtered = useMemo(
@@ -23,7 +26,17 @@ export function ListView() {
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:gap-5 sm:px-6 sm:py-6">
-      <StatusPills tasks={tasks} activeFilter={statusFilter} onChange={setStatusFilter} />
+      <div className="flex items-start justify-between gap-3">
+        <StatusPills tasks={tasks} activeFilter={statusFilter} onChange={setStatusFilter} />
+        <button
+          onClick={() => setShowNewTask(true)}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent/90"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">New Task</span>
+          <span className="sm:hidden">New</span>
+        </button>
+      </div>
       <FilterBar filters={filters} onChange={setFilters} projects={projects} people={people} />
 
       {isLoading ? (
@@ -42,6 +55,8 @@ export function ListView() {
           ))}
         </div>
       )}
+
+      {showNewTask && <TaskFormModal mode="create" onClose={() => setShowNewTask(false)} />}
     </div>
   );
 }

@@ -23,13 +23,96 @@ import { MOCK_PROJECTS, MOCK_TASKS } from "@/data/mockData";
 // optimistic updates can be verified visually during development.
 // =============================================================================
 
-let mockStore: Task[] = MOCK_TASKS.map((t) => ({
-  ...t,
-  comments: t.comments.map((c) => ({ ...c, attachments: c.attachments ?? [] })),
-  childTasks: [],
-}));
+// In demo mode we keep the task list in memory but also persist to
+// localStorage so changes survive page refresh. Each tab reads from
+// localStorage on load and writes after each mutation; data lives under
+// the key "aets:mock-store-v1" with a small schema-version embedded so
+// we can change the type shape later without crashing.
+const MOCK_STORAGE_KEY = "aets:mock-store-v1";
+const MOCK_PROJECTS_KEY = "aets:mock-projects-v1";
 
-let mockProjectStore: ProjectReference[] = [...MOCK_PROJECTS];
+function loadMockStoreFromStorage(): Task[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(MOCK_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Task[];
+    // Re-hydrate Date fields (JSON.parse leaves them as strings).
+    return parsed.map((t) => ({
+      ...t,
+      createdAt: new Date(t.createdAt),
+      modifiedAt: new Date(t.modifiedAt),
+      dueDate: t.dueDate ? new Date(t.dueDate) : null,
+      comments: t.comments.map((c) => ({
+        ...c,
+        timestamp: new Date(c.timestamp),
+        attachments: c.attachments ?? [],
+      })),
+    }));
+  } catch {
+    return null;
+  }
+}
+
+function saveMockStoreToStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(mockStore));
+  } catch {
+    // Storage quota exceeded, private mode, etc. Silent — demo still
+    // works in-memory, just doesn't persist this session.
+  }
+}
+
+function loadMockProjectsFromStorage(): ProjectReference[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(MOCK_PROJECTS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as ProjectReference[];
+  } catch {
+    return null;
+  }
+}
+
+function saveMockProjectsToStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(MOCK_PROJECTS_KEY, JSON.stringify(mockProjectStore));
+  } catch {
+    // ignored
+  }
+}
+
+let mockStore: Task[] = (() => {
+  const fromStorage = loadMockStoreFromStorage();
+  if (fromStorage) return fromStorage;
+  return MOCK_TASKS.map((t) => ({
+    ...t,
+    comments: t.comments.map((c) => ({ ...c, attachments: c.attachments ?? [] })),
+    childTasks: [],
+  }));
+})();
+
+let mockProjectStore: ProjectReference[] =
+  loadMockProjectsFromStorage() ?? [...MOCK_PROJECTS];
+
+/** Demo-mode-only: clear local data and reset to the bundled seed. */
+export function resetMockStore(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(MOCK_STORAGE_KEY);
+    window.localStorage.removeItem(MOCK_PROJECTS_KEY);
+  } catch {
+    // ignored
+  }
+  mockStore = MOCK_TASKS.map((t) => ({
+    ...t,
+    comments: t.comments.map((c) => ({ ...c, attachments: c.attachments ?? [] })),
+    childTasks: [],
+  }));
+  mockProjectStore = [...MOCK_PROJECTS];
+}
 
 function delay<T>(value: T, ms = 250): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
@@ -111,6 +194,9 @@ export async function updateTaskFields(
     if ("Watchers" in fields && Array.isArray(fields.Watchers)) {
       next.watchers = fields.Watchers as Person[];
     }
+    if ("SoftwareRevision" in fields) {
+      next.softwareRevision = (fields.SoftwareRevision as string) ?? "";
+    }
     if ("ParentTaskLookupId" in fields) {
       const v = fields.ParentTaskLookupId;
       if (!v) {
@@ -139,6 +225,7 @@ export async function updateTaskFields(
     }
     next.modifiedAt = new Date();
     mockStore = [...mockStore.slice(0, idx), next, ...mockStore.slice(idx + 1)];
+    saveMockStoreToStorage();
     return delay({ ...next });
   }
 
@@ -271,6 +358,7 @@ export async function addComment(
     }
     next.modifiedAt = new Date();
     mockStore = [...mockStore.slice(0, idx), next, ...mockStore.slice(idx + 1)];
+    saveMockStoreToStorage();
     return delay({ ...next });
   }
 
@@ -290,50 +378,94 @@ export async function addComment(
   return updateTaskFields(id, { Communication: newRaw });
 }
 
-/** Create a new task. Title is required; everything else is optional. */
+/**
+ * Create a new task. Title is required; everything else is optional.
+ *
+ * All accepted fields are written in a single POST. Person and lookup
+ * fields are sent in their SharePoint write shapes (LookupId / multi-LookupId).
+ */
 export async function createTask(input: {
   title: string;
   description?: string;
   status?: Status;
-  priority?: string;
-  category?: string;
+  priority?: string | null;
+  category?: string | null;
+  dueDate?: Date | null;
+  labels?: string[];
+  parentProjectLookupId?: number | null;
+  assigned?: Person[];
+  watchers?: Person[];
+  softwareRevision?: string;
 }): Promise<Task> {
   if (USE_MOCK) {
     const nextId = Math.max(0, ...mockStore.map((t) => t.id)) + 1;
     const now = new Date();
+    const parentProject = input.parentProjectLookupId
+      ? mockProjectStore.find((p) => p.lookupId === input.parentProjectLookupId) ?? null
+      : null;
     const task: Task = {
       id: nextId,
-      numberedTitle: `T${nextId}-0000-${input.title}`,
+      numberedTitle: `T${nextId}-${parentProject?.title.slice(0, 4) ?? "0000"}-${input.title}`,
       title: input.title,
       description: input.description ?? "",
       status: input.status ?? "BACKLOG",
       priority: (input.priority as Task["priority"]) ?? null,
       category: (input.category as Task["category"]) ?? null,
-      labels: [],
-      dueDate: null,
+      labels: (input.labels as Task["labels"]) ?? [],
+      dueDate: input.dueDate ?? null,
       createdAt: now,
       modifiedAt: now,
       authorLookupId: 0,
       editorLookupId: 0,
-      parentProject: null,
+      parentProject,
       relatedProjects: [],
       parentTask: null,
       childTasks: [],
-      assigned: [],
-      watchers: [],
+      assigned: input.assigned ?? [],
+      watchers: input.watchers ?? [],
+      softwareRevision: input.softwareRevision ?? "",
       comments: [],
       hasAttachments: false,
     };
     mockStore = [task, ...mockStore];
+    saveMockStoreToStorage();
     return delay(task);
   }
 
   const path = `/sites/${SP_SITE_ID}/lists/${SP_LIST_ID}/items`;
   const fields: Record<string, unknown> = { Title: input.title };
-  if (input.description) fields.Description = input.description;
+  if (input.description !== undefined) fields.Description = input.description;
   if (input.status) fields.Status = input.status;
-  if (input.priority) fields.Priority = input.priority;
-  if (input.category) fields.Category = input.category;
+  if (input.priority !== undefined) fields.Priority = input.priority;
+  if (input.category !== undefined) fields.Category = input.category;
+  if (input.labels) fields.Labels = input.labels;
+  if (input.dueDate !== undefined) {
+    fields.DueDate = input.dueDate ? input.dueDate.toISOString() : null;
+  }
+  if (input.parentProjectLookupId !== undefined) {
+    fields.Parent_x0020_Project_x0020_ReferLookupId = input.parentProjectLookupId;
+  }
+  if (input.softwareRevision !== undefined) {
+    fields.SoftwareRevision = input.softwareRevision;
+  }
+  if (input.assigned && input.assigned.length > 0) {
+    const lookupIds = input.assigned.map((p) => p.lookupId).filter((x): x is number => !!x);
+    if (lookupIds.length === 0) {
+      throw new Error(
+        "Cannot set Assigned: none of the selected people had a resolved SharePoint lookupId.",
+      );
+    }
+    fields.AssignedLookupId = { results: lookupIds };
+  }
+  if (input.watchers && input.watchers.length > 0) {
+    const lookupIds = input.watchers.map((p) => p.lookupId).filter((x): x is number => !!x);
+    if (lookupIds.length === 0) {
+      throw new Error(
+        "Cannot set Watchers: none of the selected people had a resolved SharePoint lookupId.",
+      );
+    }
+    fields.WatchersLookupId = { results: lookupIds };
+  }
 
   const created = await graphFetch<GraphListItem>(path, {
     method: "POST",
@@ -346,6 +478,7 @@ export async function createTask(input: {
 export async function deleteTask(id: number): Promise<void> {
   if (USE_MOCK) {
     mockStore = mockStore.filter((t) => t.id !== id);
+    saveMockStoreToStorage();
     await delay(null);
     return;
   }
@@ -394,6 +527,7 @@ export async function createProject(input: { title: string }): Promise<ProjectRe
     const nextId = Math.max(0, ...mockProjectStore.map((p) => p.lookupId)) + 1;
     const project: ProjectReference = { lookupId: nextId, title: input.title };
     mockProjectStore = [...mockProjectStore, project];
+    saveMockProjectsToStorage();
     return delay(project);
   }
 

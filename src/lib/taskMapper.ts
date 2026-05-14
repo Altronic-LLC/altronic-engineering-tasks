@@ -53,6 +53,7 @@ export function toTask(item: GraphListItem): Task {
     childTasks: [],
     assigned: parsePersonField(f.Assigned),
     watchers: parsePersonField(f.Watchers),
+    softwareRevision: (f.SoftwareRevision as string) ?? "",
     comments: parseCommunication(f.Communication as string),
     hasAttachments: !!f.Attachments,
   };

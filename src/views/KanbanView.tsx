@@ -13,11 +13,12 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Info } from "lucide-react";
+import { Info, Plus } from "lucide-react";
 import { useSetStatus, useTasks } from "@/hooks/useTasks";
 import { useIsPhone } from "@/hooks/useIsPhone";
 import { STATUSES, type Status, type Task } from "@/types/task";
 import { KanbanCard } from "@/components/KanbanCard";
+import { TaskFormModal } from "@/components/TaskFormModal";
 import { statusColor } from "@/components/atoms";
 import { cn } from "@/lib/cn";
 
@@ -26,6 +27,7 @@ export function KanbanView() {
   const { data: tasks = [], isLoading } = useTasks();
   const setStatus = useSetStatus();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [showNewTask, setShowNewTask] = useState(false);
   const isPhone = useIsPhone();
 
   // PointerSensor (mouse/trackpad): 6px movement starts a drag.
@@ -95,6 +97,17 @@ export function KanbanView() {
 
   return (
     <div className="mx-auto max-w-full px-4 py-4 sm:px-6 sm:py-6">
+      <div className="mb-3 flex items-center justify-end">
+        <button
+          onClick={() => setShowNewTask(true)}
+          className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent/90"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">New Task</span>
+          <span className="sm:hidden">New</span>
+        </button>
+      </div>
+
       {/* Phone-only hint explaining why drag is off. Hidden on tablet/desktop
           since drag works normally there. */}
       {isPhone && (
@@ -131,6 +144,8 @@ export function KanbanView() {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {showNewTask && <TaskFormModal mode="create" onClose={() => setShowNewTask(false)} />}
     </div>
   );
 }

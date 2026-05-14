@@ -62,6 +62,7 @@ export const MOCK_TASKS: Task[] = [
         attachments: [],
       },
     ],
+    softwareRevision: "",
     hasAttachments: true,
   },
   {
@@ -86,6 +87,7 @@ export const MOCK_TASKS: Task[] = [
     assigned: [RAY],
     watchers: [],
     comments: [],
+    softwareRevision: "",
     hasAttachments: false,
   },
   {
@@ -117,6 +119,7 @@ export const MOCK_TASKS: Task[] = [
         attachments: [],
       },
     ],
+    softwareRevision: "",
     hasAttachments: false,
   },
   {
@@ -148,6 +151,7 @@ export const MOCK_TASKS: Task[] = [
         attachments: [],
       },
     ],
+    softwareRevision: "",
     hasAttachments: false,
   },
   {
@@ -180,6 +184,7 @@ export const MOCK_TASKS: Task[] = [
         attachments: [],
       },
     ],
+    softwareRevision: "",
     hasAttachments: false,
   },
   {
@@ -203,6 +208,7 @@ export const MOCK_TASKS: Task[] = [
     assigned: [CHANDANA, RAY],
     watchers: [RAY],
     comments: [],
+    softwareRevision: "",
     hasAttachments: false,
   },
   {
@@ -234,6 +240,7 @@ export const MOCK_TASKS: Task[] = [
         attachments: [],
       },
     ],
+    softwareRevision: "",
     hasAttachments: false,
   },
   {
@@ -282,6 +289,7 @@ export const MOCK_TASKS: Task[] = [
         attachments: [],
       },
     ],
+    softwareRevision: "",
     hasAttachments: true,
   },
   {
@@ -305,6 +313,7 @@ export const MOCK_TASKS: Task[] = [
     assigned: [BRANDON, RAY],
     watchers: [CHANDANA],
     comments: [],
+    softwareRevision: "",
     hasAttachments: false,
   },
   {
@@ -328,6 +337,7 @@ export const MOCK_TASKS: Task[] = [
     assigned: [BRANDON],
     watchers: [RAY, AMANDA],
     comments: [],
+    softwareRevision: "",
     hasAttachments: false,
   },
   {
@@ -359,6 +369,7 @@ export const MOCK_TASKS: Task[] = [
         attachments: [],
       },
     ],
+    softwareRevision: "",
     hasAttachments: false,
   },
   {
@@ -382,6 +393,7 @@ export const MOCK_TASKS: Task[] = [
     assigned: [BRANDON],
     watchers: [],
     comments: [],
+    softwareRevision: "",
     hasAttachments: true,
   },
 ];
