@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.0",
+    date: "2026-05-14",
+    changes: [
+      "Add a Print button on the task detail page that opens a clean printable view in a new tab and auto-opens the browser's print dialog — use 'Save as PDF' there to export the task",
+      "The printable view includes the title, full metadata block (priority, dates, assignees, watchers, projects, labels, parent task, etc.), description, child tasks, and the complete comment thread with author and timestamp",
+      "Print layout uses light styling regardless of the app theme so PDFs look the same whether you're in light or dark mode",
+    ],
+  },
+  {
     version: "0.2.6",
     date: "2026-05-14",
     changes: [

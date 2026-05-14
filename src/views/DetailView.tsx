@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -12,6 +12,7 @@ import {
   GitBranch,
   Pencil,
   Plus,
+  Printer,
   RefreshCw,
   Tag,
   User,
@@ -358,6 +359,16 @@ export function DetailView() {
                 <Pencil className="h-4 w-4" />
                 Edit
               </button>
+              <Link
+                to={`/task/${task.id}/print`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:bg-surface-2"
+                title="Open a printable view in a new tab — use Save as PDF in the print dialog"
+              >
+                <Printer className="h-4 w-4" />
+                Print
+              </Link>
               <button
                 onClick={handleWatchToggle}
                 className={cn(

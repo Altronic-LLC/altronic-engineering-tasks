@@ -100,3 +100,9 @@ h3,
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* Print page margins. The PrintTaskView component handles its own light
+   styling, so we only need to control the paper margin here. */
+@page {
+  margin: 0.6in;
+}
