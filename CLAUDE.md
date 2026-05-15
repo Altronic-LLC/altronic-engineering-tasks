@@ -327,17 +327,30 @@ pattern of the existing List and Kanban links.
 - **Parent project resolution:** Needs the projects list ID
   (`VITE_SP_PROJECTS_LIST_ID`) — currently falls back to empty title until set.
 
+## Testing standard
+
+**This project targets 100% unit-test coverage** — lib, api, hooks, components,
+and views. Every change ships with tests for the code being added or modified.
+See `src/test/` for the runner setup (Vitest + React Testing Library +
+jsdom + a shared provider wrapper at `src/test/render.tsx`).
+
+Test files live next to source: `foo.ts` → `foo.test.ts`,
+`Bar.tsx` → `Bar.test.tsx`. Coverage thresholds in `vite.config.ts` are
+currently off pending a backfill of the existing codebase; once that lands,
+they'll be flipped to 100% across the board and gate CI.
+
 ## Testing checklist when you change things
 
 After any non-trivial change:
 
 1. `npm run typecheck` — no TS errors
-2. `npm run dev` — app loads with mock data, no console errors
-3. Click around all three views (list, kanban, detail)
-4. Try drag-and-drop on the Kanban (a card should move and persist)
-5. Try adding a comment (it should appear at the top of the thread)
-6. Toggle the theme (everything should re-skin cleanly)
-7. `npm run build` — production build succeeds
+2. `npm run test` — full unit suite green
+3. `npm run dev` — app loads with mock data, no console errors
+4. Click around all three views (list, kanban, detail)
+5. Try drag-and-drop on the Kanban (a card should move and persist)
+6. Try adding a comment (it should appear at the top of the thread)
+7. Toggle the theme (everything should re-skin cleanly)
+8. `npm run build` — production build succeeds
 
 For real-mode testing, set `VITE_USE_MOCK=false` and confirm:
 - Login pops up on first navigation

@@ -28,6 +28,13 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Test
+        # Project standard is 100% unit-test coverage; tests must pass to
+        # deploy. The vitest coverage threshold is intentionally off until
+        # the existing codebase is backfilled — once that lands, switch on
+        # the thresholds in vite.config.ts and add `-- --coverage` here.
+        run: npm test
+
       - name: Build
         run: npm run build
         env:
