@@ -2,20 +2,19 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { useProjects, useTasks } from "@/hooks/useTasks";
+import { useFilters } from "@/hooks/useFilters";
 import { StatusPills } from "@/components/StatusPills";
-import { FilterBar, EMPTY_FILTERS, type Filters } from "@/components/FilterBar";
+import { FilterBar } from "@/components/FilterBar";
 import { TaskRow } from "@/components/TaskRow";
 import { TaskFormModal } from "@/components/TaskFormModal";
-import type { Person, Status, Task } from "@/types/task";
-
-type StatusFilter = Status | "ALL_ACTIVE" | null;
+import { applyFilters, collectPeople, type StatusFilter } from "@/lib/taskFilters";
 
 export function ListView() {
   const navigate = useNavigate();
   const { data: tasks = [], isLoading } = useTasks();
   const { data: projects = [] } = useProjects();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL_ACTIVE");
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [filters, setFilters] = useFilters();
   const [showNewTask, setShowNewTask] = useState(false);
 
   const people = useMemo(() => collectPeople(tasks), [tasks]);
@@ -59,54 +58,4 @@ export function ListView() {
       {showNewTask && <TaskFormModal mode="create" onClose={() => setShowNewTask(false)} />}
     </div>
   );
-}
-
-function collectPeople(tasks: Task[]): Person[] {
-  const map = new Map<string, Person>();
-  for (const t of tasks) {
-    for (const p of [...t.assigned, ...t.watchers]) {
-      const key = p.email ?? p.displayName;
-      if (!map.has(key)) map.set(key, p);
-    }
-  }
-  return [...map.values()];
-}
-
-function applyFilters(
-  tasks: Task[],
-  statusFilter: StatusFilter,
-  filters: Filters,
-): Task[] {
-  return tasks.filter((t) => {
-    // Status filter
-    if (statusFilter === "ALL_ACTIVE" && t.status === "Complete") return false;
-    if (statusFilter && statusFilter !== "ALL_ACTIVE" && t.status !== statusFilter) return false;
-
-    // Project filter
-    if (filters.projectId != null && t.parentProject?.lookupId !== filters.projectId) return false;
-
-    // Assigned filter
-    if (filters.assignedEmail) {
-      const has = t.assigned.some(
-        (p) => (p.email ?? p.displayName) === filters.assignedEmail,
-      );
-      if (!has) return false;
-    }
-
-    // Search (covers title, description, and comments)
-    if (filters.search) {
-      const needle = filters.search.toLowerCase();
-      const hay = [
-        t.title,
-        t.numberedTitle,
-        t.description,
-        ...t.comments.map((c) => c.bodyHtml.replace(/<[^>]+>/g, "")),
-      ]
-        .join(" ")
-        .toLowerCase();
-      if (!hay.includes(needle)) return false;
-    }
-
-    return true;
-  });
 }

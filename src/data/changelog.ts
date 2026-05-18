@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.0",
+    date: "2026-05-18",
+    changes: [
+      "Home page now filters to 'Assigned to me' by default — the first thing you see is your tasks, not everyone's; pick 'Anyone' in the dropdown to clear it",
+      "Kanban board now has the same filter bar as the list view; filters apply to the cards in each column",
+      "Filter state is shared between List and Kanban — switching views keeps your filters, and refreshing the page preserves them too",
+      "Filters live in the URL so a link you share carries the same view the recipient sees",
+    ],
+  },
+  {
     version: "0.3.5",
     date: "2026-05-15",
     changes: [

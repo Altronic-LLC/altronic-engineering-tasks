@@ -14,31 +14,27 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Info, Plus } from "lucide-react";
-import { useSetStatus, useTasks } from "@/hooks/useTasks";
+import { useProjects, useSetStatus, useTasks } from "@/hooks/useTasks";
+import { useFilters } from "@/hooks/useFilters";
 import { useIsPhone } from "@/hooks/useIsPhone";
 import { STATUSES, type Status, type Task } from "@/types/task";
+import { FilterBar } from "@/components/FilterBar";
 import { KanbanCard } from "@/components/KanbanCard";
 import { TaskFormModal } from "@/components/TaskFormModal";
 import { statusColor } from "@/components/atoms";
+import { applyFilters, collectPeople } from "@/lib/taskFilters";
 import { cn } from "@/lib/cn";
 
 export function KanbanView() {
   const navigate = useNavigate();
   const { data: tasks = [], isLoading } = useTasks();
+  const { data: projects = [] } = useProjects();
+  const [filters, setFilters] = useFilters();
   const setStatus = useSetStatus();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const isPhone = useIsPhone();
 
-  // PointerSensor (mouse/trackpad): 6px movement starts a drag.
-  // TouchSensor (tablets): 200ms long-press, so normal touch-scrolling still works.
-  //
-  // On phones (<640px) the activation thresholds are bumped impossibly high
-  // so drag is effectively off. Reason: dragging cards across a horizontally-
-  // scrolling board on a small touch screen is fiddly; users get a smoother
-  // experience tapping a card to open it and changing status from the detail
-  // page's dropdown. We pass `dragDisabled` down to columns and cards too
-  // so dnd-kit's per-item disabled flag handles it cleanly.
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: isPhone ? { distance: 999999 } : { distance: 6 },
@@ -50,6 +46,18 @@ export function KanbanView() {
     }),
   );
 
+  // People for the Assigned / Created By dropdowns — drawn from the full
+  // task set, not the filtered subset, so the dropdown options are stable
+  // as the user filters.
+  const people = useMemo(() => collectPeople(tasks), [tasks]);
+
+  // Apply the FilterBar filters before partitioning into columns. Status
+  // filter is passed as null because the columns themselves are statuses.
+  const filteredTasks = useMemo(
+    () => applyFilters(tasks, null, filters),
+    [tasks, filters],
+  );
+
   const tasksByStatus = useMemo(() => {
     const out: Record<Status, Task[]> = {
       BACKLOG: [],
@@ -59,9 +67,9 @@ export function KanbanView() {
       Blocked: [],
       Complete: [],
     };
-    for (const t of tasks) out[t.status].push(t);
+    for (const t of filteredTasks) out[t.status].push(t);
     return out;
-  }, [tasks]);
+  }, [filteredTasks]);
 
   function handleDragStart(event: DragStartEvent) {
     const t = tasks.find((x) => x.id === event.active.id);
@@ -77,7 +85,6 @@ export function KanbanView() {
     const task = tasks.find((x) => x.id === taskId);
     if (!task) return;
 
-    // The droppable id is either a Status (column drop) or another task's id.
     let target: Status | null = null;
     if (STATUSES.includes(over.id as Status)) {
       target = over.id as Status;
@@ -96,11 +103,11 @@ export function KanbanView() {
   }
 
   return (
-    <div className="mx-auto max-w-full px-4 py-4 sm:px-6 sm:py-6">
-      <div className="mb-3 flex items-center justify-end">
+    <div className="mx-auto flex max-w-full flex-col gap-4 px-4 py-4 sm:gap-5 sm:px-6 sm:py-6">
+      <div className="flex items-start justify-end gap-3">
         <button
           onClick={() => setShowNewTask(true)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent/90"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent/90"
         >
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">New Task</span>
@@ -108,10 +115,10 @@ export function KanbanView() {
         </button>
       </div>
 
-      {/* Phone-only hint explaining why drag is off. Hidden on tablet/desktop
-          since drag works normally there. */}
+      <FilterBar filters={filters} onChange={setFilters} projects={projects} people={people} />
+
       {isPhone && (
-        <div className="mb-3 flex items-start gap-2 rounded-md border border-border bg-surface-2/60 px-3 py-2 text-xs text-fg-muted">
+        <div className="flex items-start gap-2 rounded-md border border-border bg-surface-2/60 px-3 py-2 text-xs text-fg-muted">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
             Tap a card to open it. Change status from the detail page — drag
