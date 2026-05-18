@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.6",
+    date: "2026-05-18",
+    changes: [
+      "Internal: temporary console.log on task creation so we can see exactly which fields are being sent to SharePoint — diagnosing a stubborn Graph 400 on create. Will be removed once we figure out which field shape is wrong.",
+    ],
+  },
+  {
     version: "0.6.5",
     date: "2026-05-18",
     changes: [

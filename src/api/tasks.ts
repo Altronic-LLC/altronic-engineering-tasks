@@ -563,6 +563,10 @@ export async function createTask(input: {
     }
   }
 
+  // TEMP DEBUG (v0.6.6): log the exact body so we can see why Graph 400s on
+  // create. Remove this once we've diagnosed the field-shape problem.
+  // eslint-disable-next-line no-console
+  console.log("[createTask] POST fields:", JSON.parse(JSON.stringify(fields)));
   const created = await graphFetch<GraphListItem>(path, {
     method: "POST",
     body: JSON.stringify({ fields }),
