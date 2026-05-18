@@ -163,23 +163,26 @@ export async function createTestSheet(input: CreateTestSheetInput): Promise<Test
     );
   }
 
+  // Only send fields the user actually filled in. SharePoint is fussy on
+  // create — same lesson the Tasks API learned: skip empty values rather
+  // than sending null / "". Matches the truthy-check pattern in tasks.ts.
   const fields: Record<string, unknown> = { Title: input.title };
-  if (input.product != null) fields.Product = input.product;
-  if (input.serialNumber != null) fields.SerialNumber = input.serialNumber;
-  if (input.purpose != null) fields.Purpose = input.purpose;
-  if (input.results != null) fields.Results = input.results;
+  if (input.product) fields.Product = input.product;
+  if (input.serialNumber) fields.SerialNumber = input.serialNumber;
+  if (input.purpose) fields.Purpose = input.purpose;
+  if (input.results) fields.Results = input.results;
   if (input.testDate) fields.TestDate = input.testDate.toISOString();
-  if (input.parentProjectLookupId != null) {
+  if (input.parentProjectLookupId) {
     fields.ProjectReferenceLookupId = input.parentProjectLookupId;
   }
-  if (input.parentTaskLookupId != null) {
+  if (input.parentTaskLookupId) {
     fields.TaskReferenceLookupId = input.parentTaskLookupId;
   }
   if (input.tester?.lookupId) {
     fields.TesterLookupId = input.tester.lookupId;
   }
-  if (input.testingSteps != null) fields.TestingSteps = input.testingSteps;
-  if (input.firmwareVersion != null) fields.FirmwareVersion = input.firmwareVersion;
+  if (input.testingSteps) fields.TestingSteps = input.testingSteps;
+  if (input.firmwareVersion) fields.FirmwareVersion = input.firmwareVersion;
 
   const created = await graphFetch<GraphListItem>(
     `/sites/${SP_SITE_ID}/lists/${SP_TEST_RESULTS_LIST_ID}/items`,

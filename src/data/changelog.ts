@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.3",
+    date: "2026-05-18",
+    changes: [
+      "Apply the same 'omit empty fields on create' fix to new test sheets so submitting one in real mode doesn't fail on SharePoint's strict 400",
+    ],
+  },
+  {
     version: "0.6.2",
     date: "2026-05-18",
     changes: [
