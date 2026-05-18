@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.2",
+    date: "2026-05-18",
+    changes: [
+      "Fix: creating a new task in real mode no longer fails with a Graph 400 — the API used to send null values for fields the user didn't pick (priority, category, due date, parent project) which SharePoint rejects on create; we now omit those fields instead",
+    ],
+  },
+  {
     version: "0.6.1",
     date: "2026-05-18",
     changes: [

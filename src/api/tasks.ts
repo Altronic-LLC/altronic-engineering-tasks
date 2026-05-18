@@ -511,19 +511,21 @@ export async function createTask(input: {
   }
 
   const path = `/sites/${SP_SITE_ID}/lists/${SP_LIST_ID}/items`;
+  // On create, only send fields the user actually filled in. SharePoint
+  // rejects null/empty values on POST (especially for lookup columns) — it
+  // wants the field omitted instead. The TaskFormModal hands us null/[] for
+  // unspecified choices so the equivalent guards live here.
   const fields: Record<string, unknown> = { Title: input.title };
-  if (input.description !== undefined) fields.Description = input.description;
+  if (input.description) fields.Description = input.description;
   if (input.status) fields.Status = input.status;
-  if (input.priority !== undefined) fields.Priority = input.priority;
-  if (input.category !== undefined) fields.Category = input.category;
-  if (input.labels) fields.Labels = input.labels;
-  if (input.dueDate !== undefined) {
-    fields.DueDate = input.dueDate ? input.dueDate.toISOString() : null;
-  }
-  if (input.parentProjectLookupId !== undefined) {
+  if (input.priority) fields.Priority = input.priority;
+  if (input.category) fields.Category = input.category;
+  if (input.labels && input.labels.length > 0) fields.Labels = input.labels;
+  if (input.dueDate) fields.DueDate = input.dueDate.toISOString();
+  if (input.parentProjectLookupId) {
     fields.Parent_x0020_Project_x0020_ReferLookupId = input.parentProjectLookupId;
   }
-  if (input.softwareRevision !== undefined) {
+  if (input.softwareRevision) {
     fields.SoftwareRevision = input.softwareRevision;
   }
   if (input.assigned && input.assigned.length > 0) {
