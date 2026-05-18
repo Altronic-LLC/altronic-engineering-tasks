@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
+  ClipboardList,
   Eye,
   EyeOff,
   Flag,
@@ -51,6 +52,8 @@ import { sanitiseHtml } from "@/lib/sanitiseHtml";
 import { CommentThread } from "@/components/CommentThread";
 import { CommentComposer } from "@/components/CommentComposer";
 import { TaskFormModal } from "@/components/TaskFormModal";
+import { TestSheetFormModal } from "@/components/TestSheetFormModal";
+import { useTestSheets } from "@/hooks/useTestSheets";
 import { LabelChip, StatusBadge, statusColor } from "@/components/atoms";
 import { cn } from "@/lib/cn";
 
@@ -74,6 +77,8 @@ export function DetailView() {
   const watchTask = useWatchTask();
   const unwatchTask = useUnwatchTask();
   const [showEdit, setShowEdit] = useState(false);
+  const [showNewTestSheet, setShowNewTestSheet] = useState(false);
+  const { data: allTestSheets = [] } = useTestSheets();
 
   // Comment-collision tracking: we render the comment thread from a frozen
   // snapshot of "comments the user has acknowledged seeing." Background
@@ -379,6 +384,15 @@ export function DetailView() {
                 <Pencil className="h-4 w-4" />
                 Edit
               </button>
+              <button
+                onClick={() => setShowNewTestSheet(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:bg-surface-2"
+                title="Create a test sheet linked to this task"
+              >
+                <ClipboardList className="h-4 w-4" />
+                <span className="hidden sm:inline">New Test Sheet</span>
+                <span className="sm:hidden">Test Sheet</span>
+              </button>
               <Link
                 to={`/task/${task.id}/print`}
                 target="_blank"
@@ -420,6 +434,42 @@ export function DetailView() {
               <div className="text-sm text-fg-muted">No description.</div>
             )}
           </div>
+
+          {/* Test sheets linked to this task — only renders if any exist. */}
+          {(() => {
+            const linkedSheets = allTestSheets.filter((s) => s.parentTask?.id === task.id);
+            if (linkedSheets.length === 0) return null;
+            return (
+              <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
+                <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wider text-fg-muted">
+                  Test sheets ({linkedSheets.length})
+                </h2>
+                <div className="flex flex-col gap-1.5">
+                  {linkedSheets.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => navigate(`/test-sheet/${s.id}`)}
+                      className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2 text-left text-sm transition-colors hover:border-fg-muted hover:bg-surface-2"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <ClipboardList className="h-3.5 w-3.5 shrink-0 text-fg-muted" />
+                        <span className="truncate font-medium text-fg">{s.title}</span>
+                      </div>
+                      <span className="shrink-0 text-xs text-fg-muted">
+                        {s.testDate
+                          ? s.testDate.toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "no date"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Child tasks card — only renders if this task has children */}
           {task.childTasks.length > 0 && (
@@ -674,6 +724,13 @@ export function DetailView() {
 
       {showEdit && (
         <TaskFormModal mode="edit" task={task} onClose={() => setShowEdit(false)} />
+      )}
+      {showNewTestSheet && (
+        <TestSheetFormModal
+          mode="create"
+          fromTask={task}
+          onClose={() => setShowNewTestSheet(false)}
+        />
       )}
     </div>
   );

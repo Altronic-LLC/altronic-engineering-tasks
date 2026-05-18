@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.0",
+    date: "2026-05-18",
+    changes: [
+      "New 'Test Sheets' tab in the top nav — see, search, create, and edit test sheets stored in the SharePoint Test Results list",
+      "Each task now has a 'New Test Sheet' button on its detail page; click it to create a test sheet pre-linked to that task and its parent project",
+      "Tasks that have test sheets show them as clickable pills on the task detail page",
+      "Test sheets carry all 11 SharePoint columns: Title, Product, Serial Number, Purpose, Test Date, Project + Task references, Tester, Testing Steps, Results, Firmware Version",
+    ],
+  },
+  {
     version: "0.5.2",
     date: "2026-05-18",
     changes: [

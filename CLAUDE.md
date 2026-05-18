@@ -272,6 +272,8 @@ Already confirmed (don't change without re-verifying):
 - **Site URL:** <https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering>
 - **Task List ID:** `42fb8c19-5f33-4fdd-9ef7-df6f21433588`
 - **Task List name:** Project Task List
+- **Projects List ID:** `6280c711-14f6-4546-b730-8781b9d3c960` (env: `VITE_SP_PROJECTS_LIST_ID`)
+- **Test Results List ID:** `52173cd3-74ca-4d30-95c4-7a6b2d765edc` (env: `VITE_SP_TEST_RESULTS_LIST_ID`) — drives the Test Sheets view and the "Create Test Sheet" button on tasks. Both Project Reference and Task Reference columns point back to the lists above, so creating from a task is just two `LookupId` writes.
 
 ## Theming
 

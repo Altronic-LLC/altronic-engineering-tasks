@@ -1,4 +1,4 @@
-import type { Task, ProjectReference } from "@/types/task";
+import type { Task, ProjectReference, TestSheet } from "@/types/task";
 
 // =============================================================================
 // Mock data — modelled on the real Project Task List schema discovered during
@@ -409,3 +409,73 @@ export const MOCK_TASKS: Task[] = MOCK_TASKS_RAW.map((t) => ({
   ...t,
   author: PEOPLE_BY_LOOKUP_ID.get(t.authorLookupId) ?? null,
 }));
+
+// =============================================================================
+// Test Sheets — same shape mock data so the new TestSheets view has
+// something to render in demo mode. Each links to a real mock task by id
+// and a real mock project so the lookups resolve cleanly.
+// =============================================================================
+const taskRef = (id: number) => {
+  const t = MOCK_TASKS.find((x) => x.id === id);
+  return t ? { id: t.id, numberedTitle: t.numberedTitle } : null;
+};
+
+export const MOCK_TEST_SHEETS: TestSheet[] = [
+  {
+    id: 1,
+    title: "AMP-5000 Endurance Run — Unit #103",
+    product: "AMP-5000",
+    serialNumber: "AMP5K-2026-0103",
+    purpose:
+      "200-hour endurance run on prototype unit to validate driver-stage thermal margins under continuous duty.",
+    results:
+      "Pass. Junction temps held below 105°C across all 200 hours. No drift observed in coil current. Captured oscillograms attached in SharePoint.",
+    testDate: new Date("2026-04-22T14:00:00"),
+    parentProject: projectByName("0017-AMP-5000 Refresh"),
+    parentTask: taskRef(115),
+    tester: RAY,
+    testingSteps:
+      "1. Burn-in for 30 min at 25°C ambient.\n2. Step to 45°C ambient.\n3. Run continuous load profile per spec for 200h.\n4. Sample temps and currents every 5 min.\n5. Compare end-state to baseline.",
+    firmwareVersion: "5.2.0-rc3",
+    createdAt: new Date("2026-04-22T13:55:00"),
+    modifiedAt: new Date("2026-05-12T09:18:00"),
+    author: RAY,
+  },
+  {
+    id: 2,
+    title: "CleanBurn Telemetry — Lab dry-run",
+    product: "CleanBurn Edge Gateway",
+    serialNumber: "CB-LAB-007",
+    purpose:
+      "Verify telemetry packet format and timing against the new schema before deploying to the Brookfield site.",
+    results:
+      "Packets parse correctly. Two anomalies in the timestamp field on cold-boot — opening a ticket.",
+    testDate: new Date("2026-05-08T16:30:00"),
+    parentProject: projectByName("0021-CleanBurn Telemetry"),
+    parentTask: taskRef(63),
+    tester: CHANDANA,
+    testingSteps:
+      "Boot device cold.\nWatch first 60s of MQTT output.\nCompare to schema v2.1.\nRecord deltas.",
+    firmwareVersion: "1.4.2",
+    createdAt: new Date("2026-05-08T16:25:00"),
+    modifiedAt: new Date("2026-05-09T10:12:00"),
+    author: CHANDANA,
+  },
+  {
+    id: 3,
+    title: "AMP-5000 EMI sweep — pre-cert",
+    product: "AMP-5000",
+    serialNumber: "AMP5K-2026-0101",
+    purpose: "Internal EMI sweep ahead of third-party certification next month.",
+    results: "",
+    testDate: null,
+    parentProject: projectByName("0017-AMP-5000 Refresh"),
+    parentTask: taskRef(115),
+    tester: BRANDON,
+    testingSteps: "",
+    firmwareVersion: "5.2.0-rc3",
+    createdAt: new Date("2026-05-14T11:00:00"),
+    modifiedAt: new Date("2026-05-14T11:00:00"),
+    author: BRANDON,
+  },
+];

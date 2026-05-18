@@ -8,6 +8,8 @@ export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 export const SP_SITE_ID = import.meta.env.VITE_SP_SITE_ID;
 export const SP_LIST_ID = import.meta.env.VITE_SP_LIST_ID;
 export const SP_PROJECTS_LIST_ID = import.meta.env.VITE_SP_PROJECTS_LIST_ID;
+/** "Test Results" list on the same Altronic Engineering site. */
+export const SP_TEST_RESULTS_LIST_ID = import.meta.env.VITE_SP_TEST_RESULTS_LIST_ID;
 
 export const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 

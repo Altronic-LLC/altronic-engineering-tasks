@@ -164,6 +164,59 @@ export interface Task {
 }
 
 // =============================================================================
+// Test Results list — separate SharePoint list, see
+// https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering/Lists/Test%20Results
+//
+// Linked to tasks via the Task Reference lookup field; one task may have
+// zero or many test sheets. Both Project Reference and Task Reference
+// point to the same lists the rest of the app uses, so creating a test
+// sheet from a task is a matter of writing two LookupIds.
+// =============================================================================
+
+/** A bare reference to a parent task — just the bits needed to render a link. */
+export interface TaskReferenceLite {
+  id: number;
+  numberedTitle: string;
+}
+
+/** A single test sheet from the Test Results list. */
+export interface TestSheet {
+  id: number;
+  title: string;
+  product: string;
+  serialNumber: string;
+  purpose: string;
+  results: string;
+  testDate: Date | null;
+  /** Parent project lookup (resolved to title when projects list is loaded). */
+  parentProject: ProjectReference | null;
+  /** Parent task lookup. */
+  parentTask: TaskReferenceLite | null;
+  /** Single-person field. */
+  tester: Person | null;
+  testingSteps: string;
+  firmwareVersion: string;
+  createdAt: Date;
+  modifiedAt: Date;
+  author: Person | null;
+}
+
+export interface TestSheetItemFields {
+  Title?: string;
+  Product?: string;
+  SerialNumber?: string;
+  Purpose?: string;
+  Results?: string;
+  TestDate?: string;
+  ProjectReferenceLookupId?: string | number;
+  TaskReferenceLookupId?: string | number;
+  Tester?: unknown;
+  TestingSteps?: string;
+  FirmwareVersion?: string;
+  [key: string]: unknown;
+}
+
+// =============================================================================
 // Microsoft Graph response shapes — only the fields we touch
 // =============================================================================
 
