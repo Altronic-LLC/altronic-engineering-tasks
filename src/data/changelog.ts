@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.5.0",
+    date: "2026-05-18",
+    changes: [
+      "Project Reference and Assigned filters now accept multiple selections — pick a set of projects or a set of people and the list/board shows tasks matching any of them",
+      "Status pill counts at the top of the list view now reflect what the other filters select — they answer 'of the tasks matching my filters, how many are in each status' instead of always showing the global counts",
+      "Each multi-select shows an ✕ when you have selections; click it to clear that filter in one step",
+    ],
+  },
+  {
     version: "0.4.3",
     date: "2026-05-18",
     changes: [

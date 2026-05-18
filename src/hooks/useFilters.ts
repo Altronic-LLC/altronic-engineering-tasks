@@ -10,8 +10,8 @@ import { useCurrentUser } from "./useCurrentUser";
  *
  * URL param keys (intentionally short to keep address bar tidy):
  *   q          → search
- *   project    → projectId (integer)
- *   assigned   → assignedEmail (string, possibly empty)
+ *   project    → projectIds  (comma-separated integers, e.g. "10,20")
+ *   assigned   → assignedEmails (comma-separated emails)
  *   createdBy  → createdByEmail
  *
  * "Assigned to me" default: on first visit (URL has no `assigned` param at
@@ -47,17 +47,15 @@ export function useFilters(): [Filters, (next: Filters) => void] {
 
   const filters: Filters = useMemo(() => {
     const projectRaw = searchParams.get("project");
-    const projectId =
-      projectRaw && /^-?\d+$/.test(projectRaw) ? parseInt(projectRaw, 10) : null;
     const assignedRaw = searchParams.get("assigned");
     const createdByRaw = searchParams.get("createdBy");
     return {
       search: searchParams.get("q") ?? "",
-      projectId,
-      // Empty-string assigned means "explicitly Anyone" — present in URL,
-      // null in the filter shape. The presence of the param suppresses the
-      // first-visit default; the null tells applyFilters to skip the check.
-      assignedEmail: assignedRaw ? assignedRaw : null,
+      projectIds: parseIntList(projectRaw),
+      // assignedEmails: empty array means explicit "Anyone" when the param
+      // is present, OR not-yet-defaulted when the param is absent. Either
+      // way, applyFilters skips the assigned check.
+      assignedEmails: parseStringList(assignedRaw),
       createdByEmail: createdByRaw ? createdByRaw : null,
     };
   }, [searchParams]);
@@ -69,12 +67,12 @@ export function useFilters(): [Filters, (next: Filters) => void] {
           const out = new URLSearchParams(prev);
           if (next.search) out.set("q", next.search);
           else out.delete("q");
-          if (next.projectId != null) out.set("project", String(next.projectId));
+          if (next.projectIds.length > 0) out.set("project", next.projectIds.join(","));
           else out.delete("project");
-          // assignedEmail: always present in URL after first interaction.
-          // null/empty → explicit "Anyone" (preserved so the default doesn't
-          // re-apply on refresh).
-          if (next.assignedEmail) out.set("assigned", next.assignedEmail);
+          // assignedEmails: always present in URL after first interaction.
+          // Empty array → explicit "Anyone" (preserved as ?assigned= so the
+          // first-visit default doesn't re-apply on refresh).
+          if (next.assignedEmails.length > 0) out.set("assigned", next.assignedEmails.join(","));
           else out.set("assigned", "");
           if (next.createdByEmail) out.set("createdBy", next.createdByEmail);
           else out.delete("createdBy");
@@ -87,4 +85,21 @@ export function useFilters(): [Filters, (next: Filters) => void] {
   );
 
   return [filters, setFilters];
+}
+
+function parseIntList(raw: string | null): number[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => /^-?\d+$/.test(s))
+    .map((s) => parseInt(s, 10));
+}
+
+function parseStringList(raw: string | null): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }

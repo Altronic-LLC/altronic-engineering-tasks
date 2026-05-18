@@ -34,13 +34,12 @@ function useFiltersAndLocation() {
 }
 
 describe("useFilters — first-visit default", () => {
-  it("fills assigned with the current user when URL has no assigned param", async () => {
+  it("fills assigned with the current user when URL has no assigned param", () => {
     const { result, rerender } = renderHook(() => useFiltersAndLocation(), {
       wrapper: wrapperFor("/"),
     });
-    // Effect runs after first render; rerender to pick up the URL update.
     rerender();
-    expect(result.current.filters.assignedEmail).toBe("me@example.com");
+    expect(result.current.filters.assignedEmails).toEqual(["me@example.com"]);
     expect(result.current.search).toContain("assigned=me%40example.com");
   });
 
@@ -48,7 +47,7 @@ describe("useFilters — first-visit default", () => {
     const { result } = renderHook(() => useFiltersAndLocation(), {
       wrapper: wrapperFor("/?assigned=other@x.com"),
     });
-    expect(result.current.filters.assignedEmail).toBe("other@x.com");
+    expect(result.current.filters.assignedEmails).toEqual(["other@x.com"]);
   });
 
   it("respects explicit 'Anyone' (?assigned= empty) — no re-default", () => {
@@ -56,8 +55,7 @@ describe("useFilters — first-visit default", () => {
       wrapper: wrapperFor("/?assigned="),
     });
     rerender();
-    expect(result.current.filters.assignedEmail).toBeNull();
-    // URL should still have ?assigned= (preserved), not removed.
+    expect(result.current.filters.assignedEmails).toEqual([]);
     expect(result.current.search).toContain("assigned=");
   });
 
@@ -67,31 +65,47 @@ describe("useFilters — first-visit default", () => {
       wrapper: wrapperFor("/"),
     });
     rerender();
-    expect(result.current.filters.assignedEmail).toBeNull();
+    expect(result.current.filters.assignedEmails).toEqual([]);
     expect(result.current.search).toBe("");
   });
 });
 
-describe("useFilters — parsing from URL", () => {
+describe("useFilters — parsing comma-separated lists", () => {
+  it("parses multi-value assigned", () => {
+    const { result } = renderHook(() => useFiltersAndLocation(), {
+      wrapper: wrapperFor("/?assigned=alice@x.com,bob@x.com"),
+    });
+    expect(result.current.filters.assignedEmails).toEqual(["alice@x.com", "bob@x.com"]);
+  });
+
+  it("parses multi-value project ids", () => {
+    const { result } = renderHook(() => useFiltersAndLocation(), {
+      wrapper: wrapperFor("/?assigned=x&project=10,20,30"),
+    });
+    expect(result.current.filters.projectIds).toEqual([10, 20, 30]);
+  });
+
+  it("filters out non-integer entries in project list", () => {
+    const { result } = renderHook(() => useFiltersAndLocation(), {
+      wrapper: wrapperFor("/?assigned=x&project=10,abc,30"),
+    });
+    expect(result.current.filters.projectIds).toEqual([10, 30]);
+  });
+
+  it("returns empty arrays when params absent", () => {
+    mockUser.email = "";
+    const { result } = renderHook(() => useFiltersAndLocation(), {
+      wrapper: wrapperFor("/"),
+    });
+    expect(result.current.filters.projectIds).toEqual([]);
+    expect(result.current.filters.assignedEmails).toEqual([]);
+  });
+
   it("parses q into search", () => {
     const { result } = renderHook(() => useFiltersAndLocation(), {
       wrapper: wrapperFor("/?assigned=x&q=hello%20world"),
     });
     expect(result.current.filters.search).toBe("hello world");
-  });
-
-  it("parses project into integer projectId", () => {
-    const { result } = renderHook(() => useFiltersAndLocation(), {
-      wrapper: wrapperFor("/?assigned=x&project=42"),
-    });
-    expect(result.current.filters.projectId).toBe(42);
-  });
-
-  it("rejects non-integer project param", () => {
-    const { result } = renderHook(() => useFiltersAndLocation(), {
-      wrapper: wrapperFor("/?assigned=x&project=abc"),
-    });
-    expect(result.current.filters.projectId).toBeNull();
   });
 
   it("parses createdBy", () => {
@@ -100,50 +114,37 @@ describe("useFilters — parsing from URL", () => {
     });
     expect(result.current.filters.createdByEmail).toBe("alice@x.com");
   });
-
-  it("returns empty defaults when no params present and user has no email", () => {
-    mockUser.email = "";
-    const { result } = renderHook(() => useFiltersAndLocation(), {
-      wrapper: wrapperFor("/"),
-    });
-    expect(result.current.filters).toEqual({
-      search: "",
-      projectId: null,
-      assignedEmail: null,
-      createdByEmail: null,
-    });
-  });
 });
 
 describe("useFilters — setFilters writes back", () => {
-  it("writes search, project, assigned, createdBy to URL", () => {
+  it("writes comma-joined arrays to URL", () => {
     const { result, rerender } = renderHook(() => useFiltersAndLocation(), {
       wrapper: wrapperFor("/?assigned=x"),
     });
     act(() => {
       result.current.setFilters({
         search: "foo",
-        projectId: 10,
-        assignedEmail: "alice@x.com",
-        createdByEmail: "bob@x.com",
+        projectIds: [10, 20],
+        assignedEmails: ["alice@x.com", "bob@x.com"],
+        createdByEmail: "carol@x.com",
       });
     });
     rerender();
     expect(result.current.search).toContain("q=foo");
-    expect(result.current.search).toContain("project=10");
-    expect(result.current.search).toContain("assigned=alice%40x.com");
-    expect(result.current.search).toContain("createdBy=bob%40x.com");
+    expect(result.current.search).toContain("project=10%2C20");
+    expect(result.current.search).toContain("assigned=alice%40x.com%2Cbob%40x.com");
+    expect(result.current.search).toContain("createdBy=carol%40x.com");
   });
 
-  it("removes q/project/createdBy when set to empty values", () => {
+  it("removes optional params when arrays are empty / values null", () => {
     const { result, rerender } = renderHook(() => useFiltersAndLocation(), {
       wrapper: wrapperFor("/?assigned=x&q=foo&project=10&createdBy=bob@x.com"),
     });
     act(() => {
       result.current.setFilters({
         search: "",
-        projectId: null,
-        assignedEmail: "alice@x.com",
+        projectIds: [],
+        assignedEmails: ["alice@x.com"],
         createdByEmail: null,
       });
     });
@@ -154,22 +155,20 @@ describe("useFilters — setFilters writes back", () => {
     expect(result.current.search).toContain("assigned=alice");
   });
 
-  it("preserves assigned= (empty) when user picks Anyone — prevents re-default", () => {
+  it("preserves assigned= (empty) when assignedEmails is cleared — prevents re-default", () => {
     const { result, rerender } = renderHook(() => useFiltersAndLocation(), {
       wrapper: wrapperFor("/?assigned=me@example.com"),
     });
     act(() => {
       result.current.setFilters({
         search: "",
-        projectId: null,
-        assignedEmail: null,
+        projectIds: [],
+        assignedEmails: [],
         createdByEmail: null,
       });
     });
     rerender();
-    expect(result.current.filters.assignedEmail).toBeNull();
-    // The param must remain in the URL (empty value) — otherwise the
-    // first-visit default would silently re-apply on the next mount.
+    expect(result.current.filters.assignedEmails).toEqual([]);
     expect(result.current.search).toContain("assigned=");
   });
 });

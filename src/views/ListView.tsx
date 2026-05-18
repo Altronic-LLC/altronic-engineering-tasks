@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { useProjects, useTasks } from "@/hooks/useTasks";
 import { useFilters } from "@/hooks/useFilters";
 import { StatusPills } from "@/components/StatusPills";
-import { FilterBar } from "@/components/FilterBar";
+import { EMPTY_FILTERS, FilterBar } from "@/components/FilterBar";
 import { TaskRow } from "@/components/TaskRow";
 import { TaskFormModal } from "@/components/TaskFormModal";
 import { applyFilters, collectPeople, type StatusFilter } from "@/lib/taskFilters";
@@ -18,15 +18,24 @@ export function ListView() {
   const [showNewTask, setShowNewTask] = useState(false);
 
   const people = useMemo(() => collectPeople(tasks), [tasks]);
+
+  // Two-pass filter so the StatusPills counts reflect the FilterBar
+  // selection without including the status filter (which is what the pills
+  // themselves are). If we passed the fully-filtered set, the active pill
+  // would always show its own count and every other pill would show 0.
+  const filteredByBar = useMemo(
+    () => applyFilters(tasks, null, filters),
+    [tasks, filters],
+  );
   const filtered = useMemo(
-    () => applyFilters(tasks, statusFilter, filters),
-    [tasks, statusFilter, filters],
+    () => applyFilters(filteredByBar, statusFilter, EMPTY_FILTERS),
+    [filteredByBar, statusFilter],
   );
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:gap-5 sm:px-6 sm:py-6">
       <div className="flex items-start justify-between gap-3">
-        <StatusPills tasks={tasks} activeFilter={statusFilter} onChange={setStatusFilter} />
+        <StatusPills tasks={filteredByBar} activeFilter={statusFilter} onChange={setStatusFilter} />
         <button
           onClick={() => setShowNewTask(true)}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent/90"

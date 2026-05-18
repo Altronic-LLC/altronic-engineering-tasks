@@ -38,8 +38,8 @@ function task(over: Partial<Task> = {}): Task {
 
 const NO_FILTERS: Filters = {
   search: "",
-  projectId: null,
-  assignedEmail: null,
+  projectIds: [],
+  assignedEmails: [],
   createdByEmail: null,
 };
 
@@ -88,37 +88,63 @@ describe("applyFilters", () => {
   });
 
   describe("project filter", () => {
-    it("keeps only tasks whose parent project matches", () => {
+    it("keeps only tasks whose parent project matches one of the selected ids", () => {
       const tasks = [
         task({ parentProject: { lookupId: 10, title: "P1" } }),
         task({ id: 2, parentProject: { lookupId: 20, title: "P2" } }),
-        task({ id: 3, parentProject: null }),
+        task({ id: 3, parentProject: { lookupId: 30, title: "P3" } }),
+        task({ id: 4, parentProject: null }),
       ];
-      const out = applyFilters(tasks, null, { ...NO_FILTERS, projectId: 10 });
-      expect(out.map((t) => t.id)).toEqual([1]);
+      const out = applyFilters(tasks, null, { ...NO_FILTERS, projectIds: [10, 30] });
+      expect(out.map((t) => t.id)).toEqual([1, 3]);
+    });
+
+    it("empty projectIds means no project filter", () => {
+      const tasks = [
+        task({ parentProject: { lookupId: 10, title: "P1" } }),
+        task({ id: 2, parentProject: null }),
+      ];
+      const out = applyFilters(tasks, null, { ...NO_FILTERS, projectIds: [] });
+      expect(out).toHaveLength(2);
+    });
+
+    it("excludes tasks with no parent project when projectIds is non-empty", () => {
+      const tasks = [task({ parentProject: null })];
+      const out = applyFilters(tasks, null, { ...NO_FILTERS, projectIds: [10] });
+      expect(out).toEqual([]);
     });
   });
 
   describe("assigned filter", () => {
-    it("matches by email", () => {
+    it("matches when at least one assignee email is in the list", () => {
       const tasks = [
         task({ assigned: [ALICE] }),
         task({ id: 2, assigned: [BOB] }),
+        task({ id: 3, assigned: [] }),
       ];
-      const out = applyFilters(tasks, null, { ...NO_FILTERS, assignedEmail: "alice@x.com" });
-      expect(out.map((t) => t.id)).toEqual([1]);
+      const out = applyFilters(tasks, null, {
+        ...NO_FILTERS,
+        assignedEmails: ["alice@x.com", "bob@x.com"],
+      });
+      expect(out.map((t) => t.id)).toEqual([1, 2]);
     });
 
     it("falls back to displayName when assignee has no email", () => {
       const tasks = [task({ assigned: [CAROL_NO_EMAIL] })];
-      const out = applyFilters(tasks, null, { ...NO_FILTERS, assignedEmail: "Carol" });
+      const out = applyFilters(tasks, null, { ...NO_FILTERS, assignedEmails: ["Carol"] });
       expect(out).toHaveLength(1);
     });
 
-    it("excludes tasks where no assignee matches", () => {
+    it("excludes tasks where no assignee matches any selected email", () => {
       const tasks = [task({ assigned: [ALICE] })];
-      const out = applyFilters(tasks, null, { ...NO_FILTERS, assignedEmail: "bob@x.com" });
+      const out = applyFilters(tasks, null, { ...NO_FILTERS, assignedEmails: ["bob@x.com"] });
       expect(out).toEqual([]);
+    });
+
+    it("empty assignedEmails means no assigned filter", () => {
+      const tasks = [task({ assigned: [] })];
+      const out = applyFilters(tasks, null, { ...NO_FILTERS, assignedEmails: [] });
+      expect(out).toHaveLength(1);
     });
   });
 
@@ -207,8 +233,8 @@ describe("applyFilters", () => {
     ];
     const out = applyFilters(tasks, null, {
       ...NO_FILTERS,
-      projectId: 10,
-      assignedEmail: "alice@x.com",
+      projectIds: [10],
+      assignedEmails: ["alice@x.com"],
       search: "match",
     });
     expect(out.map((t) => t.id)).toEqual([1]);

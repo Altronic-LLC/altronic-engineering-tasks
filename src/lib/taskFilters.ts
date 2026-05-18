@@ -36,12 +36,16 @@ export function applyFilters(
     if (statusFilter === "ALL_ACTIVE" && t.status === "Complete") return false;
     if (statusFilter && statusFilter !== "ALL_ACTIVE" && t.status !== statusFilter) return false;
 
-    if (filters.projectId != null && t.parentProject?.lookupId !== filters.projectId) return false;
+    if (filters.projectIds.length > 0) {
+      const ppid = t.parentProject?.lookupId;
+      if (ppid == null || !filters.projectIds.includes(ppid)) return false;
+    }
 
-    if (filters.assignedEmail) {
-      const has = t.assigned.some(
-        (p) => (p.email ?? p.displayName) === filters.assignedEmail,
-      );
+    if (filters.assignedEmails.length > 0) {
+      const has = t.assigned.some((p) => {
+        const key = p.email ?? p.displayName;
+        return filters.assignedEmails.includes(key);
+      });
       if (!has) return false;
     }
 
