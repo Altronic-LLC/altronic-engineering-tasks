@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.2",
+    date: "2026-05-18",
+    changes: [
+      "Task detail page now shows 'Created By' in the sidebar — the person who created the task, taken from SharePoint's built-in created-by record (no extra Graph calls)",
+      "Printable task view also includes Created By for documentation/audit purposes",
+    ],
+  },
+  {
     version: "0.4.1",
     date: "2026-05-18",
     changes: [

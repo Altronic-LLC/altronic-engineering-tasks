@@ -40,6 +40,10 @@ function loadMockStoreFromStorage(): Task[] | null {
     // Re-hydrate Date fields (JSON.parse leaves them as strings).
     return parsed.map((t) => ({
       ...t,
+      // Backwards compat: localStorage from before the `author` field was
+      // added won't have it. Default to null so the type stays satisfied
+      // and the UI shows "Unknown" for those grandfathered tasks.
+      author: t.author ?? null,
       createdAt: new Date(t.createdAt),
       modifiedAt: new Date(t.modifiedAt),
       dueDate: t.dueDate ? new Date(t.dueDate) : null,
@@ -457,6 +461,7 @@ export async function createTask(input: {
       createdAt: now,
       modifiedAt: now,
       authorLookupId: 0,
+      author: null,
       editorLookupId: 0,
       parentProject,
       relatedProjects: [],

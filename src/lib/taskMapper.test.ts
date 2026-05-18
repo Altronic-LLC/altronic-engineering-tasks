@@ -330,3 +330,30 @@ describe("toTask — parent task / children / misc", () => {
     expect(t.watchers[0].lookupId).toBe(0);
   });
 });
+
+describe("toTask — author (createdBy.user)", () => {
+  it("maps createdBy.user to author Person", () => {
+    const t = toTask(
+      makeItem({}, {
+        createdBy: { user: { displayName: "Sarah Shaffer", email: "sarah@x.com" } },
+      }),
+    );
+    expect(t.author).toEqual({ displayName: "Sarah Shaffer", email: "sarah@x.com" });
+  });
+
+  it("handles missing email on the user", () => {
+    const t = toTask(
+      makeItem({}, { createdBy: { user: { displayName: "Guest User" } } }),
+    );
+    expect(t.author).toEqual({ displayName: "Guest User", email: undefined });
+  });
+
+  it("returns null author when createdBy is absent", () => {
+    expect(toTask(makeItem()).author).toBeNull();
+  });
+
+  it("returns null author when createdBy.user has no displayName", () => {
+    const t = toTask(makeItem({}, { createdBy: { user: { email: "x@x.com" } } }));
+    expect(t.author).toBeNull();
+  });
+});

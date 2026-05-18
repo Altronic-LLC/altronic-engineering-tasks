@@ -31,7 +31,7 @@ const STEVEN = { displayName: "Steven Landreth", email: "steven.landreth@hoerbig
 const FEMI = { displayName: "femi Olugbon", email: "femi.olugbon@hoerbiger.com", lookupId: 198 };
 const BRANDON = { displayName: "Brandon Mirto", email: "brandon.mirto@hoerbiger.com", lookupId: 215 };
 
-export const MOCK_TASKS: Task[] = [
+const MOCK_TASKS_RAW: Omit<Task, "author">[] = [
   {
     id: 15,
     numberedTitle: "T0-335-Purchase Order from Jenbacher Needed",
@@ -397,3 +397,15 @@ export const MOCK_TASKS: Task[] = [
     hasAttachments: true,
   },
 ];
+
+// Inject `author` by mapping authorLookupId → known mock Person. Keeps the
+// per-task literals tidy and means we don't have to repeat the same object
+// on each task. New mock people just need to be added to this map.
+const PEOPLE_BY_LOOKUP_ID = new Map(
+  [SARAH, RAY, THOMAS, CHANDANA, AMANDA, STEVEN, FEMI, BRANDON].map((p) => [p.lookupId, p]),
+);
+
+export const MOCK_TASKS: Task[] = MOCK_TASKS_RAW.map((t) => ({
+  ...t,
+  author: PEOPLE_BY_LOOKUP_ID.get(t.authorLookupId) ?? null,
+}));

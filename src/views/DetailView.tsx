@@ -479,6 +479,10 @@ export function DetailView() {
                 })}
               </Field>
 
+              <Field icon={<User />} label="Created By">
+                {task.author ? task.author.displayName : "Unknown"}
+              </Field>
+
               <Field icon={<Calendar />} label="Due Date">
                 <input
                   type="date"

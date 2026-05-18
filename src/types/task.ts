@@ -127,6 +127,13 @@ export interface Task {
   modifiedAt: Date;
   /** Author lookup ID; resolved to a Person if we have the directory. */
   authorLookupId: number;
+  /**
+   * The person who created the task, resolved from the list item's
+   * `createdBy.user` (Graph returns this by default — no extra request
+   * needed). Null if the response didn't include it (older mock items
+   * pre-dating this field, or odd Graph responses).
+   */
+  author: Person | null;
   /** Editor lookup ID. */
   editorLookupId: number;
   /** Parent project — null if not set. */
@@ -164,6 +171,14 @@ export interface GraphListItem {
   id: string;
   createdDateTime: string;
   lastModifiedDateTime: string;
+  /**
+   * Graph returns createdBy / lastModifiedBy by default on every list item
+   * as identitySet objects. We capture `user` (displayName, email) because
+   * the SharePoint `AuthorLookupId` is just an integer and resolving names
+   * from it would otherwise require an extra User Information List call.
+   */
+  createdBy?: { user?: { displayName?: string; email?: string; id?: string } };
+  lastModifiedBy?: { user?: { displayName?: string; email?: string; id?: string } };
   fields: GraphItemFields;
 }
 

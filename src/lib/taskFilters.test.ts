@@ -21,6 +21,7 @@ function task(over: Partial<Task> = {}): Task {
     createdAt: new Date("2026-01-01"),
     modifiedAt: new Date("2026-01-01"),
     authorLookupId: 1,
+    author: null,
     editorLookupId: 1,
     parentProject: null,
     relatedProjects: [],

@@ -76,6 +76,9 @@ export function PrintTaskView() {
             {task.dueDate ? formatDate(task.dueDate, false) : "—"}
           </DetailRow>
           <DetailRow label="Created">{formatDate(task.createdAt)}</DetailRow>
+          <DetailRow label="Created By">
+            {task.author ? task.author.displayName : "Unknown"}
+          </DetailRow>
           <DetailRow label="Modified">{formatDate(task.modifiedAt)}</DetailRow>
           <DetailRow label="Assigned">
             {task.assigned.length === 0

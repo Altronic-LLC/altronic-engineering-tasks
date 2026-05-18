@@ -20,6 +20,7 @@ function makeTask(overrides: Partial<Task>): Task {
     createdAt: new Date(2024, 0, 1),
     modifiedAt: new Date(2024, 0, 1),
     authorLookupId: 0,
+    author: null,
     editorLookupId: 0,
     parentProject: null,
     relatedProjects: [],
