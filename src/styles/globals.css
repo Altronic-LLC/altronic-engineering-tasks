@@ -69,6 +69,23 @@ h3,
    Communication field. Constrains it so it can't blow out the layout. */
 .comment-html {
   @apply text-fg leading-relaxed;
+  /* overflow-wrap: anywhere is the modern way to force long unbroken
+     strings (URLs, hashes, code) to wrap rather than pushing the parent
+     wider. word-break:break-word is the older fallback for the same
+     thing. Either alone isn't enough across all browsers / content types. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+/* Wide content inside comments — preformatted blocks, code spans, and
+   tables — can still escape the wrap rule above unless we let them
+   scroll inside themselves. */
+.comment-html pre,
+.comment-html code {
+  @apply overflow-x-auto;
+  white-space: pre-wrap;
+}
+.comment-html table {
+  @apply block max-w-full overflow-x-auto;
 }
 .comment-html p {
   @apply mb-2;

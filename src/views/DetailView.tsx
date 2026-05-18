@@ -327,8 +327,14 @@ export function DetailView() {
       </button>
 
       <div className="flex flex-col gap-4 lg:flex-row">
-        {/* Main column */}
-        <div className="flex flex-1 flex-col gap-4">
+        {/* Main column.
+            min-w-0 is the critical bit: flex items default to
+            min-width:auto, which refuses to shrink below the widest piece
+            of content inside them. A long URL or unbroken string in a
+            comment would push this column past the viewport, forcing a
+            horizontal page scrollbar. min-w-0 lets it shrink so the
+            comment-html wrap rules can actually take effect. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
           {/* Header card */}
           <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
             {/* Parent task pill if present */}

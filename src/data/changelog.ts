@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.4.3",
+    date: "2026-05-18",
+    changes: [
+      "Task detail page no longer scrolls sideways when a comment or description contains a very long URL or unbroken string — long content now wraps to the column width",
+      "Code blocks and tables inside comments now scroll inside themselves rather than pushing the whole page wider",
+    ],
+  },
+  {
     version: "0.4.2",
     date: "2026-05-18",
     changes: [
