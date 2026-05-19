@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.11",
+    date: "2026-05-19",
+    changes: [
+      "Internal: removed the temporary createTask payload log — v0.6.9's @odata.type fix is confirmed working",
+    ],
+  },
+  {
     version: "0.6.10",
     date: "2026-05-19",
     changes: [
