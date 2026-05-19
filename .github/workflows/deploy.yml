@@ -31,11 +31,16 @@ jobs:
           node-version: "22"
           cache: "npm"
 
-      - name: Pin npm to 11
-        run: npm install -g npm@11
-
       - name: Install
-        run: npm ci
+        # Node 22 ships with npm 10.x. Our contributors typically have
+        # npm 11 locally (Node 22+ with the latest), which produces a
+        # lockfile shape npm 10 rejects. The clean fix is to run `npm ci`
+        # through npx with a pinned version — no global install (which
+        # tends to fail with "Cannot find module 'promise-retry'" when
+        # npm tries to replace itself mid-run) and no version drift.
+        # Subsequent npm commands (test, build) just run scripts so they
+        # work fine on Node 22's built-in npm.
+        run: npx -y npm@11 ci
 
       - name: Test
         # Project standard is 100% unit-test coverage; tests must pass to
