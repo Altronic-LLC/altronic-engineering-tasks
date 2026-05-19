@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.9",
+    date: "2026-05-19",
+    changes: [
+      "Fix (attempt 3): multi-value Assigned and Watchers writes now include the '@odata.type: Collection(Edm.Int32)' annotation alongside the integer array — the documented Graph v1.0 format. The v0.6.7 plain-array shape still got rejected; this third try is the format Microsoft actually documents",
+    ],
+  },
+  {
     version: "0.6.8",
     date: "2026-05-19",
     changes: [

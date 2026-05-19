@@ -299,9 +299,14 @@ export async function setAssigned(id: number, people: Person[]): Promise<Task> {
   if (USE_MOCK) {
     return updateTaskFields(id, { Assigned: people });
   }
-  // Real Graph v1.0: multi-value person/lookup fields write as a plain
-  // array of lookup IDs. The `{ results: [...] }` envelope is the OLD
-  // SharePoint REST format and Graph 400s on it.
+  // Real Graph v1.0: multi-value lookup/person fields write as a plain
+  // array of lookup IDs, AND require an "@odata.type" annotation on the
+  // sibling key so Graph knows it's a collection (not a single int).
+  // Previous shapes that failed:
+  //   { AssignedLookupId: { results: [12] } }   ← old SP REST format
+  //   { AssignedLookupId: [12] }                ← plain array, also 400
+  // What works:
+  //   { "AssignedLookupId@odata.type": "Collection(Edm.Int32)", "AssignedLookupId": [12] }
   const lookupIds = people.map((p) => p.lookupId).filter((x): x is number => !!x);
   if (people.length > 0 && lookupIds.length === 0) {
     throw new Error(
@@ -309,7 +314,10 @@ export async function setAssigned(id: number, people: Person[]): Promise<Task> {
         "Try refreshing the page and signing in again.",
     );
   }
-  return updateTaskFields(id, { AssignedLookupId: lookupIds });
+  return updateTaskFields(id, {
+    "AssignedLookupId@odata.type": "Collection(Edm.Int32)",
+    AssignedLookupId: lookupIds,
+  });
 }
 
 /** Replace the Watchers list. */
@@ -324,7 +332,10 @@ export async function setWatchers(id: number, people: Person[]): Promise<Task> {
         "Try refreshing the page and signing in again.",
     );
   }
-  return updateTaskFields(id, { WatchersLookupId: lookupIds });
+  return updateTaskFields(id, {
+    "WatchersLookupId@odata.type": "Collection(Edm.Int32)",
+    WatchersLookupId: lookupIds,
+  });
 }
 
 /** Add the given person to the watchers list (if not already there). */
@@ -555,12 +566,14 @@ export async function createTask(input: {
   if (input.assigned && input.assigned.length > 0) {
     const lookupIds = input.assigned.map((p) => p.lookupId).filter((x): x is number => !!x);
     if (lookupIds.length > 0) {
+      fields["AssignedLookupId@odata.type"] = "Collection(Edm.Int32)";
       fields.AssignedLookupId = lookupIds;
     }
   }
   if (input.watchers && input.watchers.length > 0) {
     const lookupIds = input.watchers.map((p) => p.lookupId).filter((x): x is number => !!x);
     if (lookupIds.length > 0) {
+      fields["WatchersLookupId@odata.type"] = "Collection(Edm.Int32)";
       fields.WatchersLookupId = lookupIds;
     }
   }
