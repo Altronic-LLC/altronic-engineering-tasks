@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.2",
+    date: "2026-05-19",
+    changes: [
+      "Dashboard rearranged so 'All Open Tasks' sits directly next to the status breakdown — the two team-level views are read together. Top row is now My Tasks + EIRs + ECNs + Build Requests; second row is All Open Tasks alongside the breakdown panel",
+    ],
+  },
+  {
     version: "0.8.1",
     date: "2026-05-19",
     changes: [

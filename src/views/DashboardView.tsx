@@ -129,7 +129,9 @@ export function DashboardView() {
         </div>
       </header>
 
-      {/* Primary metric grid — big numbers, clickable where the data is real. */}
+      {/* Primary metric grid — big numbers, clickable where the data is real.
+          My Open Tasks anchors the personal-view row. The team / external
+          metric cards (EIRs, ECNs, Build Requests) sit on the same row. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="My Open Tasks"
@@ -139,15 +141,6 @@ export function DashboardView() {
           hint="Assigned to you and not Complete"
           actionText="View my tasks →"
           onClick={() => navigate(tasksUrl({ mine: true }))}
-        />
-        <MetricCard
-          label="All Open Tasks"
-          value={allOpenTasks.length}
-          icon={<ListChecks className="h-5 w-5" />}
-          accent="muted"
-          hint="Active across the team"
-          actionText="View all tasks →"
-          onClick={() => navigate(tasksUrl({ mine: false }))}
         />
         <MockMetricCard
           label="EIRs"
@@ -161,14 +154,25 @@ export function DashboardView() {
           icon={<Wrench className="h-5 w-5" />}
           subtitle="Engineering Change Notices"
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <MockMetricCard
           label="Build Requests"
           value={getMetricCount("buildRequest", projectId)}
           icon={<HardHat className="h-5 w-5" />}
           subtitle="Open build / fabrication asks"
+        />
+      </div>
+
+      {/* All Open Tasks (the team-wide task count) sits next to the status
+          breakdown panel so the two team-level views are read together. */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <MetricCard
+          label="All Open Tasks"
+          value={allOpenTasks.length}
+          icon={<ListChecks className="h-5 w-5" />}
+          accent="muted"
+          hint="Active across the team"
+          actionText="View all tasks →"
+          onClick={() => navigate(tasksUrl({ mine: false }))}
         />
         <div className="lg:col-span-2 rounded-lg border border-border bg-surface p-4 sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
