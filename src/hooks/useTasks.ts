@@ -29,6 +29,8 @@ import type {
 } from "@/types/task";
 import { CATEGORIES, LABELS, PRIORITIES, STATUSES } from "@/types/task";
 import { pushToast } from "@/components/Toast";
+import { notifyMentions } from "@/api/email";
+import { extractMentionedRecipients } from "@/lib/mentions";
 
 const TASK_LIST_KEY = ["tasks", "list"] as const;
 const PROJECTS_KEY = ["projects"] as const;
@@ -435,11 +437,28 @@ export function useAddComment() {
             comment.attachments && comment.attachments.length > 0 ? true : t.hasAttachments,
         })),
       ),
-    onSuccess: () => {
-      // No undo: SharePoint's Communication field is a single string, and
-      // we'd have to read-modify-write to remove a specific record. Not
-      // worth the complexity for a low-error-rate operation. Just confirm.
+    onSuccess: (_data, { id, comment }) => {
       pushToast({ message: "Comment posted." });
+      // Fire-and-forget @-mention emails. Use the cached task for context;
+      // it has the title/URL info the email body needs. Failures are
+      // logged inside notifyMentions — they don't bubble back to the user.
+      const recipients = extractMentionedRecipients(comment.bodyHtml);
+      if (recipients.length > 0) {
+        const task = qc.getQueryData<Task[]>(TASK_LIST_KEY)?.find((t) => t.id === id);
+        if (task) {
+          const sender: Person = {
+            displayName: comment.authorName,
+            email: comment.authorEmail,
+          };
+          void notifyMentions({
+            recipients,
+            sender,
+            task,
+            commentExcerpt: htmlToPlainText(comment.bodyHtml),
+            attachments: comment.attachments ?? [],
+          });
+        }
+      }
     },
     onError: (_err, _vars, ctx) => {
       rollback(qc, ctx);
@@ -476,12 +495,13 @@ export function useEditComment() {
           modifiedAt: new Date(),
         })),
       ),
-    onSuccess: (_data, { id, target }, ctx) => {
-      const prevBody = ctx?.prevTask?.comments.find(
+    onSuccess: (_data, { id, target, newBodyHtml }, ctx) => {
+      const prevComment = ctx?.prevTask?.comments.find(
         (c) =>
           c.timestamp.getTime() === target.timestamp.getTime() &&
           (c.authorEmail ?? "").toLowerCase() === target.authorEmail.toLowerCase(),
-      )?.bodyHtml;
+      );
+      const prevBody = prevComment?.bodyHtml;
       pushToast({
         message: "Comment updated.",
         undo:
@@ -489,6 +509,33 @@ export function useEditComment() {
             ? buildUndo(qc, ctx?.previous, () => editComment(id, target, prevBody))
             : undefined,
       });
+      // Fire emails ONLY for mentions that weren't in the previous version —
+      // editing shouldn't re-spam people who were already pinged on the
+      // original post.
+      const prevMentions = new Set(
+        prevBody
+          ? extractMentionedRecipients(prevBody).map((r) => r.email.toLowerCase())
+          : [],
+      );
+      const newMentions = extractMentionedRecipients(newBodyHtml).filter(
+        (r) => !prevMentions.has(r.email.toLowerCase()),
+      );
+      if (newMentions.length > 0) {
+        const task = qc.getQueryData<Task[]>(TASK_LIST_KEY)?.find((t) => t.id === id);
+        if (task && prevComment) {
+          const sender: Person = {
+            displayName: prevComment.authorName,
+            email: prevComment.authorEmail,
+          };
+          void notifyMentions({
+            recipients: newMentions,
+            sender,
+            task,
+            commentExcerpt: htmlToPlainText(newBodyHtml),
+            attachments: prevComment.attachments ?? [],
+          });
+        }
+      }
     },
     onError: (_err, _vars, ctx) => {
       rollback(qc, ctx);
@@ -615,6 +662,27 @@ function extractInverseFields(prev: Task, fields: Record<string, unknown>): Reco
   if ("Labels" in fields) inv.Labels = prev.labels;
   if ("SoftwareRevision" in fields) inv.SoftwareRevision = prev.softwareRevision;
   return inv;
+}
+
+/**
+ * Strip HTML to plain text for use in the email-notification body. Just a
+ * tag-removal pass — we don't need a real HTML parser since the body comes
+ * from our own composer (paragraph blocks + line breaks + mention spans).
+ */
+function htmlToPlainText(html: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>\s*<p>/gi, "\n\n")
+    .replace(/<\/?p[^>]*>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
 }
 
 /**

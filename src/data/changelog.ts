@@ -20,6 +20,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.11.0",
+    date: "2026-05-19",
+    changes: [
+      "@-mentions in comments — start typing `@` and a picker pops up with everyone on the team (assignees + watchers across tasks + yourself). Arrow keys / Enter to pick; the chosen name becomes a styled chip in the comment",
+      "Mentioning someone in a comment emails them automatically — subject 'You were mentioned in {task}', body greets them by name, quotes the comment, and includes a clickable link straight to the task. Image / file attachments on the comment ride along as email attachments",
+      "Emails go out from a shared mailbox (configurable via the new VITE_SHARED_MAILBOX repo variable) using the signed-in user's Send-As permission — so recipients see a consistent 'from' address. Requires the new Mail.Send.Shared Graph scope (one-time admin consent). See CLAUDE.md for the setup steps",
+      "Editing a comment only emails NEW mentions (people who weren't already pinged on the original post)",
+      "Mock mode shows the email payload in the console so you can demo the flow without an Exchange mailbox configured",
+    ],
+  },
+  {
     version: "0.10.0",
     date: "2026-05-19",
     changes: [

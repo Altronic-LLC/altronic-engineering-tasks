@@ -11,6 +11,14 @@ export const SP_PROJECTS_LIST_ID = import.meta.env.VITE_SP_PROJECTS_LIST_ID;
 /** "Test Results" list on the same Altronic Engineering site. */
 export const SP_TEST_RESULTS_LIST_ID = import.meta.env.VITE_SP_TEST_RESULTS_LIST_ID;
 
+/**
+ * Email address of the shared mailbox @-mention notifications send FROM.
+ * Each user who can post comments must have Send-As permission on this
+ * mailbox in Exchange. Leave blank to disable email notifications — they
+ * fall back to console.log entries instead.
+ */
+export const SHARED_MAILBOX = import.meta.env.VITE_SHARED_MAILBOX as string | undefined;
+
 export const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
 /** Throw a clear error if the app tries to call Graph without being configured. */

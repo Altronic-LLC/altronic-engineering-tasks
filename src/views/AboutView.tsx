@@ -31,7 +31,7 @@ flowchart TB
     direction TB
     Views["Views<br/>Dashboard · List · Kanban<br/>Detail · Test Sheets · About"]
     Hooks["React Query hooks<br/>useTasks · useTestSheets<br/>useFilters · useCurrentUser"]
-    API["API layer<br/>src/api/tasks.ts<br/>src/api/testSheets.ts"]
+    API["API layer<br/>src/api/tasks.ts<br/>src/api/testSheets.ts<br/>src/api/email.ts"]
     Views --> Hooks --> API
   end
 
@@ -46,6 +46,10 @@ flowchart TB
 
   Browser -. sign in .-> MSAL
   MSAL -. access token .-> Graph
+
+  Mailbox[/"Shared mailbox<br/>VITE_SHARED_MAILBOX"/]
+  API -- "@-mention notifications<br/>(Mail.Send.Shared)" --> Mailbox
+  Mailbox -. email .-> Recipient([Mentioned user])
 
   subgraph SP["SharePoint lists"]
     direction TB

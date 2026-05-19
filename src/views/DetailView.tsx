@@ -490,7 +490,10 @@ export function DetailView() {
                 . Your comment was removed from the thread — try again.
               </div>
             )}
-            <CommentComposer onSubmit={handleAddComment} />
+            <CommentComposer
+              onSubmit={handleAddComment}
+              mentionablePeople={allPeople}
+            />
             {newExternalComments.length > 0 && (
               <NewCommentsBanner
                 comments={newExternalComments}

@@ -67,4 +67,11 @@ export function buildMsalConfig(): Configuration {
  * User.Read is included so the header can show the signed-in user's name
  * and email without an extra permission.
  */
-export const graphScopes = ["User.Read", "Sites.Selected"];
+export const graphScopes = [
+  "User.Read",
+  "Sites.Selected",
+  // Mail.Send.Shared lets the app send mail FROM a shared mailbox on behalf
+  // of the signed-in user (Exchange Send-As permission required for each
+  // user on the mailbox). Used for @-mention email notifications.
+  "Mail.Send.Shared",
+];

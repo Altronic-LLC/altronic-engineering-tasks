@@ -13,7 +13,9 @@ import DOMPurify from "dompurify";
  * (e.g. <video> for embedded recordings), add them to ADD_TAGS below.
  */
 const ADD_TAGS = ["u"]; // <u> is non-standard but appears in SP comments
-const ADD_ATTR = ["target", "rel"]; // allow target="_blank" on links
+// allow target/rel on links, and the data-email attribute on mention chips
+// so we can later extract recipients for email notifications
+const ADD_ATTR = ["target", "rel", "data-email"];
 
 export function sanitiseHtml(raw: string | null | undefined): string {
   if (!raw) return "";

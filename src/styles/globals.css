@@ -117,6 +117,19 @@ h3,
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+/* @mention chips: small accent-coloured pill inline with the comment text.
+   Persisted as <span class="mention" data-email="..."> in the body HTML. */
+.comment-html .mention,
+.mention {
+  display: inline-block;
+  padding: 0 0.35rem;
+  border-radius: 9999px;
+  background: rgb(var(--accent) / 0.12);
+  color: rgb(var(--accent));
+  font-weight: 600;
+  font-size: 0.875em;
+  line-height: 1.4;
+}
 
 /* Print page margins. The PrintTaskView component handles its own light
    styling, so we only need to control the paper margin here. */
