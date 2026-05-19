@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.6.8",
+    date: "2026-05-19",
+    changes: [
+      "Internal: re-added the temporary createTask payload log — v0.6.7's fix didn't fully resolve the Graph 400, need another look at the body shape",
+    ],
+  },
+  {
     version: "0.6.7",
     date: "2026-05-18",
     changes: [

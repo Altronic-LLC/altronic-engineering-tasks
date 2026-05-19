@@ -565,6 +565,10 @@ export async function createTask(input: {
     }
   }
 
+  // TEMP DEBUG (v0.6.8 — re-added): still 400'ing post-v0.6.7 with some
+  // different field shape, log the body until we nail it down.
+  // eslint-disable-next-line no-console
+  console.log("[createTask] POST body:", JSON.stringify({ fields }, null, 2));
   const created = await graphFetch<GraphListItem>(path, {
     method: "POST",
     body: JSON.stringify({ fields }),
