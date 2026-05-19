@@ -29,7 +29,7 @@ flowchart TB
 
   subgraph FE["Frontend (React SPA)"]
     direction TB
-    Views["Views<br/>List · Kanban · Detail<br/>Test Sheets · About"]
+    Views["Views<br/>Dashboard · List · Kanban<br/>Detail · Test Sheets · About"]
     Hooks["React Query hooks<br/>useTasks · useTestSheets<br/>useFilters · useCurrentUser"]
     API["API layer<br/>src/api/tasks.ts<br/>src/api/testSheets.ts"]
     Views --> Hooks --> API

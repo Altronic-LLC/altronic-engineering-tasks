@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ListView } from "@/views/ListView";
+import { DashboardView } from "@/views/DashboardView";
 import { KanbanView } from "@/views/KanbanView";
 import { DetailView } from "@/views/DetailView";
 import { PrintTaskView } from "@/views/PrintTaskView";
@@ -22,8 +23,8 @@ export function App() {
       {!isPrintRoute && <Header />}
       <main className="flex-1">
         <Routes>
-          <Route path="/" element={<ListView />} />
-          <Route path="/list" element={<Navigate to="/" replace />} />
+          <Route path="/" element={<DashboardView />} />
+          <Route path="/list" element={<ListView />} />
           <Route path="/kanban" element={<KanbanView />} />
           <Route path="/task/:id" element={<DetailView />} />
           <Route path="/task/:id/print" element={<PrintTaskView />} />

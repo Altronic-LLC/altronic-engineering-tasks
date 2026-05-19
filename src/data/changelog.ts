@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.0",
+    date: "2026-05-19",
+    changes: [
+      "New Engineering Dashboard as the landing page after sign-in — big-number cards for My Open Tasks, All Open Tasks, EIRs, ECNs, and Build Requests, plus a visual task-status breakdown panel",
+      "Each dashboard card is filterable by Project Reference at the top of the page, and the task cards click through to the List view with the matching project + assignee + status filters pre-applied",
+      "EIRs, ECNs, and Build Requests are mock counts for now — their SharePoint lists don't exist yet. The scaffolding is in place so wiring up real data later is a single-file swap (src/data/dashboardMockData.ts → a real hook)",
+      "Header nav now has Dashboard + List as separate entries; bookmarked links to '/' show the dashboard, '/list' is the task list",
+    ],
+  },
+  {
     version: "0.7.1",
     date: "2026-05-19",
     changes: [

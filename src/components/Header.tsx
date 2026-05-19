@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { ClipboardList, LayoutGrid, List, Moon, Shield, Sun } from "lucide-react";
+import { ClipboardList, LayoutDashboard, LayoutGrid, List, Moon, Shield, Sun } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -13,7 +13,8 @@ export function Header() {
   const { pathname } = useLocation();
   const isAdmin = useIsAdmin();
 
-  const isList = pathname === "/" || pathname.startsWith("/list");
+  const isDashboard = pathname === "/";
+  const isList = pathname.startsWith("/list");
   const isKanban = pathname.startsWith("/kanban");
   const isTestSheets =
     pathname.startsWith("/test-sheets") || pathname.startsWith("/test-sheet/");
@@ -49,6 +50,17 @@ export function Header() {
         <nav className="flex items-center justify-center gap-1 rounded-lg bg-surface-2 p-1 sm:justify-start">
           <Link
             to="/"
+            className={cn(
+              "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
+              isDashboard ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",
+            )}
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            <span className="hidden sm:inline">Dashboard</span>
+            <span className="sm:hidden">Home</span>
+          </Link>
+          <Link
+            to="/list"
             className={cn(
               "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
               isList ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",

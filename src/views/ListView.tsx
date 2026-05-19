@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { useProjects, useTasks } from "@/hooks/useTasks";
 import { useFilters } from "@/hooks/useFilters";
@@ -9,12 +9,28 @@ import { LoadingTasks } from "@/components/LoadingTasks";
 import { TaskRow } from "@/components/TaskRow";
 import { TaskFormModal } from "@/components/TaskFormModal";
 import { applyFilters, collectPeople, type StatusFilter } from "@/lib/taskFilters";
+import { STATUSES, type Status } from "@/types/task";
+
+/**
+ * Read the initial status filter from a `?status=` URL param so the
+ * Dashboard cards can deep-link to specific status views. Accepts any
+ * known Status value or the literal "ALL_ACTIVE". Unknown values fall
+ * back to ALL_ACTIVE (the default).
+ */
+function readInitialStatus(raw: string | null): StatusFilter {
+  if (raw === "ALL_ACTIVE") return "ALL_ACTIVE";
+  if (raw && (STATUSES as readonly string[]).includes(raw)) return raw as Status;
+  return "ALL_ACTIVE";
+}
 
 export function ListView() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: tasks = [], isLoading } = useTasks();
   const { data: projects = [] } = useProjects();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL_ACTIVE");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
+    readInitialStatus(searchParams.get("status")),
+  );
   const [filters, setFilters] = useFilters();
   const [showNewTask, setShowNewTask] = useState(false);
 
