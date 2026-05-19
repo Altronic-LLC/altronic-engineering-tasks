@@ -33,6 +33,9 @@ export function DashboardView() {
   const { data: projects = [] } = useProjects();
   const currentUser = useCurrentUser();
   const [projectId, setProjectId] = useState<number | null>(null);
+  // Status breakdown defaults to the current user's tasks. They can flip
+  // it to "Company" if they want the team-wide view.
+  const [breakdownScope, setBreakdownScope] = useState<"mine" | "company">("mine");
 
   const myEmail = (currentUser.email ?? "").toLowerCase();
 
@@ -53,6 +56,15 @@ export function DashboardView() {
       ),
     [allOpenTasks, myEmail],
   );
+  // Status breakdown reads from the current scope toggle. Mine = only tasks
+  // where the signed-in user is in the Assigned list; Company = everything
+  // in the project scope.
+  const breakdownSource = useMemo(() => {
+    if (breakdownScope === "company") return projectScoped;
+    return projectScoped.filter((t) =>
+      t.assigned.some((p) => (p.email ?? "").toLowerCase() === myEmail),
+    );
+  }, [projectScoped, breakdownScope, myEmail]);
   const byStatus = useMemo(() => {
     const out: Record<Status, number> = {
       BACKLOG: 0,
@@ -62,9 +74,9 @@ export function DashboardView() {
       Blocked: 0,
       Complete: 0,
     };
-    for (const t of projectScoped) out[t.status]++;
+    for (const t of breakdownSource) out[t.status]++;
     return out;
-  }, [projectScoped]);
+  }, [breakdownSource]);
 
   const projectOptions = projects.map((p) => ({
     value: String(p.lookupId),
@@ -159,21 +171,36 @@ export function DashboardView() {
           subtitle="Open build / fabrication asks"
         />
         <div className="lg:col-span-2 rounded-lg border border-border bg-surface p-4 sm:p-5">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wider text-fg-muted">
               <ClipboardCheck className="h-4 w-4" />
               Task status breakdown
             </h2>
-            <button
-              onClick={() => navigate(tasksUrl({ mine: false }))}
-              className="text-xs text-accent underline-offset-2 hover:underline"
-            >
-              View list →
-            </button>
+            <div className="flex items-center gap-2">
+              <SegmentToggle
+                value={breakdownScope}
+                onChange={setBreakdownScope}
+                options={[
+                  { value: "mine", label: "Mine" },
+                  { value: "company", label: "Company" },
+                ]}
+              />
+              <button
+                onClick={() =>
+                  navigate(tasksUrl({ mine: breakdownScope === "mine" }))
+                }
+                className="text-xs text-accent underline-offset-2 hover:underline"
+              >
+                View list →
+              </button>
+            </div>
           </div>
-          <StatusBars byStatus={byStatus} onClickStatus={(s) =>
-            navigate(tasksUrl({ mine: false, status: s }))
-          } />
+          <StatusBars
+            byStatus={byStatus}
+            onClickStatus={(s) =>
+              navigate(tasksUrl({ mine: breakdownScope === "mine", status: s }))
+            }
+          />
         </div>
       </div>
 
@@ -305,6 +332,38 @@ function StatusBars({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+interface SegmentToggleProps<T extends string> {
+  value: T;
+  onChange: (next: T) => void;
+  options: { value: T; label: string }[];
+}
+
+function SegmentToggle<T extends string>({
+  value,
+  onChange,
+  options,
+}: SegmentToggleProps<T>) {
+  return (
+    <div className="inline-flex items-center rounded-md border border-border bg-surface-2 p-0.5 text-xs">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            "rounded-sm px-2.5 py-1 font-medium transition-colors",
+            value === o.value
+              ? "bg-surface text-fg shadow-sm"
+              : "text-fg-muted hover:text-fg",
+          )}
+          aria-pressed={value === o.value}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }

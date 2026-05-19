@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.1",
+    date: "2026-05-19",
+    changes: [
+      "Dashboard task-status breakdown now defaults to YOUR tasks (Mine), with a Mine / Company toggle in the panel header so you can flip to the full team view when you want to see how the workload is distributed",
+      "Clicking a status bar deep-links to the List view respecting the current toggle — Mine → ?assigned=me, Company → ?assigned= (Anyone)",
+    ],
+  },
+  {
     version: "0.8.0",
     date: "2026-05-19",
     changes: [
