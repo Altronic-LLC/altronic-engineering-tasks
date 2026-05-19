@@ -12,6 +12,7 @@ import { AdminProjectsView } from "@/views/AdminProjectsView";
 import { TestSheetsView } from "@/views/TestSheetsView";
 import { TestSheetDetailView } from "@/views/TestSheetDetailView";
 import { AboutView } from "@/views/AboutView";
+import { ManualView } from "@/views/ManualView";
 
 export function App() {
   // The print route is intentionally chrome-less so the saved PDF doesn't
@@ -34,6 +35,7 @@ export function App() {
           <Route path="/test-sheets" element={<TestSheetsView />} />
           <Route path="/test-sheet/:id" element={<TestSheetDetailView />} />
           <Route path="/about" element={<AboutView />} />
+          <Route path="/manual" element={<ManualView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

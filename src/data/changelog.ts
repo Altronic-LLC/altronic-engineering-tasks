@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.12.0",
+    date: "2026-05-19",
+    changes: [
+      "New User Manual page in the app — organised by task (Quick start, Dashboard, List, Kanban, Tasks, Comments, Test Sheets, Filters, Notifications, Undo, Mobile, Troubleshooting) with a sticky table of contents",
+      "Link to the manual is the first item on the About page",
+      "CLAUDE.md now spells out 'update the manual in the same commit' for any user-visible change, alongside the existing rule for the system diagrams",
+    ],
+  },
+  {
     version: "0.11.4",
     date: "2026-05-19",
     changes: [

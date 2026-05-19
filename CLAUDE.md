@@ -351,6 +351,26 @@ No code-review hand-wringing, no separate ticket — just edit the strings
 in the same commit. The footer "About" link is the source of truth that
 new team members see when they want to understand the system.
 
+### User-visible changes — REQUIRED: update the user manual
+
+`src/views/ManualView.tsx` is the in-app User Manual end users see when
+they click "User Manual" on the About page. Like the About diagrams, it
+goes stale fast if we don't maintain it deliberately.
+
+**Update the manual in the same commit when you:**
+
+- Add a user-facing feature (new view, new form, new toolbar action).
+- Change how an existing feature works (rename a field, move a button,
+  change a default).
+- Add/remove a keyboard shortcut.
+- Change a notification path (email recipients, who gets pinged, etc.).
+- Modify the filter / search semantics.
+
+Sections in the manual are organised by user task — drop additions into
+the right section rather than starting new ones. Keep section ids stable
+so external links don't break. Tone: declarative, present-tense, "you do
+X to get Y." Skip implementation detail.
+
 ## Known limitations / TODO
 
 - **Person picker (write):** Assigning users isn't wired up — currently the

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { ArrowLeft, ExternalLink, Info } from "lucide-react";
+import { ArrowLeft, BookOpen, ExternalLink, Info } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 import { CURRENT_VERSION } from "@/data/changelog";
@@ -29,7 +29,7 @@ flowchart TB
 
   subgraph FE["Frontend (React SPA)"]
     direction TB
-    Views["Views<br/>Dashboard · List · Kanban<br/>Detail · Test Sheets · About"]
+    Views["Views<br/>Dashboard · List · Kanban<br/>Detail · Test Sheets<br/>About · Manual"]
     Hooks["React Query hooks<br/>useTasks · useTestSheets<br/>useFilters · useCurrentUser"]
     API["API layer<br/>src/api/tasks.ts<br/>src/api/testSheets.ts<br/>src/api/email.ts"]
     Views --> Hooks --> API
@@ -113,6 +113,12 @@ export function AboutView() {
           SharePoint links together.
         </p>
         <div className="mt-4 flex flex-wrap gap-2 text-xs">
+          <Link
+            to="/manual"
+            className="inline-flex items-center gap-1 rounded-md border border-accent bg-accent/10 px-2 py-1 font-medium text-accent transition-colors hover:bg-accent/20"
+          >
+            <BookOpen className="h-3 w-3" /> User Manual
+          </Link>
           <a
             href="https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering/Lists/Project%20Task%20List/AllItems.aspx"
             target="_blank"
