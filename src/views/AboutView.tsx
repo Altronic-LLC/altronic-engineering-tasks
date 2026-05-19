@@ -24,74 +24,56 @@ import { CURRENT_VERSION } from "@/data/changelog";
 // =============================================================================
 
 const systemDiagram = `
-flowchart TD
+flowchart TB
   Browser([User browser])
-  Auth[/MSAL Entra ID/]
-  Browser -->|sign in| Auth
-  Auth -. access token .-> Graph
 
-  subgraph FE["Frontend (React app)"]
+  subgraph FE["Frontend (React SPA)"]
     direction TB
-    Header["Header + Footer chrome"]
-    ListView["/ (List view)"]
-    KanbanView["/kanban (Kanban)"]
-    DetailView["/task/:id (Task detail)"]
-    TestSheetsView["/test-sheets (Test sheets list)"]
-    TestSheetDetailView["/test-sheet/:id (Test sheet detail)"]
-    ProjectView["/project/:id (Project view)"]
-    AdminView["/admin/projects"]
-    AboutView["/about (this page)"]
-
-    Header --> ListView & KanbanView & TestSheetsView & ProjectView & AdminView & AboutView
-
-    useTasks{{"useTasks hooks<br/>(useTask, useCreateTask, useSetStatus, useAddComment, ...)"}}
-    useTestSheets{{"useTestSheets hooks<br/>(useTestSheet, useCreateTestSheet, ...)"}}
-    useFilters{{"useFilters<br/>(URL-backed filter state)"}}
-    useCurrentUser{{"useCurrentUser"}}
-
-    ListView & KanbanView & DetailView --> useTasks
-    TestSheetsView & TestSheetDetailView --> useTestSheets
-    ListView & KanbanView --> useFilters
-    DetailView --> useCurrentUser
+    Views["Views<br/>List · Kanban · Detail<br/>Test Sheets · About"]
+    Hooks["React Query hooks<br/>useTasks · useTestSheets<br/>useFilters · useCurrentUser"]
+    API["API layer<br/>src/api/tasks.ts<br/>src/api/testSheets.ts"]
+    Views --> Hooks --> API
   end
 
-  tasksAPI["src/api/tasks.ts"]
-  testSheetsAPI["src/api/testSheets.ts"]
-  useTasks --> tasksAPI
-  useTestSheets --> testSheetsAPI
-  testSheetsAPI -->|reuse projects + tasks| tasksAPI
+  Browser --> FE
 
-  tasksAPI -->|"VITE_USE_MOCK=true"| Mock[("Mock store<br/>(in-memory + localStorage)")]
-  tasksAPI -->|"VITE_USE_MOCK=false"| Graph
-  testSheetsAPI -->|same branch| Mock
-  testSheetsAPI -->|same branch| Graph
-
+  MSAL[/MSAL Entra ID/]
+  Mock[("Mock store<br/>in-memory + localStorage")]
   Graph[/"Microsoft Graph v1.0"/]
-  ProjectTaskList[("SharePoint: Project Task List")]
-  TestResults[("SharePoint: Test Results")]
-  Projects[("SharePoint: Projects")]
-  Graph --> ProjectTaskList & TestResults & Projects
+
+  API -- "VITE_USE_MOCK=true" --> Mock
+  API -- "VITE_USE_MOCK=false" --> Graph
+
+  Browser -. sign in .-> MSAL
+  MSAL -. access token .-> Graph
+
+  subgraph SP["SharePoint lists"]
+    direction TB
+    ProjectTaskList[("Project Task List")]
+    Projects[("Projects")]
+    TestResults[("Test Results")]
+  end
+
+  Graph --> SP
 `.trim();
 
 const dataModelDiagram = `
 flowchart LR
-  subgraph SP["SharePoint lists"]
-    direction TB
-    Project[("Project<br/>(Projects list)")]
-    Task[("Task<br/>(Project Task List)")]
-    TestSheet[("Test Sheet<br/>(Test Results)")]
-  end
+  Project[("Project")]
+  Task[("Task")]
+  TestSheet[("Test Sheet")]
 
-  Task -- "Parent Project Reference (lookup)" --> Project
-  Task -- "ParentTask (self-lookup, optional)" --> Task
-  Task -- "Communication field<br/>(pipe-delimited comment thread)" --> Comments[Comments parsed client-side]
-  Task -- "Assigned + Watchers<br/>(multi-person)" --> People[Persons]
+  Task -- "Parent Project Reference" --> Project
+  Task -- "Parent Task (self-link, optional)" --> Task
+  TestSheet -- "Task Reference" --> Task
+  TestSheet -- "Project Reference" --> Project
 
-  TestSheet -- "Task Reference (lookup)" --> Task
-  TestSheet -- "Project Reference (lookup)" --> Project
-  TestSheet -- "Tester (single person)" --> People
+  Person((Person))
+  Comments[Comments]
 
-  Person((Person<br/>SharePoint user)) --> People
+  Task -- "Communication" --> Comments
+  Task -- "Assigned · Watchers" --> Person
+  TestSheet -- "Tester" --> Person
 `.trim();
 
 const Mermaid = lazy(() => import("../components/MermaidDiagram"));

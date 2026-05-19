@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.1",
+    date: "2026-05-19",
+    changes: [
+      "About page diagrams simplified — system flow now collapses Views / Hooks / API into one vertical lane instead of one node per view, and the data model uses a left-to-right layout that doesn't fan as many arrows across the same lines",
+    ],
+  },
+  {
     version: "0.7.0",
     date: "2026-05-19",
     changes: [
