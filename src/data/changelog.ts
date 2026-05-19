@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.11.4",
+    date: "2026-05-19",
+    changes: [
+      "Mention email header simplified — solid black bar with just the 'Engineering Task System' wordmark; dropped the ALTRONIC line and the thin red accent stripe",
+    ],
+  },
+  {
     version: "0.11.3",
     date: "2026-05-19",
     changes: [

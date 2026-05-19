@@ -200,9 +200,8 @@ function renderMentionEmail(ctx: MentionEmailContext): string {
     <td align="center">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
         <tr>
-          <td style="background:#111827;padding:22px 28px;border-bottom:3px solid #CB2C30;">
-            <div style="color:#ffffff;font-weight:800;font-size:18px;letter-spacing:0.22em;text-transform:uppercase;line-height:1;">ALTRONIC</div>
-            <div style="color:#9ca3af;font-weight:600;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;margin-top:6px;">Engineering Task System</div>
+          <td style="background:#111827;padding:22px 28px;">
+            <div style="color:#ffffff;font-weight:800;font-size:18px;letter-spacing:0.18em;text-transform:uppercase;line-height:1.1;">Engineering Task System</div>
           </td>
         </tr>
         <tr>
