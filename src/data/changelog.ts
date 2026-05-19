@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.12.1",
+    date: "2026-05-19",
+    changes: [
+      "User Manual now has a search box that understands natural questions — typing 'how do I mention someone' jumps to the Comments & @-mentions section. Each section has a list of keywords/synonyms so 'ping', 'tag', 'at-mention', and '@' all find the same content",
+      "Matching sections are ranked best-first, the table-of-contents on the left re-orders to match, and a no-results state suggests alternative wordings",
+    ],
+  },
+  {
     version: "0.12.0",
     date: "2026-05-19",
     changes: [
