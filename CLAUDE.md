@@ -308,11 +308,34 @@ are available as Tailwind classes (`text-cooper-green`, `bg-ajax-yellow`, etc.).
 1. Create the view component in `src/views/`.
 2. Add a `<Route>` in `src/App.tsx`.
 3. Add a nav link in `src/components/Header.tsx`.
+4. **Update the system-flow diagram in `src/views/AboutView.tsx`** so the
+   new view appears in the architectural overview. See the rule below.
 
 ### Hook up the Header view switcher to add more views
 
 Add another `<Link>` block in `src/components/Header.tsx`, matching the
 pattern of the existing List and Kanban links.
+
+### Architectural changes — REQUIRED: update the About page diagrams
+
+`src/views/AboutView.tsx` holds two Mermaid diagrams (system flow + data
+model) that double as the README for this app. They get out of date the
+moment we add a piece and don't update them.
+
+**Anything that's structurally visible to a user belongs in the diagram.
+That means update the source strings at the top of `AboutView.tsx` in
+the SAME commit when you:**
+
+- Add or rename a route / view.
+- Add a new hook category (e.g. `useTestSheets`, `useProjects`).
+- Add a new module in `src/api/` (e.g. a third SharePoint list).
+- Add a new SharePoint list to the data model, or a new field that
+  introduces a new relationship between lists.
+
+Preview your edits at <https://mermaid.live/> before pasting back in.
+No code-review hand-wringing, no separate ticket — just edit the strings
+in the same commit. The footer "About" link is the source of truth that
+new team members see when they want to understand the system.
 
 ## Known limitations / TODO
 

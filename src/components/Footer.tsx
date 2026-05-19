@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { History, Mail, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { History, Info, Mail, X } from "lucide-react";
 import { CHANGELOG, CURRENT_VERSION } from "@/data/changelog";
 
 const MAINTAINER_EMAIL = "ray.white@altronic-llc.com";
@@ -24,13 +25,22 @@ export function Footer() {
             </span>
           </div>
 
-          <button
-            onClick={() => setShowHistory(true)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 font-mono text-[11px] text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
-          >
-            <History className="h-3 w-3" />
-            v{CURRENT_VERSION}
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/about"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-[11px] text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
+            >
+              <Info className="h-3 w-3" />
+              About
+            </Link>
+            <button
+              onClick={() => setShowHistory(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 font-mono text-[11px] text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
+            >
+              <History className="h-3 w-3" />
+              v{CURRENT_VERSION}
+            </button>
+          </div>
         </div>
       </footer>
 

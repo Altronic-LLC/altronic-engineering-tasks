@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.7.0",
+    date: "2026-05-19",
+    changes: [
+      "New 'About' page in the footer — a high-level system map and data-model diagram showing how the views, hooks, API layer, Microsoft Graph, and the three SharePoint lists connect to each other",
+      "Diagrams are rendered with Mermaid (lazy-loaded so the main bundle stays trim) and live as plain text inside src/views/AboutView.tsx — edit them in place when you add a structural piece",
+      "CLAUDE.md now spells out 'updating the About diagrams' as part of the recipe for adding a view, hook, API module, or SharePoint list so the chart stays in sync with reality",
+    ],
+  },
+  {
     version: "0.6.12",
     date: "2026-05-19",
     changes: [
