@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.0",
+    date: "2026-05-19",
+    changes: [
+      "Every SharePoint write is now optimistic — status changes, priority/category/due-date edits, parent task and parent project changes, related projects, Assigned, Watchers, watch/unwatch, edit a comment, delete a task, and test-sheet field edits all update the UI the moment you click. The Graph round-trip happens in the background; if it fails, the cache rolls back to the previous state",
+      "Previously only Kanban drag and adding a comment were optimistic — everywhere else, the UI waited for the server to round-trip before reflecting your change. That made detail-page edits feel laggy when SharePoint was slow",
+    ],
+  },
+  {
     version: "0.8.2",
     date: "2026-05-19",
     changes: [

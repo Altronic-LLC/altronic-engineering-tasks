@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addComment,
   createProject,
@@ -18,11 +18,16 @@ import {
   watchTask,
 } from "@/api/tasks";
 import type {
+  Category,
   CommentAttachment,
+  Label,
   Person,
+  Priority,
+  ProjectReference,
   Status,
   Task,
 } from "@/types/task";
+import { CATEGORIES, LABELS, PRIORITIES, STATUSES } from "@/types/task";
 
 const TASK_LIST_KEY = ["tasks", "list"] as const;
 const PROJECTS_KEY = ["projects"] as const;
@@ -45,11 +50,6 @@ export function useTasks() {
  * fetched. This means useTask never triggers its own network call — it
  * relies on useTasks (which the same component or a parent typically also
  * calls) to populate the cache.
- *
- * Rationale: getTask() in the API layer is currently implemented by
- * re-running listTasks() (so child/parent links get populated), so a
- * separate query key would just duplicate the same data in the cache
- * under two keys.
  */
 export function useTask(id: number | null) {
   const list = useTasks();
@@ -67,28 +67,57 @@ export function useProjects() {
   });
 }
 
-/**
- * Kanban drag-and-drop calls this. Performs an optimistic update so the card
- * appears in the new column instantly, then reconciles when the server replies.
- */
+// =============================================================================
+// Optimistic-update helpers
+//
+// Every mutation that touches a task should:
+//   1. onMutate: snapshot the cache, apply the optimistic change, return the
+//      snapshot as context for rollback.
+//   2. onError: if context has a snapshot, restore it.
+//   3. onSettled: invalidate the list so server truth (titles, lookup
+//      resolutions, timestamps, etc.) wins after the round-trip.
+//
+// The helpers below shortcut that boilerplate. The point is to make every
+// SharePoint write feel instant — the UI flips before the network does.
+// =============================================================================
+
+type RollbackContext = { previous?: Task[] };
+
+async function snapshotAndPatch(
+  qc: QueryClient,
+  patch: (tasks: Task[]) => Task[],
+): Promise<RollbackContext> {
+  await qc.cancelQueries({ queryKey: TASK_LIST_KEY });
+  const previous = qc.getQueryData<Task[]>(TASK_LIST_KEY);
+  qc.setQueryData<Task[]>(TASK_LIST_KEY, (old) => (old ? patch(old) : []));
+  return { previous };
+}
+
+function rollback(qc: QueryClient, context: RollbackContext | undefined) {
+  if (context?.previous) qc.setQueryData(TASK_LIST_KEY, context.previous);
+}
+
+function invalidateTasks(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
+}
+
+/** Patch a single task in the list by id. */
+function patchTask(id: number, transform: (t: Task) => Task) {
+  return (tasks: Task[]) => tasks.map((t) => (t.id === id ? transform(t) : t));
+}
+
+// =============================================================================
+// Mutations — every one is optimistic.
+// =============================================================================
+
 export function useSetStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: number; status: Status }) => setTaskStatus(id, status),
-    onMutate: async ({ id, status }) => {
-      await qc.cancelQueries({ queryKey: TASK_LIST_KEY });
-      const previous = qc.getQueryData<Task[]>(TASK_LIST_KEY);
-      qc.setQueryData<Task[]>(TASK_LIST_KEY, (old) =>
-        old?.map((t) => (t.id === id ? { ...t, status } : t)) ?? [],
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) qc.setQueryData(TASK_LIST_KEY, context.previous);
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, status }) =>
+      snapshotAndPatch(qc, patchTask(id, (t) => ({ ...t, status, modifiedAt: new Date() }))),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -97,9 +126,10 @@ export function useUpdateTaskFields() {
   return useMutation({
     mutationFn: ({ id, fields }: { id: number; fields: Record<string, unknown> }) =>
       updateTaskFields(id, fields),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, fields }) =>
+      snapshotAndPatch(qc, patchTask(id, (t) => applyFieldsLocally(t, fields))),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -108,9 +138,27 @@ export function useSetParentTask() {
   return useMutation({
     mutationFn: ({ id, parentId }: { id: number; parentId: number | null }) =>
       setParentTask(id, parentId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, parentId }) =>
+      snapshotAndPatch(qc, (tasks) => {
+        const parent = parentId != null ? tasks.find((t) => t.id === parentId) : null;
+        return tasks.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                parentTask: parent
+                  ? {
+                      id: parent.id,
+                      numberedTitle: parent.numberedTitle,
+                      status: parent.status,
+                    }
+                  : null,
+                modifiedAt: new Date(),
+              }
+            : t,
+        );
+      }),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -119,9 +167,20 @@ export function useSetParentProject() {
   return useMutation({
     mutationFn: ({ id, projectLookupId }: { id: number; projectLookupId: number | null }) =>
       setParentProject(id, projectLookupId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, projectLookupId }) =>
+      snapshotAndPatch(
+        qc,
+        patchTask(id, (t) => ({
+          ...t,
+          parentProject:
+            projectLookupId != null
+              ? resolveProject(qc, projectLookupId) ?? { lookupId: projectLookupId, title: "" }
+              : null,
+          modifiedAt: new Date(),
+        })),
+      ),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -130,9 +189,19 @@ export function useSetRelatedProjects() {
   return useMutation({
     mutationFn: ({ id, lookupIds }: { id: number; lookupIds: number[] }) =>
       setRelatedProjects(id, lookupIds),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, lookupIds }) =>
+      snapshotAndPatch(
+        qc,
+        patchTask(id, (t) => ({
+          ...t,
+          relatedProjects: lookupIds.map(
+            (lid) => resolveProject(qc, lid) ?? { lookupId: lid, title: "" },
+          ),
+          modifiedAt: new Date(),
+        })),
+      ),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -140,9 +209,13 @@ export function useSetAssigned() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, people }: { id: number; people: Person[] }) => setAssigned(id, people),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, people }) =>
+      snapshotAndPatch(
+        qc,
+        patchTask(id, (t) => ({ ...t, assigned: people, modifiedAt: new Date() })),
+      ),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -150,9 +223,13 @@ export function useSetWatchers() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, people }: { id: number; people: Person[] }) => setWatchers(id, people),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, people }) =>
+      snapshotAndPatch(
+        qc,
+        patchTask(id, (t) => ({ ...t, watchers: people, modifiedAt: new Date() })),
+      ),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -160,9 +237,19 @@ export function useWatchTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, person }: { id: number; person: Person }) => watchTask(id, person),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, person }) =>
+      snapshotAndPatch(
+        qc,
+        patchTask(id, (t) => {
+          const key = (person.email ?? person.displayName).toLowerCase();
+          const has = t.watchers.some((p) => (p.email ?? p.displayName).toLowerCase() === key);
+          return has
+            ? t
+            : { ...t, watchers: [...t.watchers, person], modifiedAt: new Date() };
+        }),
+      ),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -170,9 +257,22 @@ export function useUnwatchTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, person }: { id: number; person: Person }) => unwatchTask(id, person),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, person }) =>
+      snapshotAndPatch(
+        qc,
+        patchTask(id, (t) => {
+          const key = (person.email ?? person.displayName).toLowerCase();
+          return {
+            ...t,
+            watchers: t.watchers.filter(
+              (p) => (p.email ?? p.displayName).toLowerCase() !== key,
+            ),
+            modifiedAt: new Date(),
+          };
+        }),
+      ),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -191,50 +291,28 @@ export function useAddComment() {
         attachments?: CommentAttachment[];
       };
     }) => addComment(id, comment),
-    // Optimistic insert: the comment shows up in the thread instantly, the
-    // Graph round-trip happens in the background. Without this, sending a
-    // comment in real mode took ~2-4s before any visual feedback (one GET
-    // for the existing Communication field, one PATCH to write it, plus a
-    // full list re-fetch). Now those still run, but the user doesn't wait.
-    onMutate: async ({ id, comment }) => {
-      await qc.cancelQueries({ queryKey: TASK_LIST_KEY });
-      const previous = qc.getQueryData<Task[]>(TASK_LIST_KEY);
-      qc.setQueryData<Task[]>(TASK_LIST_KEY, (old) =>
-        old?.map((t) => {
-          if (t.id !== id) return t;
-          return {
-            ...t,
-            comments: [
-              {
-                timestamp: new Date(),
-                authorName: comment.authorName,
-                authorEmail: comment.authorEmail,
-                bodyHtml: comment.bodyHtml,
-                attachments: comment.attachments ?? [],
-              },
-              ...t.comments,
-            ],
-            modifiedAt: new Date(),
-            hasAttachments:
-              comment.attachments && comment.attachments.length > 0
-                ? true
-                : t.hasAttachments,
-          };
-        }) ?? [],
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      // Mutation failed — undo the optimistic insert so the thread reflects
-      // reality. The component watches `addComment.error` and surfaces the
-      // message inline.
-      if (context?.previous) qc.setQueryData(TASK_LIST_KEY, context.previous);
-    },
-    onSettled: () => {
-      // Reconcile with server truth. Whether we succeeded or failed, the
-      // canonical Communication string lives on SharePoint.
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, comment }) =>
+      snapshotAndPatch(
+        qc,
+        patchTask(id, (t) => ({
+          ...t,
+          comments: [
+            {
+              timestamp: new Date(),
+              authorName: comment.authorName,
+              authorEmail: comment.authorEmail,
+              bodyHtml: comment.bodyHtml,
+              attachments: comment.attachments ?? [],
+            },
+            ...t.comments,
+          ],
+          modifiedAt: new Date(),
+          hasAttachments:
+            comment.attachments && comment.attachments.length > 0 ? true : t.hasAttachments,
+        })),
+      ),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -250,9 +328,22 @@ export function useEditComment() {
       target: { timestamp: Date; authorEmail: string };
       newBodyHtml: string;
     }) => editComment(id, target, newBodyHtml),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: TASK_LIST_KEY });
-    },
+    onMutate: ({ id, target, newBodyHtml }) =>
+      snapshotAndPatch(
+        qc,
+        patchTask(id, (t) => ({
+          ...t,
+          comments: t.comments.map((c) =>
+            c.timestamp.getTime() === target.timestamp.getTime() &&
+            (c.authorEmail ?? "").toLowerCase() === target.authorEmail.toLowerCase()
+              ? { ...c, bodyHtml: newBodyHtml }
+              : c,
+          ),
+          modifiedAt: new Date(),
+        })),
+      ),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -260,7 +351,12 @@ export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createTask,
-    onSuccess: () => qc.invalidateQueries({ queryKey: TASK_LIST_KEY }),
+    // Create is the one mutation we don't go optimistic on: we'd need a
+    // temporary client-side id, the detail-page navigation after success
+    // would point at a non-existent task, and reconciling the temp id with
+    // the server-assigned id gets fiddly. The form awaits the real result
+    // and navigates after — the user gets accurate feedback either way.
+    onSuccess: () => invalidateTasks(qc),
   });
 }
 
@@ -268,7 +364,10 @@ export function useDeleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteTask,
-    onSuccess: () => qc.invalidateQueries({ queryKey: TASK_LIST_KEY }),
+    onMutate: (id: number) =>
+      snapshotAndPatch(qc, (tasks) => tasks.filter((t) => t.id !== id)),
+    onError: (_err, _vars, ctx) => rollback(qc, ctx),
+    onSettled: () => invalidateTasks(qc),
   });
 }
 
@@ -278,4 +377,63 @@ export function useCreateProject() {
     mutationFn: createProject,
     onSuccess: () => qc.invalidateQueries({ queryKey: PROJECTS_KEY }),
   });
+}
+
+// =============================================================================
+// Helpers used by the optimistic update functions.
+// =============================================================================
+
+/** Look up a project by lookupId in the React Query projects cache. */
+function resolveProject(qc: QueryClient, lookupId: number): ProjectReference | null {
+  const projects = qc.getQueryData<ProjectReference[]>(PROJECTS_KEY);
+  return projects?.find((p) => p.lookupId === lookupId) ?? null;
+}
+
+/**
+ * Map a SharePoint-shaped fields object onto a Task for the optimistic
+ * cache update. Mirrors the field-name mapping in taskMapper.ts (but in
+ * the write direction).
+ *
+ * We touch only the keys the form actually sends — Title, Description,
+ * Status, Priority, Category, DueDate, Labels, SoftwareRevision,
+ * NumberedTitle. Communication is handled separately by useAddComment /
+ * useEditComment so we don't try to re-parse it here. People fields are
+ * handled by their own mutations (setAssigned / setWatchers).
+ */
+function applyFieldsLocally(t: Task, fields: Record<string, unknown>): Task {
+  const next: Task = { ...t, modifiedAt: new Date() };
+
+  if ("Title" in fields) next.title = (fields.Title as string) ?? next.title;
+  if ("Description" in fields)
+    next.description = (fields.Description as string) ?? next.description;
+  if ("NumberedTitle" in fields)
+    next.numberedTitle = (fields.NumberedTitle as string) ?? next.numberedTitle;
+  if ("Status" in fields) {
+    const v = fields.Status as string;
+    if ((STATUSES as readonly string[]).includes(v)) next.status = v as Status;
+  }
+  if ("Priority" in fields) {
+    const v = fields.Priority;
+    if (v === null || v === undefined) next.priority = null;
+    else if (typeof v === "string" && (PRIORITIES as readonly string[]).includes(v))
+      next.priority = v as Priority;
+  }
+  if ("Category" in fields) {
+    const v = fields.Category;
+    if (v === null || v === undefined) next.category = null;
+    else if (typeof v === "string" && (CATEGORIES as readonly string[]).includes(v))
+      next.category = v as Category;
+  }
+  if ("DueDate" in fields) {
+    const v = fields.DueDate;
+    next.dueDate = v ? new Date(v as string) : null;
+  }
+  if ("Labels" in fields && Array.isArray(fields.Labels)) {
+    next.labels = (fields.Labels as string[]).filter((l): l is Label =>
+      (LABELS as readonly string[]).includes(l),
+    );
+  }
+  if ("SoftwareRevision" in fields)
+    next.softwareRevision = (fields.SoftwareRevision as string) ?? "";
+  return next;
 }
