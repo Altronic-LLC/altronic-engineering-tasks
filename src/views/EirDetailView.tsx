@@ -57,6 +57,32 @@ export function EirDetailView() {
   const addComment = useAddEirComment();
   const editComment = useEditEirComment();
 
+  // Match the EIR's free-text Task Reference (e.g. "T115" or "T115-FOO-bar")
+  // to a real task so we can render an "Open task" link that lands on the
+  // right SharePoint item. The task number "T{n}" alone isn't the SharePoint
+  // ID — the ID lives on `task.id` and `T{n}` is the position within the
+  // task's project. Strategy: prefer an exact prefix match on numberedTitle;
+  // fall back to a numericId match for the rare case where the user typed
+  // the raw item ID.
+  const linkedTask = useMemo(() => {
+    const raw = eir?.taskReference?.trim();
+    if (!raw) return null;
+    const prefix = (/^T\d+/i.exec(raw)?.[0] ?? "").toUpperCase();
+    if (prefix) {
+      const byNumber = tasks.find((t) =>
+        t.numberedTitle?.toUpperCase().startsWith(prefix + "-") ||
+        t.numberedTitle?.toUpperCase() === prefix,
+      );
+      if (byNumber) return byNumber;
+    }
+    const asId = parseInt(raw.replace(/^T/i, ""), 10);
+    if (!Number.isNaN(asId)) {
+      const byId = tasks.find((t) => t.id === asId);
+      if (byId) return byId;
+    }
+    return null;
+  }, [eir?.taskReference, tasks]);
+
   // People directory — collected across tasks + EIRs to give the pickers
   // a useful starting set even before the EIR list itself has watchers.
   const allPeople = useMemo<Person[]>(() => {
@@ -272,131 +298,151 @@ export function EirDetailView() {
                 }
               />
 
-              <SidebarLabel icon={<User />}>Reporter</SidebarLabel>
-              <SingleSelect
-                allLabel="No reporter"
-                searchPlaceholder="Search people…"
-                options={allPeople.map((p) => ({
-                  value: p.email ?? p.displayName,
-                  label: p.displayName,
-                }))}
-                selected={eir.reporter ? eir.reporter.email ?? eir.reporter.displayName : null}
-                onChange={(key) => {
-                  const person = key
-                    ? allPeople.find((p) => (p.email ?? p.displayName) === key) ?? null
-                    : null;
-                  setReporter.mutate({ id: eir.id, person });
-                }}
-              />
+              <SidebarField icon={<User />} label="Reporter">
+                <SingleSelect
+                  allLabel="No reporter"
+                  searchPlaceholder="Search people…"
+                  options={allPeople.map((p) => ({
+                    value: p.email ?? p.displayName,
+                    label: p.displayName,
+                  }))}
+                  selected={eir.reporter ? eir.reporter.email ?? eir.reporter.displayName : null}
+                  onChange={(key) => {
+                    const person = key
+                      ? allPeople.find((p) => (p.email ?? p.displayName) === key) ?? null
+                      : null;
+                    setReporter.mutate({ id: eir.id, person });
+                  }}
+                />
+              </SidebarField>
 
-              <SidebarLabel icon={<Users />}>Assigned Engineers</SidebarLabel>
-              <MultiSelect
-                allLabel="Unassigned"
-                searchPlaceholder="Search people…"
-                options={allPeople.map((p) => ({
-                  value: p.email ?? p.displayName,
-                  label: p.displayName,
-                }))}
-                selected={eir.assignedEngineers.map((p) => p.email ?? p.displayName)}
-                onChange={(keys) => {
-                  const next: Person[] = [];
-                  for (const k of keys) {
-                    const p = allPeople.find((x) => (x.email ?? x.displayName) === k);
-                    if (p) next.push(p);
+              <SidebarField icon={<Users />} label="Assigned Engineers">
+                <MultiSelect
+                  allLabel="Unassigned"
+                  searchPlaceholder="Search people…"
+                  options={allPeople.map((p) => ({
+                    value: p.email ?? p.displayName,
+                    label: p.displayName,
+                  }))}
+                  selected={eir.assignedEngineers.map((p) => p.email ?? p.displayName)}
+                  onChange={(keys) => {
+                    const next: Person[] = [];
+                    for (const k of keys) {
+                      const p = allPeople.find((x) => (x.email ?? x.displayName) === k);
+                      if (p) next.push(p);
+                    }
+                    setEngineers.mutate({ id: eir.id, people: next });
+                  }}
+                />
+              </SidebarField>
+
+              <SidebarField icon={<Users />} label="Watchers">
+                <MultiSelect
+                  allLabel="No watchers"
+                  searchPlaceholder="Search people…"
+                  options={allPeople.map((p) => ({
+                    value: p.email ?? p.displayName,
+                    label: p.displayName,
+                  }))}
+                  selected={eir.watchers.map((p) => p.email ?? p.displayName)}
+                  onChange={(keys) => {
+                    const next: Person[] = [];
+                    for (const k of keys) {
+                      const p = allPeople.find((x) => (x.email ?? x.displayName) === k);
+                      if (p) next.push(p);
+                    }
+                    setWatchers.mutate({ id: eir.id, people: next });
+                  }}
+                />
+              </SidebarField>
+
+              <SidebarField
+                icon={<FolderOpen />}
+                label="Project Reference"
+                footer={
+                  eir.parentProject && (
+                    <Link
+                      to={`/project/${eir.parentProject.lookupId}`}
+                      className="text-xs text-accent underline-offset-2 hover:underline"
+                    >
+                      View project →
+                    </Link>
+                  )
+                }
+              >
+                <SingleSelect
+                  allLabel="None"
+                  searchPlaceholder="Search projects…"
+                  options={projects.map((p) => ({
+                    value: String(p.lookupId),
+                    label: p.title,
+                  }))}
+                  selected={eir.parentProject ? String(eir.parentProject.lookupId) : null}
+                  onChange={(v) =>
+                    updateFields.mutate({
+                      id: eir.id,
+                      fields: { ProjectReferenceLookupId: v ? parseInt(v, 10) : null },
+                    })
                   }
-                  setEngineers.mutate({ id: eir.id, people: next });
-                }}
-              />
+                />
+              </SidebarField>
 
-              <SidebarLabel icon={<Users />}>Watchers</SidebarLabel>
-              <MultiSelect
-                allLabel="No watchers"
-                searchPlaceholder="Search people…"
-                options={allPeople.map((p) => ({
-                  value: p.email ?? p.displayName,
-                  label: p.displayName,
-                }))}
-                selected={eir.watchers.map((p) => p.email ?? p.displayName)}
-                onChange={(keys) => {
-                  const next: Person[] = [];
-                  for (const k of keys) {
-                    const p = allPeople.find((x) => (x.email ?? x.displayName) === k);
-                    if (p) next.push(p);
+              <SidebarField
+                icon={<FileText />}
+                label="Task Reference"
+                footer={
+                  linkedTask && (
+                    <Link
+                      to={`/task/${linkedTask.id}`}
+                      className="inline-flex items-center gap-1 text-xs text-accent underline-offset-2 hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Open {linkedTask.numberedTitle || `task #${linkedTask.id}`}
+                    </Link>
+                  )
+                }
+              >
+                <InlineTextField
+                  label=""
+                  value={eir.taskReference}
+                  onSave={(v) =>
+                    updateFields.mutate({ id: eir.id, fields: { TaskReference: v } })
                   }
-                  setWatchers.mutate({ id: eir.id, people: next });
-                }}
-              />
+                  placeholder="e.g. T115"
+                />
+              </SidebarField>
 
-              <SidebarLabel icon={<FolderOpen />}>Project Reference</SidebarLabel>
-              <SingleSelect
-                allLabel="None"
-                searchPlaceholder="Search projects…"
-                options={projects.map((p) => ({
-                  value: String(p.lookupId),
-                  label: p.title,
-                }))}
-                selected={eir.parentProject ? String(eir.parentProject.lookupId) : null}
-                onChange={(v) =>
-                  updateFields.mutate({
-                    id: eir.id,
-                    fields: { ProjectReferenceLookupId: v ? parseInt(v, 10) : null },
-                  })
-                }
-              />
-              {eir.parentProject && (
-                <Link
-                  to={`/project/${eir.parentProject.lookupId}`}
-                  className="-mt-2 text-xs text-accent underline-offset-2 hover:underline"
-                >
-                  View project →
-                </Link>
-              )}
+              <SidebarField icon={<Calendar />} label="Requested Completion">
+                <input
+                  type="date"
+                  value={
+                    eir.requestedCompletionDate
+                      ? eir.requestedCompletionDate.toISOString().slice(0, 10)
+                      : ""
+                  }
+                  onChange={(e) =>
+                    updateFields.mutate({
+                      id: eir.id,
+                      fields: { Requested_x0020_Completion_x0020: e.target.value || null },
+                    })
+                  }
+                  className="w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </SidebarField>
 
-              <SidebarLabel icon={<FileText />}>Task Reference</SidebarLabel>
-              <InlineTextField
-                label=""
-                value={eir.taskReference}
-                onSave={(v) => updateFields.mutate({ id: eir.id, fields: { TaskReference: v } })}
-                placeholder="e.g. T115"
-              />
-              {eir.taskReference && /^T?\d+/.test(eir.taskReference) && (
-                <Link
-                  to={`/task/${eir.taskReference.replace(/^T/i, "").split("-")[0]}`}
-                  className="-mt-2 inline-flex items-center gap-1 text-xs text-accent underline-offset-2 hover:underline"
-                >
-                  <ExternalLink className="h-3 w-3" /> Open task
-                </Link>
-              )}
-
-              <SidebarLabel icon={<Calendar />}>Requested Completion</SidebarLabel>
-              <input
-                type="date"
-                value={
-                  eir.requestedCompletionDate
-                    ? eir.requestedCompletionDate.toISOString().slice(0, 10)
-                    : ""
-                }
-                onChange={(e) =>
-                  updateFields.mutate({
-                    id: eir.id,
-                    fields: { Requested_x0020_Completion_x0020: e.target.value || null },
-                  })
-                }
-                className="w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-              />
-
-              <SidebarLabel icon={<Calendar />}>LTB Date</SidebarLabel>
-              <input
-                type="date"
-                value={eir.ltbDate ? eir.ltbDate.toISOString().slice(0, 10) : ""}
-                onChange={(e) =>
-                  updateFields.mutate({
-                    id: eir.id,
-                    fields: { LTBDate: e.target.value || null },
-                  })
-                }
-                className="w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-              />
+              <SidebarField icon={<Calendar />} label="LTB Date">
+                <input
+                  type="date"
+                  value={eir.ltbDate ? eir.ltbDate.toISOString().slice(0, 10) : ""}
+                  onChange={(e) =>
+                    updateFields.mutate({
+                      id: eir.id,
+                      fields: { LTBDate: e.target.value || null },
+                    })
+                  }
+                  className="w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </SidebarField>
 
               <Field icon={<Calendar />} label="Created">
                 {eir.createdAt.toLocaleString(undefined, {
@@ -491,12 +537,27 @@ function EditableTextCard({
           className="w-full resize-y rounded-md border border-border bg-bg p-3 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
         />
       ) : value ? (
-        <div className="whitespace-pre-wrap text-sm leading-relaxed text-fg">{value}</div>
+        // The Engineering Response field can be plain text or HTML (when
+        // edits come from the original Power Apps form, they arrive as
+        // <p>...</p>). Detect HTML by a tag presence test and render it
+        // sanitised; otherwise treat as plain text and preserve newlines.
+        looksLikeHtml(value) ? (
+          <div
+            className="comment-html text-sm leading-relaxed text-fg"
+            dangerouslySetInnerHTML={{ __html: sanitiseHtml(value) }}
+          />
+        ) : (
+          <div className="whitespace-pre-wrap text-sm leading-relaxed text-fg">{value}</div>
+        )
       ) : (
         <div className="text-sm text-fg-muted">Not set.</div>
       )}
     </div>
   );
+}
+
+function looksLikeHtml(s: string): boolean {
+  return /<\/?[a-z][\s\S]*?>/i.test(s);
 }
 
 function InlineTextField({
@@ -546,9 +607,35 @@ function SidebarLabel({
   children: React.ReactNode;
 }) {
   return (
-    <div className="-mb-3 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
       <span className="[&>svg]:h-3.5 [&>svg]:w-3.5">{icon}</span>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Sidebar grouping: keeps a label tightly bound to its control so neighbouring
+ * controls don't visually mix in (no more negative-margin hacks). Optional
+ * footer node renders a small "View task →" / "View project →" link below
+ * the control.
+ */
+function SidebarField({
+  icon,
+  label,
+  children,
+  footer,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <SidebarLabel icon={icon}>{label}</SidebarLabel>
+      {children}
+      {footer}
     </div>
   );
 }
@@ -563,10 +650,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <SidebarLabel icon={icon}>{label}</SidebarLabel>
-      <div className="mt-1.5 text-sm text-fg">{children}</div>
-    </div>
+    <SidebarField icon={icon} label={label}>
+      <div className="text-sm text-fg">{children}</div>
+    </SidebarField>
   );
 }
 
@@ -586,12 +672,11 @@ function SidebarSelect<T extends string>({
   renderOption?: (v: T) => string;
 }) {
   return (
-    <div>
-      <SidebarLabel icon={icon}>{label}</SidebarLabel>
+    <SidebarField icon={icon} label={label}>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="mt-1.5 w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+        className="w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
       >
         {options.map((o) => (
           <option key={o || "__empty"} value={o}>
@@ -599,6 +684,6 @@ function SidebarSelect<T extends string>({
           </option>
         ))}
       </select>
-    </div>
+    </SidebarField>
   );
 }

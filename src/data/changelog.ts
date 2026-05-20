@@ -20,6 +20,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.14.1",
+    date: "2026-05-20",
+    changes: [
+      "List and Kanban now dim themselves on the EIRs and Test Sheets pages — they're controls for the Tasks dataset only, so they shouldn't look as prominent when you're looking at a different list",
+      "Every list (Tasks, Kanban columns, EIRs, Test Sheets) now sorts newest-first by creation date, so the freshly-added items are always at the top",
+      "EIR Engineering Response now renders HTML correctly — previously, edits that came in from the original Power Apps form showed up as raw `<p>` tags; now they read as formatted text",
+      "EIR detail sidebar tightened — each label now hugs its control properly, so dropdown choices no longer overlap the label above them",
+      "EIR Task Reference is now a real hyperlink — when the reference matches a task in this app, an 'Open task' link appears that jumps straight to that task's detail page",
+    ],
+  },
+  {
     version: "0.14.0",
     date: "2026-05-20",
     changes: [

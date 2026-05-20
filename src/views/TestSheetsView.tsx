@@ -13,23 +13,28 @@ export function TestSheetsView() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return sheets;
-    return sheets.filter((s) => {
-      const hay = [
-        s.title,
-        s.product,
-        s.serialNumber,
-        s.purpose,
-        s.results,
-        s.firmwareVersion,
-        s.parentProject?.title ?? "",
-        s.parentTask?.numberedTitle ?? "",
-        s.tester?.displayName ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
+    const matched = q
+      ? sheets.filter((s) => {
+          const hay = [
+            s.title,
+            s.product,
+            s.serialNumber,
+            s.purpose,
+            s.results,
+            s.firmwareVersion,
+            s.parentProject?.title ?? "",
+            s.parentTask?.numberedTitle ?? "",
+            s.tester?.displayName ?? "",
+          ]
+            .join(" ")
+            .toLowerCase();
+          return hay.includes(q);
+        })
+      : sheets;
+    // Newest first by creation date — matches the task & EIR list convention.
+    return [...matched].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
   }, [sheets, query]);
 
   return (

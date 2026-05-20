@@ -63,6 +63,14 @@ export function Header() {
   const isInLists = ENGINEERING_LISTS.some((l) => l.matchesPath(pathname));
   const isAdminPage = pathname.startsWith("/admin");
 
+  // List and Kanban are views of the Tasks dataset only. When the user is
+  // looking at a non-task page (an Engineering List or Admin), we dim them
+  // so it's visually obvious they don't apply to the current context — but
+  // we keep them clickable so they remain a one-click escape back to tasks.
+  const onTaskContext =
+    isDashboard || isList || isKanban || pathname.startsWith("/task/");
+  const taskControlsDimmed = !onTaskContext;
+
   return (
     <header className="border-b border-border bg-surface">
       <div className="mx-auto flex max-w-[1600px] flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
@@ -94,10 +102,22 @@ export function Header() {
             <span className="hidden sm:inline">Dashboard</span>
             <span className="sm:hidden">Home</span>
           </NavLink>
-          <NavLink to="/list" active={isList} icon={<List className="h-4 w-4" />}>
+          <NavLink
+            to="/list"
+            active={isList}
+            dimmed={taskControlsDimmed}
+            title={taskControlsDimmed ? "List view applies to Tasks" : undefined}
+            icon={<List className="h-4 w-4" />}
+          >
             List
           </NavLink>
-          <NavLink to="/kanban" active={isKanban} icon={<LayoutGrid className="h-4 w-4" />}>
+          <NavLink
+            to="/kanban"
+            active={isKanban}
+            dimmed={taskControlsDimmed}
+            title={taskControlsDimmed ? "Kanban applies to Tasks" : undefined}
+            icon={<LayoutGrid className="h-4 w-4" />}
+          >
             Kanban
           </NavLink>
           <EngineeringListsMenu active={isInLists} pathname={pathname} />
@@ -133,20 +153,26 @@ export function Header() {
 function NavLink({
   to,
   active,
+  dimmed,
   icon,
+  title,
   children,
 }: {
   to: string;
   active: boolean;
+  dimmed?: boolean;
   icon: React.ReactNode;
+  title?: string;
   children: React.ReactNode;
 }) {
   return (
     <Link
       to={to}
+      title={title}
       className={cn(
         "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
         active ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",
+        dimmed && !active && "opacity-40 hover:opacity-100",
       )}
     >
       {icon}

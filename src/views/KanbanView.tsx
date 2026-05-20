@@ -69,6 +69,10 @@ export function KanbanView() {
       Complete: [],
     };
     for (const t of filteredTasks) out[t.status].push(t);
+    // Newest first within each column — matches the task & EIR list convention.
+    for (const s of Object.keys(out) as Status[]) {
+      out[s].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
     return out;
   }, [filteredTasks]);
 

@@ -45,7 +45,12 @@ export function ListView() {
     [tasks, filters],
   );
   const filtered = useMemo(
-    () => applyFilters(filteredByBar, statusFilter, EMPTY_FILTERS),
+    () =>
+      // Newest first by creation date — same convention across every list
+      // in the app (tasks, EIRs, test sheets).
+      [...applyFilters(filteredByBar, statusFilter, EMPTY_FILTERS)].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+      ),
     [filteredByBar, statusFilter],
   );
 

@@ -109,11 +109,14 @@ export function EirsView() {
 
   const filtered = useMemo(
     () =>
-      filteredByBar.filter((e) => {
-        if (statusFilter === "ALL_OPEN") return isOpen(e.status);
-        if (statusFilter) return e.status === statusFilter;
-        return true;
-      }),
+      filteredByBar
+        .filter((e) => {
+          if (statusFilter === "ALL_OPEN") return isOpen(e.status);
+          if (statusFilter) return e.status === statusFilter;
+          return true;
+        })
+        // Newest first by creation date — matches the task list convention.
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
     [filteredByBar, statusFilter],
   );
 
