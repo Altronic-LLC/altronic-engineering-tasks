@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.7",
+    date: "2026-05-20",
+    changes: [
+      "EIRs page now surfaces the underlying error message when the list fails to load (instead of silently showing 'No EIRs match the current filters') — so we can see exactly what Graph is rejecting",
+    ],
+  },
+  {
     version: "0.15.6",
     date: "2026-05-20",
     changes: [

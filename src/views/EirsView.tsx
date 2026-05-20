@@ -25,8 +25,8 @@ function isOpen(status: EirStatus): boolean {
 export function EirsView() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: eirs = [], isLoading } = useEirs();
-  const { data: projects = [] } = useProjects();
+  const { data: eirs = [], isLoading, error: eirsError } = useEirs();
+  const { data: projects = [], error: projectsError } = useProjects();
   const [showNew, setShowNew] = useState(false);
 
   // Filters live in the URL so deep links share. Keys: status, q, project, reporter, engineer.
@@ -252,11 +252,23 @@ export function EirsView() {
         </Field>
       </div>
 
+      {(eirsError || projectsError) && (
+        <div className="rounded-lg border border-cooper-red/40 bg-cooper-red/10 p-3 text-xs">
+          <div className="mb-1 font-semibold text-cooper-red">
+            Couldn't load EIRs from SharePoint
+          </div>
+          <pre className="overflow-auto whitespace-pre-wrap font-mono text-[11px] text-fg">
+            {(eirsError as Error)?.message ?? (projectsError as Error)?.message ?? "Unknown error"}
+          </pre>
+        </div>
+      )}
       {isLoading ? (
         <LoadingTasks noun="EIRs" />
       ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center text-fg-muted">
-          No EIRs match the current filters.
+          {eirs.length === 0
+            ? "Nothing came back from SharePoint. If the error box above is empty, try a hard refresh (Ctrl+F5) — the new build may still be deploying."
+            : "No EIRs match the current filters."}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
