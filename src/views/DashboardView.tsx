@@ -14,19 +14,28 @@ import { useEirs } from "@/hooks/useEirs";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { SingleSelect } from "@/components/SearchableSelect";
 import { LoadingTasks } from "@/components/LoadingTasks";
-import { STATUSES, type Status, type Task } from "@/types/task";
-import { statusColor } from "@/components/atoms";
+import {
+  EIR_STATUSES,
+  STATUSES,
+  type Eir,
+  type EirStatus,
+  type Status,
+  type Task,
+} from "@/types/task";
+import { eirStatusColor, statusColor } from "@/components/atoms";
 import { getMetricCount } from "@/data/dashboardMockData";
 import { cn } from "@/lib/cn";
 
 // =============================================================================
 // Engineering Dashboard — landing page after sign-in. Big-number metric cards
-// up top (My Tasks / All Tasks / EIRs / ECNs / Build Requests), with a
-// status breakdown panel below. A Project Reference filter at the top
-// scopes every number on the page. Task cards link to the List view with
-// matching URL filters; the future EIR/ECN/Build Request cards show mock
-// counts and a "coming soon" hint until those lists are wired up.
+// up top (My Tasks / EIRs / ECNs / Build Requests), and a status breakdown
+// panel below. The breakdown panel is driven by the currently-selected card
+// — clicking a Tasks card shows task statuses, clicking the EIR card shows
+// EIR statuses. A Project Reference filter at the top scopes every number
+// on the page.
 // =============================================================================
+
+type BreakdownMode = "tasks-mine" | "tasks-company" | "eirs-mine";
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -35,21 +44,20 @@ export function DashboardView() {
   const { data: eirs = [] } = useEirs();
   const currentUser = useCurrentUser();
   const [projectId, setProjectId] = useState<number | null>(null);
-  // Status breakdown defaults to the current user's tasks. They can flip
-  // it to "Company" if they want the team-wide view.
-  const [breakdownScope, setBreakdownScope] = useState<"mine" | "company">("mine");
+  // Which card is "in focus" — drives the breakdown panel below.
+  const [breakdownMode, setBreakdownMode] = useState<BreakdownMode>("tasks-mine");
 
   const myEmail = (currentUser.email ?? "").toLowerCase();
 
-  // All active (non-Complete) tasks, optionally scoped to the chosen project.
-  const projectScoped = useMemo<Task[]>(
+  // ----- TASKS -----
+  const projectScopedTasks = useMemo<Task[]>(
     () =>
       tasks.filter((t) => projectId == null || t.parentProject?.lookupId === projectId),
     [tasks, projectId],
   );
   const allOpenTasks = useMemo(
-    () => projectScoped.filter((t) => t.status !== "Complete"),
-    [projectScoped],
+    () => projectScopedTasks.filter((t) => t.status !== "Complete"),
+    [projectScopedTasks],
   );
   const myOpenTasks = useMemo(
     () =>
@@ -58,25 +66,33 @@ export function DashboardView() {
       ),
     [allOpenTasks, myEmail],
   );
-  // Status breakdown reads from the current scope toggle. Mine = only tasks
-  // where the signed-in user is in the Assigned list; Company = everything
-  // in the project scope.
-  const breakdownSource = useMemo(() => {
-    if (breakdownScope === "company") return projectScoped;
-    return projectScoped.filter((t) =>
+
+  // ----- EIRs -----
+  // Project filter applies first, then "assigned to me" via assignedEngineers.
+  const projectScopedEirs = useMemo<Eir[]>(
+    () =>
+      eirs.filter(
+        (e) => projectId == null || e.parentProject?.lookupId === projectId,
+      ),
+    [eirs, projectId],
+  );
+  const myEirs = useMemo(
+    () =>
+      projectScopedEirs.filter((e) =>
+        e.assignedEngineers.some((p) => (p.email ?? "").toLowerCase() === myEmail),
+      ),
+    [projectScopedEirs, myEmail],
+  );
+
+  // ----- Breakdown source -----
+  const taskBreakdownSource = useMemo(() => {
+    if (breakdownMode === "tasks-company") return projectScopedTasks;
+    return projectScopedTasks.filter((t) =>
       t.assigned.some((p) => (p.email ?? "").toLowerCase() === myEmail),
     );
-  }, [projectScoped, breakdownScope, myEmail]);
-  // EIR count is real once the EIR list is wired up — open EIRs only.
-  const openEirs = useMemo(() => {
-    return eirs.filter((e) => {
-      if (e.status === "Closed") return false;
-      if (projectId == null) return true;
-      return e.parentProject?.lookupId === projectId;
-    });
-  }, [eirs, projectId]);
+  }, [projectScopedTasks, breakdownMode, myEmail]);
 
-  const byStatus = useMemo(() => {
+  const byTaskStatus = useMemo(() => {
     const out: Record<Status, number> = {
       BACKLOG: 0,
       "SELECTED FOR DEVELOPMENT": 0,
@@ -85,18 +101,28 @@ export function DashboardView() {
       Blocked: 0,
       Complete: 0,
     };
-    for (const t of breakdownSource) out[t.status]++;
+    for (const t of taskBreakdownSource) out[t.status]++;
     return out;
-  }, [breakdownSource]);
+  }, [taskBreakdownSource]);
+
+  const byEirStatus = useMemo(() => {
+    const out: Record<EirStatus, number> = {
+      "Under Review": 0,
+      "EIR Not Accepted": 0,
+      "Response Accepted": 0,
+      "Response Not Accepted": 0,
+      Closed: 0,
+    };
+    for (const e of myEirs) out[e.status]++;
+    return out;
+  }, [myEirs]);
 
   const projectOptions = projects.map((p) => ({
     value: String(p.lookupId),
     label: p.title,
   }));
 
-  // Build the destination URL for clickable task cards. Carries the chosen
-  // project (if any) and an `assigned=me` filter when the card is specifically
-  // about the signed-in user's work.
+  // ----- Navigation helpers -----
   function tasksUrl({
     mine,
     status,
@@ -107,9 +133,17 @@ export function DashboardView() {
     const params = new URLSearchParams();
     if (projectId != null) params.set("project", String(projectId));
     if (mine && currentUser.email) params.set("assigned", currentUser.email);
-    else params.set("assigned", ""); // explicit "Anyone" — suppresses the default
+    else params.set("assigned", "");
     if (status) params.set("status", status);
     return `/list?${params.toString()}`;
+  }
+
+  function eirsUrl({ status }: { status?: EirStatus } = {}): string {
+    const params = new URLSearchParams();
+    if (projectId != null) params.set("project", String(projectId));
+    if (currentUser.email) params.set("engineer", currentUser.email);
+    if (status) params.set("status", status);
+    return `/eirs?${params.toString()}`;
   }
 
   if (isLoading) return <LoadingTasks noun="your dashboard" />;
@@ -140,96 +174,102 @@ export function DashboardView() {
         </div>
       </header>
 
-      {/* Primary metric grid — big numbers, clickable where the data is real.
-          My Open Tasks anchors the personal-view row. The team / external
-          metric cards (EIRs, ECNs, Build Requests) sit on the same row. */}
+      {/* Primary metric grid. Clicking My Tasks / EIRs / All Tasks pins that
+          dataset to the breakdown panel below. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="My Open Tasks"
           value={myOpenTasks.length}
           icon={<ListChecks className="h-5 w-5" />}
-          accent="accent"
+          accent={breakdownMode === "tasks-mine" ? "accent" : "muted"}
           hint="Assigned to you and not Complete"
-          actionText="View my tasks →"
-          onClick={() => navigate(tasksUrl({ mine: true }))}
+          actionText="Show in breakdown"
+          active={breakdownMode === "tasks-mine"}
+          onClick={() => setBreakdownMode("tasks-mine")}
         />
         <MetricCard
-          label="Open EIRs"
-          value={openEirs.length}
+          label="My EIRs"
+          value={myEirs.length}
           icon={<FileText className="h-5 w-5" />}
-          accent="muted"
-          hint="Engineering Information Requests not yet closed"
-          actionText="View EIRs →"
-          onClick={() => {
-            const params = new URLSearchParams();
-            if (projectId != null) params.set("project", String(projectId));
-            navigate(`/eirs?${params.toString()}`);
-          }}
+          accent={breakdownMode === "eirs-mine" ? "accent" : "muted"}
+          hint="EIRs where you're an assigned engineer"
+          actionText="Show in breakdown"
+          active={breakdownMode === "eirs-mine"}
+          onClick={() => setBreakdownMode("eirs-mine")}
         />
         <MockMetricCard
           label="ECNs"
           value={getMetricCount("ecn", projectId)}
           icon={<Wrench className="h-5 w-5" />}
-          subtitle="Engineering Change Notices"
+          subtitle="Engineering Change Notices (total across the team)"
         />
         <MockMetricCard
-          label="Build Requests"
+          label="My Build Requests"
           value={getMetricCount("buildRequest", projectId)}
           icon={<HardHat className="h-5 w-5" />}
-          subtitle="Open build / fabrication asks"
+          subtitle="Open build / fabrication asks assigned to you"
         />
       </div>
 
-      {/* All Open Tasks (the team-wide task count) sits next to the status
-          breakdown panel so the two team-level views are read together. */}
+      {/* All Open Tasks (team-wide) sits next to the status breakdown panel
+          so the two team-level views are read together. */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <MetricCard
           label="All Open Tasks"
           value={allOpenTasks.length}
           icon={<ListChecks className="h-5 w-5" />}
-          accent="muted"
+          accent={breakdownMode === "tasks-company" ? "accent" : "muted"}
           hint="Active across the team"
-          actionText="View all tasks →"
-          onClick={() => navigate(tasksUrl({ mine: false }))}
+          actionText="Show in breakdown"
+          active={breakdownMode === "tasks-company"}
+          onClick={() => setBreakdownMode("tasks-company")}
         />
         <div className="lg:col-span-2 rounded-lg border border-border bg-surface p-4 sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wider text-fg-muted">
               <ClipboardCheck className="h-4 w-4" />
-              Task status breakdown
+              {breakdownMode === "eirs-mine"
+                ? "EIR status breakdown · Mine"
+                : breakdownMode === "tasks-company"
+                ? "Task status breakdown · Company"
+                : "Task status breakdown · Mine"}
             </h2>
-            <div className="flex items-center gap-2">
-              <SegmentToggle
-                value={breakdownScope}
-                onChange={setBreakdownScope}
-                options={[
-                  { value: "mine", label: "Mine" },
-                  { value: "company", label: "Company" },
-                ]}
-              />
-              <button
-                onClick={() =>
-                  navigate(tasksUrl({ mine: breakdownScope === "mine" }))
-                }
-                className="text-xs text-accent underline-offset-2 hover:underline"
-              >
-                View list →
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                if (breakdownMode === "eirs-mine") navigate(eirsUrl());
+                else navigate(tasksUrl({ mine: breakdownMode === "tasks-mine" }));
+              }}
+              className="text-xs text-accent underline-offset-2 hover:underline"
+            >
+              View list →
+            </button>
           </div>
-          <StatusBars
-            byStatus={byStatus}
-            onClickStatus={(s) =>
-              navigate(tasksUrl({ mine: breakdownScope === "mine", status: s }))
-            }
-          />
+          {breakdownMode === "eirs-mine" ? (
+            <EirStatusBars
+              byStatus={byEirStatus}
+              onClickStatus={(s) => navigate(eirsUrl({ status: s }))}
+            />
+          ) : (
+            <StatusBars
+              byStatus={byTaskStatus}
+              onClickStatus={(s) =>
+                navigate(
+                  tasksUrl({
+                    mine: breakdownMode === "tasks-mine",
+                    status: s,
+                  }),
+                )
+              }
+            />
+          )}
         </div>
       </div>
 
       <p className="text-center text-xs text-fg-muted">
-        EIRs, ECNs, and Build Requests are mock counts — those SharePoint lists
-        aren't wired up yet. The dashboard scaffolding is already in place, so
-        adding them later is just swapping the mock data source for a hook.
+        ECNs and Build Requests are mock counts — those SharePoint lists
+        aren't wired up yet. The dashboard scaffolding is already in place,
+        so adding them later is just swapping the mock data source for a
+        hook.
       </p>
     </div>
   );
@@ -243,6 +283,7 @@ interface MetricCardProps {
   actionText: string;
   onClick: () => void;
   accent?: "accent" | "muted";
+  active?: boolean;
 }
 
 function MetricCard({
@@ -253,12 +294,14 @@ function MetricCard({
   actionText,
   onClick,
   accent = "accent",
+  active,
 }: MetricCardProps) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "group relative flex flex-col items-start gap-1 rounded-lg border border-border bg-surface p-4 text-left transition-all hover:border-fg-muted hover:shadow-md sm:p-5",
+        "group relative flex flex-col items-start gap-1 rounded-lg border bg-surface p-4 text-left transition-all hover:border-fg-muted hover:shadow-md sm:p-5",
+        active ? "border-accent ring-2 ring-accent/30" : "border-border",
       )}
     >
       <div
@@ -280,7 +323,7 @@ function MetricCard({
       <div className="font-display text-4xl font-bold tabular-nums text-fg">{value}</div>
       <div className="text-xs text-fg-muted">{hint}</div>
       <div className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-accent opacity-80 transition-opacity group-hover:opacity-100">
-        {actionText.replace(" →", "")}
+        {actionText}
         <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
       </div>
     </button>
@@ -358,34 +401,45 @@ function StatusBars({
   );
 }
 
-interface SegmentToggleProps<T extends string> {
-  value: T;
-  onChange: (next: T) => void;
-  options: { value: T; label: string }[];
-}
-
-function SegmentToggle<T extends string>({
-  value,
-  onChange,
-  options,
-}: SegmentToggleProps<T>) {
+function EirStatusBars({
+  byStatus,
+  onClickStatus,
+}: {
+  byStatus: Record<EirStatus, number>;
+  onClickStatus: (s: EirStatus) => void;
+}) {
+  const total = Object.values(byStatus).reduce((s, n) => s + n, 0);
   return (
-    <div className="inline-flex items-center rounded-md border border-border bg-surface-2 p-0.5 text-xs">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "rounded-sm px-2.5 py-1 font-medium transition-colors",
-            value === o.value
-              ? "bg-surface text-fg shadow-sm"
-              : "text-fg-muted hover:text-fg",
-          )}
-          aria-pressed={value === o.value}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div className="flex flex-col gap-2">
+      {EIR_STATUSES.map((status) => {
+        const n = byStatus[status];
+        const pct = total > 0 ? (n / total) * 100 : 0;
+        return (
+          <button
+            key={status}
+            onClick={() => onClickStatus(status)}
+            className="group flex items-center gap-3 rounded-md px-1 py-1 text-left transition-colors hover:bg-surface-2"
+          >
+            <span
+              className={cn(
+                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                eirStatusColor(status),
+              )}
+            >
+              {status}
+            </span>
+            <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-accent/70 transition-all group-hover:bg-accent"
+                style={{ width: `${Math.max(pct, n > 0 ? 2 : 0)}%` }}
+              />
+            </div>
+            <span className="w-10 shrink-0 text-right text-sm font-medium tabular-nums text-fg">
+              {n}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

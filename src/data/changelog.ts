@@ -20,6 +20,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.14.2",
+    date: "2026-05-20",
+    changes: [
+      "Dashboard EIR card now counts EIRs assigned to you (not the team-wide open count) — and the Build Requests card is labelled to match the same 'assigned to you' framing",
+      "Dashboard ECN card now shows a team-wide total rather than a personal slice",
+      "Clicking the EIR card on the dashboard now pivots the status breakdown panel from Task statuses to EIR statuses — the breakdown follows whichever card you're focused on, with a ring around the active card",
+      "Project filter at the top of the dashboard now scopes every card (Tasks, EIRs, ECNs, Build Requests)",
+      "Removed the dated 'EIRs are mock' footer note — only ECNs and Build Requests are mock now",
+    ],
+  },
+  {
     version: "0.14.1",
     date: "2026-05-20",
     changes: [
