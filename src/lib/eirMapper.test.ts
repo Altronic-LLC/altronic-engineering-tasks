@@ -180,6 +180,46 @@ describe("toEir — project reference (multi-choice column) + bool fields", () =
     expect(e.parentProject?.lookupId).toBe(501);
   });
 
+  it("reads an array of {LookupId, LookupValue} objects (lookup-multi shape)", () => {
+    const e = toEir(
+      item({
+        fields: {
+          ProjectReference: [
+            { LookupId: 412, LookupValue: "2026-Cat Pyrometer, 133-6333" },
+            { LookupId: 501, LookupValue: "0017-AMP-5000" },
+          ],
+        },
+      }),
+    );
+    expect(e.parentProject?.title).toBe(
+      "2026-Cat Pyrometer, 133-6333, 0017-AMP-5000",
+    );
+  });
+
+  it("reads an array of {Label, TermGuid} objects (managed-metadata shape)", () => {
+    const e = toEir(
+      item({
+        fields: {
+          ProjectReference: [
+            { Label: "2026-Cat Pyrometer, 133-6333", TermGuid: "x", WssId: 7 },
+          ],
+        },
+      }),
+    );
+    expect(e.parentProject?.title).toBe("2026-Cat Pyrometer, 133-6333");
+  });
+
+  it("reads a single {LookupValue} object (single-value lookup shape)", () => {
+    const e = toEir(
+      item({
+        fields: {
+          ProjectReference: { LookupId: 522, LookupValue: "0021-CleanBurn Telemetry" },
+        },
+      }),
+    );
+    expect(e.parentProject?.title).toBe("0021-CleanBurn Telemetry");
+  });
+
   it("returns null when ProjectReference is empty / missing", () => {
     expect(toEir(item({ fields: { Title: "no project" } })).parentProject).toBeNull();
     expect(toEir(item({ fields: { ProjectReference: "" } })).parentProject).toBeNull();

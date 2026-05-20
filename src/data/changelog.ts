@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.8",
+    date: "2026-05-20",
+    changes: [
+      "EIR Project Reference reader now extracts labels from ALL multi-select shapes — string arrays (Choice multi-select), ';#'-delimited strings, single strings, AND arrays of {LookupValue, ...} or {Label, TermGuid} objects (Lookup-multi and Managed-Metadata multi-select); previous version only pulled strings out of arrays and missed object shapes",
+      "Added a one-time browser-console diagnostic that prints the exact type and value of ProjectReference on the first EIR — so the next disconnect (if any) is one round-trip away from being fixed",
+    ],
+  },
+  {
     version: "0.15.7",
     date: "2026-05-20",
     changes: [

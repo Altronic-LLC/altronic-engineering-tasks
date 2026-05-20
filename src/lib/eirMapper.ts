@@ -139,32 +139,62 @@ function readProjectLookupId(
 }
 
 /**
- * Pull the chosen labels out of a SharePoint multi-choice value. Handles
- * the three encodings Graph can return for that column type.
+ * Pull the chosen labels out of whatever multi-select shape SharePoint
+ * returned. Covers every variant we've seen:
+ *
+ *   - Choice multi-select         : ["choice1", "choice2"]   or  ";#a;#b;#"
+ *   - Lookup multi-select         : [{LookupId, LookupValue}, ...]
+ *   - Managed-metadata multi      : [{Label, TermGuid, WssId}, ...]
+ *   - Single-value variants of any of the above (object or string)
  */
 function extractChoiceValues(raw: unknown): string[] {
   if (raw == null || raw === "") return [];
+
   if (Array.isArray(raw)) {
     return raw
-      .map((v) => (typeof v === "string" ? v.trim() : ""))
-      .filter((v) => v.length > 0);
+      .map((v) => extractSingleLabel(v))
+      .filter((v): v is string => !!v);
   }
+
   if (typeof raw === "string") {
     if (raw.includes(";#")) {
-      // ";#" delimiter from classic SP multi-choice serialisation. Filter
-      // out the empty leading/trailing tokens that come from the wrapping
-      // separators.
+      // ";#" delimiter from classic SP multi-choice serialisation.
       return raw
         .split(";#")
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
     }
-    // A bare numeric string is more likely a stray lookup id than a
-    // project label — let the lookup-id path handle that.
-    if (/^\d+$/.test(raw.trim())) return [];
+    if (/^\d+$/.test(raw.trim())) return []; // numeric → let lookup-id path handle
     return [raw.trim()];
   }
-  return [];
+
+  // Single-object variant (single-value Lookup / Managed Metadata).
+  const single = extractSingleLabel(raw);
+  return single ? [single] : [];
+}
+
+/**
+ * Reduce one element of a multi-select array (string or object) down to a
+ * single display label. Returns "" if nothing usable is in the element.
+ */
+function extractSingleLabel(v: unknown): string {
+  if (typeof v === "string") return v.trim();
+  if (v == null || typeof v !== "object") return "";
+  const obj = v as Record<string, unknown>;
+  for (const k of [
+    "LookupValue",
+    "Label",
+    "Title",
+    "DisplayName",
+    "Value",
+    "value",
+    "name",
+    "Name",
+  ] as const) {
+    const val = obj[k];
+    if (typeof val === "string" && val.trim()) return val.trim();
+  }
+  return "";
 }
 
 /**
