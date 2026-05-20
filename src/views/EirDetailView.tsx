@@ -186,17 +186,20 @@ export function EirDetailView() {
             }
           />
 
+          <EditableTextCard
+            title="Where Used"
+            value={eir.whereUsed}
+            onSave={(next) =>
+              updateFields.mutate({ id: eir.id, fields: { WhereUsed: next } })
+            }
+          />
+
           {/* Part details */}
           <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
             <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wider text-fg-muted">
               <HardHat className="h-4 w-4" /> Part details
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <InlineTextField
-                label="Where Used"
-                value={eir.whereUsed}
-                onSave={(v) => updateFields.mutate({ id: eir.id, fields: { WhereUsed: v } })}
-              />
               <InlineTextField
                 label="MFG"
                 value={eir.mfg}
@@ -361,7 +364,7 @@ export function EirDetailView() {
                   onChange={(v) =>
                     updateFields.mutate({
                       id: eir.id,
-                      fields: { ProjectReferenceLookupId: v ? parseInt(v, 10) : null },
+                      fields: { Project_x0020_ReferenceLookupId: v ? parseInt(v, 10) : null },
                     })
                   }
                 />

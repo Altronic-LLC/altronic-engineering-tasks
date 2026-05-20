@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.14.5",
+    date: "2026-05-20",
+    changes: [
+      "EIR Project Reference now resolves correctly — the field was being looked up under the wrong SharePoint internal name, so every EIR showed no project; reads now accept either name and writes use the canonical encoded-space form",
+      "EIR Where Used moved to its own card above Part Details and now renders HTML content as formatted text instead of showing raw <p> tags — same treatment we gave Engineering Response",
+    ],
+  },
+  {
     version: "0.14.4",
     date: "2026-05-20",
     changes: [

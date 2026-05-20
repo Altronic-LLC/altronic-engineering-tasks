@@ -58,44 +58,6 @@ function delay<T>(value: T, ms = 100): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
-// Internal column names we actually read in toEir(). Passed to $select to
-// keep the response small. Keep in sync with eirMapper.ts.
-const EIR_FIELD_SELECT = [
-  "Title",
-  "EIRNo",
-  "Description",
-  "ProjectReferenceLookupId",
-  "Priority", // requested-priority choice
-  "Reporter",
-  "Resolution",
-  "AssignedEngineer",
-  "Status",
-  "EngineeringResponse",
-  "WhereUsed",
-  "EAU",
-  "CurrentStock",
-  "Watchers",
-  "MFG",
-  "MFGP_x002f_N",
-  "Communication",
-  "Current_x0020_Price",
-  "Altronic_x0020_Part_x0020_Number",
-  "Requested_x0020_Completion_x0020",
-  "Priority0",
-  "PriorityDate",
-  "PriorityCount",
-  "RiskPart",
-  "RiskPartLevel",
-  "TechnicalPriority",
-  "LTBDate",
-  "RequestType",
-  "TaskReference",
-  "TaskPromotedFlag",
-  "EIRMeetingRelevant",
-  "BuyerCode",
-  "Attachments",
-].join(",");
-
 export async function listEirs(): Promise<Eir[]> {
   if (USE_MOCK) {
     const projects = (await listProjects()) as ProjectReference[];
@@ -113,9 +75,14 @@ export async function listEirs(): Promise<Eir[]> {
     return [];
   }
 
+  // No $select: SharePoint internal column names vary subtly between lists
+  // (especially around the "Project Reference" lookup, which can be
+  // `Project_x0020_Reference` or `ProjectReference`). Letting Graph return
+  // all field columns means the mapper can be tolerant without us having to
+  // keep two $select lists in sync with whatever the actual list looks like.
   const path =
     `/sites/${SP_SITE_ID}/lists/${SP_EIRS_LIST_ID}` +
-    `/items?$expand=fields($select=${EIR_FIELD_SELECT})&$top=200`;
+    `/items?$expand=fields&$top=200`;
   const [items, projects] = await Promise.all([
     graphFetchAll<GraphListItem>(path),
     listProjects(),
@@ -213,7 +180,7 @@ export async function createEir(input: CreateEirInput): Promise<Eir> {
   if (input.resolution) fields.Resolution = input.resolution;
   if (input.requestedPriority) fields.Priority = input.requestedPriority;
   if (input.parentProjectLookupId) {
-    fields.ProjectReferenceLookupId = input.parentProjectLookupId;
+    fields.Project_x0020_ReferenceLookupId = input.parentProjectLookupId;
   }
   if (input.reporter?.lookupId) fields.ReporterLookupId = input.reporter.lookupId;
   if (input.assignedEngineers?.some((p) => !!p.lookupId)) {
@@ -275,8 +242,8 @@ export async function updateEirFields(
       const v = fields.LTBDate;
       next.ltbDate = v ? new Date(v as string) : null;
     }
-    if ("ProjectReferenceLookupId" in fields) {
-      const v = fields.ProjectReferenceLookupId;
+    if ("Project_x0020_ReferenceLookupId" in fields) {
+      const v = fields.Project_x0020_ReferenceLookupId;
       next.parentProject = v ? { lookupId: Number(v), title: next.parentProject?.title ?? "" } : null;
     }
     if ("ReporterLookupId" in fields) {
