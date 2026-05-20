@@ -62,16 +62,9 @@ export function EirRow({ eir, onOpen }: EirRowProps) {
 
       {/* Middle column: project + people + resolution. */}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex items-center gap-2 text-sm">
-          <FolderOpen className="h-4 w-4 shrink-0 text-fg-muted" />
-          <span className="truncate text-fg-muted">
-            {eir.parentProject
-              ? eir.parentProject.title ||
-                (eir.parentProject.lookupId > 0
-                  ? `Project #${eir.parentProject.lookupId}`
-                  : "—")
-              : "—"}
-          </span>
+        <div className="flex items-start gap-2 text-sm">
+          <FolderOpen className="mt-0.5 h-4 w-4 shrink-0 text-fg-muted" />
+          <ProjectChips eir={eir} maxVisible={3} />
         </div>
         <div className="flex items-center gap-2 text-sm">
           <User className="h-4 w-4 shrink-0 text-fg-muted" />
@@ -135,5 +128,45 @@ export function EirRow({ eir, onOpen }: EirRowProps) {
 
       <ChevronRight className="my-auto hidden h-5 w-5 shrink-0 text-fg-muted transition-transform group-hover:translate-x-0.5 sm:block" />
     </button>
+  );
+}
+
+/**
+ * EIRs can be tagged with multiple projects (the column is a multi-select).
+ * Render them as small chips so a row with five projects doesn't blow out
+ * to a single unreadable truncated line. When there are more chips than
+ * `maxVisible`, the remainder collapse into "+N more" with the full list
+ * available via the chip's `title` tooltip.
+ */
+function ProjectChips({ eir, maxVisible }: { eir: Eir; maxVisible: number }) {
+  const title = eir.parentProject?.title ?? "";
+  if (!title) return <span className="text-fg-muted">—</span>;
+  const all = title
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (all.length === 0) return <span className="text-fg-muted">—</span>;
+  const visible = all.slice(0, maxVisible);
+  const overflow = all.length - visible.length;
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-1">
+      {visible.map((label) => (
+        <span
+          key={label}
+          title={label}
+          className="inline-flex max-w-[14rem] truncate rounded border border-border bg-surface-2 px-1.5 py-0.5 text-[11px] font-medium text-fg"
+        >
+          {label}
+        </span>
+      ))}
+      {overflow > 0 && (
+        <span
+          title={all.slice(maxVisible).join("\n")}
+          className="inline-flex rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium text-fg-muted"
+        >
+          +{overflow} more
+        </span>
+      )}
+    </div>
   );
 }

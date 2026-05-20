@@ -89,38 +89,10 @@ export async function listEirs(): Promise<Eir[]> {
     listProjects(),
   ]);
 
-  // One-time diagnostic, focused on the actual VALUE of ProjectReference
-  // (and any sibling lookup variant). Logs the type + JSON so we can
-  // confirm the shape no matter how SharePoint returns it.
-  if (items.length > 0 && !diagnosticsLogged) {
-    diagnosticsLogged = true;
-    const f = (items[0].fields ?? {}) as Record<string, unknown>;
-    const pickKeys = Object.keys(f).filter((k) => /project|reference/i.test(k));
-    /* eslint-disable no-console */
-    console.group("%c[EIR DEBUG] ProjectReference value", "color:#CB2C30;font-weight:bold");
-    console.log("Matching field keys:", pickKeys);
-    for (const k of pickKeys) {
-      console.log(
-        `  ${k} →`,
-        "typeof:",
-        Array.isArray(f[k]) ? "array" : typeof f[k],
-        "value:",
-        f[k],
-        "json:",
-        JSON.stringify(f[k]),
-      );
-    }
-    console.log("After mapping → parentProject:", toEir(items[0]).parentProject);
-    console.groupEnd();
-    /* eslint-enable no-console */
-  }
-
   const eirs = items.map(toEir);
   attachEirReferences(eirs, projects);
   return eirs;
 }
-
-let diagnosticsLogged = false;
 
 export async function getEir(id: number): Promise<Eir | null> {
   const all = await listEirs();

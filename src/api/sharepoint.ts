@@ -1,4 +1,3 @@
-import { BrowserAuthError, InteractionRequiredAuthError } from "@azure/msal-browser";
 import { getMsalInstance } from "@/auth/AuthProvider";
 import { SP_SITE_URL, USE_MOCK } from "./config";
 import { SessionExpiredError, GraphError } from "./graph";
@@ -60,28 +59,23 @@ export async function spFetch<T>(
   const host = new URL(SP_SITE_URL).host;
   const scopes = [`https://${host}/AllSites.Manage`];
 
+  // Silent-only. We do NOT trigger an interactive popup if silent fails,
+  // because the SP REST audience needs a separate admin-consent grant
+  // (Office 365 SharePoint Online: AllSites.Manage). If that isn't in
+  // place yet, every detail page would pop a fresh Entra sign-in — which
+  // is exactly the "sign in every time I open a detail" symptom we hit.
+  // Better to surface SharePointUnavailableError so the attachments
+  // section shows a friendly notice and the rest of the page keeps
+  // working.
   let accessToken: string;
   try {
     const result = await instance.acquireTokenSilent({ scopes, account });
     accessToken = result.accessToken;
   } catch (err) {
-    if (err instanceof InteractionRequiredAuthError) {
-      try {
-        const result = await instance.acquireTokenPopup({ scopes });
-        accessToken = result.accessToken;
-      } catch (popupErr) {
-        if (popupErr instanceof BrowserAuthError) {
-          throw new SharePointUnavailableError(
-            "Couldn't acquire a SharePoint REST token — admin needs to grant 'Office 365 SharePoint Online: AllSites.Manage' on the app registration.",
-          );
-        }
-        throw popupErr;
-      }
-    } else {
-      throw new SharePointUnavailableError(
-        `SharePoint REST token acquisition failed: ${(err as Error).message}`,
-      );
-    }
+    throw new SharePointUnavailableError(
+      "Attachments need an additional SharePoint REST scope that an admin hasn't granted yet. " +
+        `Silent token acquisition failed: ${(err as Error).message}`,
+    );
   }
 
   const url = path.startsWith("http") ? path : `${SP_SITE_URL}${path}`;

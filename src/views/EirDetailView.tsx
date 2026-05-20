@@ -22,7 +22,7 @@ import {
   useSetEirWatchers,
   useUpdateEirFields,
 } from "@/hooks/useEirs";
-import { useProjects, useTasks } from "@/hooks/useTasks";
+import { useTasks } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
   EIR_REQUEST_TYPES,
@@ -49,7 +49,6 @@ export function EirDetailView() {
   const navigate = useNavigate();
   const eirId = id ? parseInt(id, 10) : null;
   const { data: eir, isLoading } = useEir(eirId);
-  const { data: projects = [] } = useProjects();
   const { data: tasks = [] } = useTasks();
   const currentUser = useCurrentUser();
 
@@ -343,35 +342,8 @@ export function EirDetailView() {
                 />
               </SidebarField>
 
-              <SidebarField
-                icon={<FolderOpen />}
-                label="Project Reference"
-                footer={
-                  eir.parentProject && (
-                    <Link
-                      to={`/project/${eir.parentProject.lookupId}`}
-                      className="text-xs text-accent underline-offset-2 hover:underline"
-                    >
-                      View project →
-                    </Link>
-                  )
-                }
-              >
-                <SingleSelect
-                  allLabel="None"
-                  searchPlaceholder="Search projects…"
-                  options={projects.map((p) => ({
-                    value: String(p.lookupId),
-                    label: p.title,
-                  }))}
-                  selected={eir.parentProject ? String(eir.parentProject.lookupId) : null}
-                  onChange={(v) =>
-                    updateFields.mutate({
-                      id: eir.id,
-                      fields: { ProjectReferenceLookupId: v ? parseInt(v, 10) : null },
-                    })
-                  }
-                />
+              <SidebarField icon={<FolderOpen />} label="Project Reference">
+                <ProjectChipsList title={eir.parentProject?.title ?? ""} />
               </SidebarField>
 
               <SidebarField
@@ -568,6 +540,37 @@ function EditableTextCard({
 
 function looksLikeHtml(s: string): boolean {
   return /<\/?[a-z][\s\S]*?>/i.test(s);
+}
+
+/**
+ * Sidebar chip list for the multi-select Project Reference column. The
+ * mapper packs all chosen choices into one comma-joined title string;
+ * here we split them back out and render each as its own chip.
+ *
+ * Read-only for now — editing requires a proper multi-select picker that
+ * writes to the Choice column with the correct payload shape, deferred.
+ */
+function ProjectChipsList({ title }: { title: string }) {
+  const labels = title
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (labels.length === 0) {
+    return <div className="text-sm text-fg-muted">No project assigned.</div>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {labels.map((label) => (
+        <span
+          key={label}
+          title={label}
+          className="inline-flex max-w-full truncate rounded border border-border bg-surface-2 px-2 py-0.5 text-xs text-fg"
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function InlineTextField({

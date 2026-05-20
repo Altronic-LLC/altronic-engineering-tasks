@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.9",
+    date: "2026-05-20",
+    changes: [
+      "EIR project references now render as chips instead of an awkwardly truncated comma string — list rows show up to 3 chips with '+N more' for any overflow (full list on hover), and the detail page shows each project on its own chip",
+      "Fixed the Entra sign-in prompt that fired every time you opened a task or EIR detail page — root cause was the MSAL redirect URI being the current pathname (e.g. /task/123) which isn't registered with the app, so each silent-token refresh kicked into an interactive popup; the redirect URI is now pinned to the app's base URL",
+      "Attachments section now does silent-only token acquisition for the SharePoint REST scope — if an admin hasn't granted the AllSites.Manage permission yet, the section shows a friendly notice instead of triggering an Entra popup that asks you to sign in again",
+      "Removed the temporary EIR project-reference diagnostic console log",
+    ],
+  },
+  {
     version: "0.15.8",
     date: "2026-05-20",
     changes: [

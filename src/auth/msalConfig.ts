@@ -32,14 +32,23 @@ export function buildMsalConfig(): Configuration {
     }
   }
 
+  // Pin the redirect URI to the app's BASE URL (e.g.
+  // https://altronic-llc.github.io/altronic-engineering-tasks/), NOT the
+  // current pathname. The Entra app registration only has the base URL
+  // registered — using window.location.pathname meant any page that
+  // triggered a token refresh from /task/123, /eir/456, /list, etc. would
+  // send Entra an unregistered URI and fail with AADSTS50011.
+  const baseUri =
+    typeof window !== "undefined"
+      ? `${window.location.origin}${import.meta.env.BASE_URL ?? "/"}`
+      : "/";
+
   return {
     auth: {
       clientId: clientId ?? "demo-mode-no-client-id",
       authority: `https://login.microsoftonline.com/${tenantId ?? "common"}`,
-      redirectUri:
-        typeof window !== "undefined" ? window.location.origin + window.location.pathname : "/",
-      postLogoutRedirectUri:
-        typeof window !== "undefined" ? window.location.origin + window.location.pathname : "/",
+      redirectUri: baseUri,
+      postLogoutRedirectUri: baseUri,
       navigateToLoginRequestUrl: true,
     },
     cache: {
