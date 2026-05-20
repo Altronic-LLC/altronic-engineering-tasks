@@ -37,8 +37,9 @@ import {
 } from "@/types/task";
 import { CommentThread } from "@/components/CommentThread";
 import { CommentComposer } from "@/components/CommentComposer";
-import { MultiSelect, SingleSelect } from "@/components/SearchableSelect";
+import { SingleSelect } from "@/components/SearchableSelect";
 import { EirStatusBadge } from "@/components/atoms";
+import { PersonMultiField } from "@/components/PersonMultiField";
 import { sanitiseHtml } from "@/lib/sanitiseHtml";
 
 export function EirDetailView() {
@@ -316,42 +317,21 @@ export function EirDetailView() {
                 />
               </SidebarField>
 
-              <SidebarField icon={<Users />} label="Assigned Engineers">
-                <MultiSelect
-                  allLabel="Unassigned"
-                  searchPlaceholder="Search people…"
-                  options={allPeople.map((p) => ({
-                    value: p.email ?? p.displayName,
-                    label: p.displayName,
-                  }))}
-                  selected={eir.assignedEngineers.map((p) => p.email ?? p.displayName)}
-                  onChange={(keys) => {
-                    const next: Person[] = [];
-                    for (const k of keys) {
-                      const p = allPeople.find((x) => (x.email ?? x.displayName) === k);
-                      if (p) next.push(p);
-                    }
+              <SidebarField icon={<Users />} label="Assigned">
+                <PersonMultiField
+                  value={eir.assignedEngineers}
+                  allPeople={allPeople}
+                  onToggle={(p) => {
+                    const key = (p.email ?? p.displayName).toLowerCase();
+                    const isSelected = eir.assignedEngineers.some(
+                      (x) => (x.email ?? x.displayName).toLowerCase() === key,
+                    );
+                    const next = isSelected
+                      ? eir.assignedEngineers.filter(
+                          (x) => (x.email ?? x.displayName).toLowerCase() !== key,
+                        )
+                      : [...eir.assignedEngineers, p];
                     setEngineers.mutate({ id: eir.id, people: next });
-                  }}
-                />
-              </SidebarField>
-
-              <SidebarField icon={<Users />} label="Watchers">
-                <MultiSelect
-                  allLabel="No watchers"
-                  searchPlaceholder="Search people…"
-                  options={allPeople.map((p) => ({
-                    value: p.email ?? p.displayName,
-                    label: p.displayName,
-                  }))}
-                  selected={eir.watchers.map((p) => p.email ?? p.displayName)}
-                  onChange={(keys) => {
-                    const next: Person[] = [];
-                    for (const k of keys) {
-                      const p = allPeople.find((x) => (x.email ?? x.displayName) === k);
-                      if (p) next.push(p);
-                    }
-                    setWatchers.mutate({ id: eir.id, people: next });
                   }}
                 />
               </SidebarField>
@@ -456,6 +436,29 @@ export function EirDetailView() {
               <Field icon={<User />} label="Created By">
                 {eir.author?.displayName ?? <span className="text-fg-muted">Unknown</span>}
               </Field>
+
+              {/* Watchers live at the bottom of the sidebar to match the
+                  Task detail layout — they're informational, not the kind
+                  of thing you act on while triaging an EIR. */}
+              <SidebarField icon={<Users />} label="Watchers">
+                <PersonMultiField
+                  value={eir.watchers}
+                  allPeople={allPeople}
+                  emptyLabel="Nobody is watching this EIR"
+                  onToggle={(p) => {
+                    const key = (p.email ?? p.displayName).toLowerCase();
+                    const isSelected = eir.watchers.some(
+                      (x) => (x.email ?? x.displayName).toLowerCase() === key,
+                    );
+                    const next = isSelected
+                      ? eir.watchers.filter(
+                          (x) => (x.email ?? x.displayName).toLowerCase() !== key,
+                        )
+                      : [...eir.watchers, p];
+                    setWatchers.mutate({ id: eir.id, people: next });
+                  }}
+                />
+              </SidebarField>
             </div>
           </div>
         </aside>

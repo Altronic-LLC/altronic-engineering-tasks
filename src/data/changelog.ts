@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.14.3",
+    date: "2026-05-20",
+    changes: [
+      "EIR list now labels the people column 'Assigned' instead of 'Engineers' so it matches what the task list calls the same thing",
+      "EIR detail's Assigned picker is now a pill chooser — each assignee shows as a removable chip with an '+ Add person' expander, exactly like the task detail",
+      "EIR detail's Watchers section moved to the bottom of the sidebar, mirroring the task detail layout so it's not in the way while triaging",
+    ],
+  },
+  {
     version: "0.14.2",
     date: "2026-05-20",
     changes: [

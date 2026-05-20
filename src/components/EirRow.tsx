@@ -20,7 +20,7 @@ interface EirRowProps {
  */
 export function EirRow({ eir, onOpen }: EirRowProps) {
   const lastComment = eir.comments[0];
-  const engineerSummary =
+  const assignedSummary =
     eir.assignedEngineers.length === 0
       ? "Unassigned"
       : eir.assignedEngineers.map((p) => p.displayName).join(", ");
@@ -76,8 +76,8 @@ export function EirRow({ eir, onOpen }: EirRowProps) {
           </span>
         </div>
         <div className="truncate text-sm text-fg">
-          <span className="text-fg-muted">Engineers · </span>
-          {engineerSummary}
+          <span className="text-fg-muted">Assigned · </span>
+          {assignedSummary}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center rounded border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-fg-muted">
