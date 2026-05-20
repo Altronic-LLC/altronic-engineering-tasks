@@ -6,12 +6,8 @@ import { useEirs } from "@/hooks/useEirs";
 import { LoadingTasks } from "@/components/LoadingTasks";
 import { MultiSelect, SingleSelect } from "@/components/SearchableSelect";
 import { EirFormModal } from "@/components/EirFormModal";
-import {
-  EIR_STATUSES,
-  type Eir,
-  type EirStatus,
-  type Person,
-} from "@/types/task";
+import { EirRow } from "@/components/EirRow";
+import { EIR_STATUSES, type Eir, type EirStatus, type Person } from "@/types/task";
 import { cn } from "@/lib/cn";
 
 // =============================================================================
@@ -133,6 +129,17 @@ export function EirsView() {
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:gap-5 sm:px-6 sm:py-6">
+      <header className="flex items-center gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cooper-red/10 text-cooper-red">
+          <FileText className="h-5 w-5" />
+        </span>
+        <div>
+          <h1 className="font-display text-xl font-semibold text-fg sm:text-2xl">EIRs</h1>
+          <p className="text-xs text-fg-muted">
+            Engineering Information Requests — part replacements, change requests, temporary deviations.
+          </p>
+        </div>
+      </header>
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <Pill
@@ -300,66 +307,6 @@ function Pill({
         {count}
       </span>
     </button>
-  );
-}
-
-function EirRow({ eir, onOpen }: { eir: Eir; onOpen: () => void }) {
-  return (
-    <button
-      onClick={onOpen}
-      className="grid grid-cols-1 items-start gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-left transition-colors hover:border-fg-muted hover:bg-surface-2 sm:grid-cols-[1.4fr_1fr_0.9fr_0.9fr_1fr_1fr] sm:items-center sm:gap-4"
-    >
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5 text-[10px] font-mono font-semibold uppercase tracking-wider text-fg-muted">
-          <FileText className="h-3 w-3" />
-          {eir.eirNo || `#${eir.id}`}
-        </div>
-        <div className="mt-0.5 truncate font-medium text-fg">{eir.title}</div>
-      </div>
-      <div className="text-sm sm:truncate">
-        <StatusChip status={eir.status} />
-      </div>
-      <div className="text-sm text-fg sm:truncate">
-        <span className="text-fg-muted sm:hidden">Resolution: </span>
-        {eir.resolution}
-      </div>
-      <div className="text-sm text-fg sm:truncate">
-        <span className="text-fg-muted sm:hidden">Priority: </span>
-        {eir.requestedPriority ?? <span className="text-fg-muted">—</span>}
-      </div>
-      <div className="min-w-0 text-sm text-fg sm:truncate">
-        <span className="text-fg-muted sm:hidden">Reporter: </span>
-        {eir.reporter?.displayName ?? <span className="text-fg-muted">—</span>}
-      </div>
-      <div className="min-w-0 text-sm text-fg sm:truncate">
-        <span className="text-fg-muted sm:hidden">Project: </span>
-        {eir.parentProject?.title || (
-          <span className="text-fg-muted">
-            {eir.parentProject ? `#${eir.parentProject.lookupId}` : "—"}
-          </span>
-        )}
-      </div>
-    </button>
-  );
-}
-
-export function StatusChip({ status }: { status: EirStatus }) {
-  const palette: Record<EirStatus, string> = {
-    "Under Review": "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-    "EIR Not Accepted": "bg-cooper-red/10 text-cooper-red",
-    "Response Accepted": "bg-cooper-green/10 text-cooper-green",
-    "Response Not Accepted": "bg-cooper-red/10 text-cooper-red",
-    Closed: "bg-surface-2 text-fg-muted",
-  };
-  return (
-    <span
-      className={cn(
-        "inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-        palette[status],
-      )}
-    >
-      {status}
-    </span>
   );
 }
 

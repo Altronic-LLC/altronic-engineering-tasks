@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.14.0",
+    date: "2026-05-20",
+    changes: [
+      "Top nav reorganised — Dashboard / List / Kanban stay as direct links (they're all ways of looking at Tasks); EIRs and Test Sheets now live under a new 'Engineering Lists' dropdown so the nav doesn't get longer every time we add a SharePoint list",
+      "EIR list rows now match the task list rows pixel-for-pixel — same three-column layout (identity on the left, project + people in the middle, last-comment preview on the right) plus comment-count and attachment indicators",
+      "EIRs page has a header bar with the title and a short description, so it's obvious you're not looking at the task list",
+    ],
+  },
+  {
     version: "0.13.0",
     date: "2026-05-20",
     changes: [

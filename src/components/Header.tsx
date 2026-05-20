@@ -1,5 +1,17 @@
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ClipboardList, FileText, LayoutDashboard, LayoutGrid, List, Moon, Shield, Sun } from "lucide-react";
+import {
+  ChevronDown,
+  ClipboardList,
+  FileText,
+  LayoutDashboard,
+  LayoutGrid,
+  Library,
+  List,
+  Moon,
+  Shield,
+  Sun,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTheme } from "@/hooks/useTheme";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -7,6 +19,38 @@ import { USE_MOCK } from "@/api/config";
 import { Brandmark } from "@/components/brand/Brandmark";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { UserMenu } from "@/components/UserMenu";
+
+// =============================================================================
+// Top-level nav structure:
+//   Dashboard | List | Kanban | [Engineering Lists ▼] | (Admin)
+//
+// "List" and "Kanban" are views of the Tasks dataset and stay top-level
+// because that's the most-used flow. EIRs and Test Sheets — and any future
+// SharePoint list — go under the Engineering Lists dropdown so the top bar
+// doesn't grow every time a new list is added.
+// =============================================================================
+
+interface EngineeringListItem {
+  to: string;
+  label: string;
+  icon: React.ReactNode;
+  matchesPath: (pathname: string) => boolean;
+}
+
+const ENGINEERING_LISTS: EngineeringListItem[] = [
+  {
+    to: "/eirs",
+    label: "EIRs",
+    icon: <FileText className="h-4 w-4" />,
+    matchesPath: (p) => p.startsWith("/eirs") || p.startsWith("/eir/"),
+  },
+  {
+    to: "/test-sheets",
+    label: "Test Sheets",
+    icon: <ClipboardList className="h-4 w-4" />,
+    matchesPath: (p) => p.startsWith("/test-sheets") || p.startsWith("/test-sheet/"),
+  },
+];
 
 export function Header() {
   const { theme, toggle } = useTheme();
@@ -16,9 +60,7 @@ export function Header() {
   const isDashboard = pathname === "/";
   const isList = pathname.startsWith("/list");
   const isKanban = pathname.startsWith("/kanban");
-  const isTestSheets =
-    pathname.startsWith("/test-sheets") || pathname.startsWith("/test-sheet/");
-  const isEirs = pathname.startsWith("/eirs") || pathname.startsWith("/eir/");
+  const isInLists = ENGINEERING_LISTS.some((l) => l.matchesPath(pathname));
   const isAdminPage = pathname.startsWith("/admin");
 
   return (
@@ -35,7 +77,6 @@ export function Header() {
             </div>
           </Link>
 
-          {/* Mobile-only: theme toggle + user menu on the same row as the logo. */}
           <div className="flex items-center gap-2 sm:hidden">
             <button
               onClick={toggle}
@@ -49,73 +90,28 @@ export function Header() {
         </div>
 
         <nav className="flex items-center justify-center gap-1 rounded-lg bg-surface-2 p-1 sm:justify-start">
-          <Link
-            to="/"
-            className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
-              isDashboard ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <LayoutDashboard className="h-4 w-4" />
+          <NavLink to="/" active={isDashboard} icon={<LayoutDashboard className="h-4 w-4" />}>
             <span className="hidden sm:inline">Dashboard</span>
             <span className="sm:hidden">Home</span>
-          </Link>
-          <Link
-            to="/list"
-            className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
-              isList ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <List className="h-4 w-4" />
+          </NavLink>
+          <NavLink to="/list" active={isList} icon={<List className="h-4 w-4" />}>
             List
-          </Link>
-          <Link
-            to="/kanban"
-            className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
-              isKanban ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <LayoutGrid className="h-4 w-4" />
+          </NavLink>
+          <NavLink to="/kanban" active={isKanban} icon={<LayoutGrid className="h-4 w-4" />}>
             Kanban
-          </Link>
-          <Link
-            to="/test-sheets"
-            className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
-              isTestSheets ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <ClipboardList className="h-4 w-4" />
-            <span className="hidden sm:inline">Test Sheets</span>
-            <span className="sm:hidden">Tests</span>
-          </Link>
-          <Link
-            to="/eirs"
-            className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
-              isEirs ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <FileText className="h-4 w-4" />
-            EIRs
-          </Link>
+          </NavLink>
+          <EngineeringListsMenu active={isInLists} pathname={pathname} />
           {isAdmin && (
-            <Link
+            <NavLink
               to="/admin/projects"
-              className={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
-                isAdminPage ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",
-              )}
+              active={isAdminPage}
+              icon={<Shield className="h-4 w-4" />}
             >
-              <Shield className="h-4 w-4" />
               Admin
-            </Link>
+            </NavLink>
           )}
         </nav>
 
-        {/* Tablet/desktop right cluster: mode label, theme toggle, user menu. */}
         <div className="ml-auto hidden items-center gap-3 sm:flex">
           <span className="hidden text-[11px] text-fg-muted md:inline">
             {USE_MOCK ? "Demo mode · mock data" : "Connected to SharePoint"}
@@ -131,5 +127,112 @@ export function Header() {
         </div>
       </div>
     </header>
+  );
+}
+
+function NavLink({
+  to,
+  active,
+  icon,
+  children,
+}: {
+  to: string;
+  active: boolean;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      className={cn(
+        "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
+        active ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",
+      )}
+    >
+      {icon}
+      {children}
+    </Link>
+  );
+}
+
+/**
+ * Dropdown that opens to a small menu of SharePoint-list views. Closes on
+ * outside click / Escape / item navigation. Highlighted when any of its
+ * items match the current path.
+ */
+function EngineeringListsMenu({
+  active,
+  pathname,
+}: {
+  active: boolean;
+  pathname: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative flex flex-1 sm:flex-initial">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={cn(
+          "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-initial",
+          active ? "bg-surface text-fg shadow-sm" : "text-fg-muted hover:text-fg",
+        )}
+      >
+        <Library className="h-4 w-4" />
+        <span className="hidden sm:inline">Engineering Lists</span>
+        <span className="sm:hidden">Lists</span>
+        <ChevronDown
+          className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute left-1/2 top-full z-30 mt-1 w-56 -translate-x-1/2 rounded-lg border border-border bg-surface p-1 shadow-lg sm:left-0 sm:translate-x-0"
+        >
+          {ENGINEERING_LISTS.map((item) => {
+            const itemActive = item.matchesPath(pathname);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors",
+                  itemActive
+                    ? "bg-accent/10 text-accent"
+                    : "text-fg hover:bg-surface-2",
+                )}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

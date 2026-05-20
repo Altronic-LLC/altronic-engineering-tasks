@@ -48,21 +48,24 @@ const SECTIONS: ManualSection[] = [
       "where do i start",
     ],
     searchText:
-      "Sign in with your altronic-llc.com account. The Dashboard opens after sign-in with your open tasks. Use the top nav to switch between Dashboard, List, Kanban, Test Sheets.",
+      "Sign in with your altronic-llc.com account. The Dashboard opens after sign-in with your open tasks. Use the top nav to switch between Dashboard, List, Kanban, and the Engineering Lists dropdown (EIRs, Test Sheets).",
     render: () => (
       <>
         <P>
           Sign in with your <code>@altronic-llc.com</code> Microsoft account when
           prompted. Once you're in, the <strong>Dashboard</strong> opens with a
-          summary of your open work. Use the top nav to switch between the
-          Dashboard, the task <strong>List</strong>, the <strong>Kanban</strong>{" "}
-          board, and the <strong>Test Sheets</strong> log. Your tasks are
-          filtered to you by default — pick "Anyone" in the Assigned filter to
-          see the rest of the team's work.
+          summary of your open work. The top nav has direct links for the views
+          of the task list — <strong>Dashboard</strong>, <strong>List</strong>,
+          and the <strong>Kanban</strong> board — and an{" "}
+          <strong>Engineering Lists</strong> dropdown that holds the other
+          SharePoint lists (currently <strong>EIRs</strong> and{" "}
+          <strong>Test Sheets</strong>). Your tasks are filtered to you by
+          default — pick "Anyone" in the Assigned filter to see the rest of the
+          team's work.
         </P>
         <Tip>
-          All four views share the same data — a change you make in one shows
-          up in the others within seconds.
+          All views share the same data — a change you make in one shows up in
+          the others within seconds.
         </Tip>
       </>
     ),

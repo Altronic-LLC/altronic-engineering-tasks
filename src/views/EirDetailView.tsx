@@ -38,7 +38,7 @@ import {
 import { CommentThread } from "@/components/CommentThread";
 import { CommentComposer } from "@/components/CommentComposer";
 import { MultiSelect, SingleSelect } from "@/components/SearchableSelect";
-import { StatusChip } from "./EirsView";
+import { EirStatusBadge } from "@/components/atoms";
 import { sanitiseHtml } from "@/lib/sanitiseHtml";
 
 export function EirDetailView() {
@@ -132,7 +132,7 @@ export function EirDetailView() {
           {/* Header card */}
           <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <StatusChip status={eir.status} />
+              <EirStatusBadge status={eir.status} />
               <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-fg">
                 <FileText className="h-3 w-3" /> {eir.requestType ?? "EIR"}
               </span>
