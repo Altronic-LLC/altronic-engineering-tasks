@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.6",
+    date: "2026-05-20",
+    changes: [
+      "EIR Project Reference resolved at last — the column is a multi-select Choice field (text values), not a Lookup, so we now parse the array / `;#`-delimited string / single string Graph returns and display the chosen project name(s) joined by commas",
+      "EIRs project filter now matches against the project's title text (not lookup ids), so filtering by project on the EIRs page and the dashboard scoping works again",
+      "Removed the temporary yellow debug banner from the EIRs page",
+    ],
+  },
+  {
     version: "0.15.5",
     date: "2026-05-20",
     changes: [

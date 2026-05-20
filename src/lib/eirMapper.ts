@@ -106,91 +106,92 @@ export function attachEirReferences(
 // ---- helpers ---------------------------------------------------------------
 
 /**
- * Read the EIR's project-reference from a graph fields bag.
+ * Read the EIR's Project Reference field.
  *
- * This column has been a moving target across tenants and provisioning
- * methods: sometimes it comes back as `ProjectReferenceLookupId` (proper
- * lookup column, lookup id available), sometimes as bare `ProjectReference`
- * with a string value (text or managed-metadata column), sometimes as an
- * empty `{}` (unexpanded lookup). We accept ALL of those and prefer
- * whatever we can extract — a lookup id (which lets us join titles from
- * the projects catalogue), a free-text title (which we display directly),
- * or both.
+ * Confirmed shape (per the SharePoint column definition on this list):
+ * "Project Reference" is a **multi-select Choice column**, NOT a Lookup.
+ * That means the value comes back as either:
+ *   - an array of strings: `["2026-Cat Pyrometer, 133-6333"]`
+ *   - a `;#`-delimited string: `";#2026-Cat Pyrometer, 133-6333;#"`
+ *   - a single string: `"2026-Cat Pyrometer, 133-6333"`
+ *
+ * There is no lookup id to join against — the choices themselves ARE the
+ * project labels. We pack the chosen value(s) into `parentProject.title`
+ * (joined with ", " when multiple) and use lookupId=0 to signal "no real
+ * lookup join — title is authoritative."
  */
 function readProjectLookupId(
   f: Record<string, unknown>,
 ): { lookupId: number; title: string } | null {
-  let bestId = 0;
-  let bestTitle = "";
   for (const [key, raw] of Object.entries(f)) {
     if (!/project/i.test(key)) continue;
     if (!/reference/i.test(key) && !key.endsWith("LookupId")) continue;
-    const { id, title } = extractLookupHints(raw);
-    if (id != null && bestId === 0) bestId = id;
-    if (title && !bestTitle) bestTitle = title;
+    const choices = extractChoiceValues(raw);
+    if (choices.length > 0) {
+      return { lookupId: 0, title: choices.join(", ") };
+    }
+    // If the value happens to be a real lookup id (legacy provisioning),
+    // fall back to id-based join. extractLookupId is the older code path.
+    const id = extractLookupId(raw);
+    if (id != null) return { lookupId: id, title: "" };
   }
-  if (bestId === 0 && !bestTitle) return null;
-  // Use lookupId=0 as a "title-only" sentinel — attachEirReferences sees
-  // 0 and skips the join (no real project has id 0 in SharePoint).
-  return { lookupId: bestId, title: bestTitle };
+  return null;
 }
 
 /**
- * Pull whatever useful info we can out of a single field value. Lookup id
- * goes to `.id`; any human-readable name (LookupValue, Label, Title,
- * bare string) goes to `.title`.
+ * Pull the chosen labels out of a SharePoint multi-choice value. Handles
+ * the three encodings Graph can return for that column type.
  */
-function extractLookupHints(raw: unknown): { id: number | null; title: string } {
-  if (raw == null || raw === "" || raw === 0 || raw === "0") {
-    return { id: null, title: "" };
-  }
-  if (typeof raw === "number") {
-    return { id: raw > 0 ? raw : null, title: "" };
+function extractChoiceValues(raw: unknown): string[] {
+  if (raw == null || raw === "") return [];
+  if (Array.isArray(raw)) {
+    return raw
+      .map((v) => (typeof v === "string" ? v.trim() : ""))
+      .filter((v) => v.length > 0);
   }
   if (typeof raw === "string") {
-    // Could be a numeric lookup id ("412") OR a free-text project name
-    // ("2026-Cat Pyrometer, 133-6333"). Try numeric parse; if it consumes
-    // the WHOLE string we treat it as an id, otherwise as a title.
-    const n = parseInt(raw, 10);
-    if (!Number.isNaN(n) && String(n) === raw.trim()) {
-      return { id: n > 0 ? n : null, title: "" };
+    if (raw.includes(";#")) {
+      // ";#" delimiter from classic SP multi-choice serialisation. Filter
+      // out the empty leading/trailing tokens that come from the wrapping
+      // separators.
+      return raw
+        .split(";#")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
     }
-    return { id: null, title: raw };
+    // A bare numeric string is more likely a stray lookup id than a
+    // project label — let the lookup-id path handle that.
+    if (/^\d+$/.test(raw.trim())) return [];
+    return [raw.trim()];
   }
-  if (Array.isArray(raw)) {
-    // Multi-value lookup — take the first element.
-    return raw.length > 0
-      ? extractLookupHints(raw[0])
-      : { id: null, title: "" };
+  return [];
+}
+
+/**
+ * Legacy fallback: pull an integer lookup id out of a field value when
+ * the column happens to be a real Lookup (only kept for tenants that
+ * provisioned EIRs differently). Multi-choice handling above runs first.
+ */
+function extractLookupId(raw: unknown): number | null {
+  if (raw == null || raw === "" || raw === 0 || raw === "0") return null;
+  if (typeof raw === "number") return raw > 0 ? raw : null;
+  if (typeof raw === "string") {
+    const n = parseInt(raw, 10);
+    if (!Number.isNaN(n) && String(n) === raw.trim() && n > 0) return n;
+    return null;
   }
   if (typeof raw === "object") {
     const obj = raw as Record<string, unknown>;
-    let id: number | null = null;
     for (const k of ["LookupId", "lookupId", "Id", "id", "WssId"] as const) {
       const v = obj[k];
-      if (typeof v === "number" && v > 0) {
-        id = v;
-        break;
-      }
+      if (typeof v === "number" && v > 0) return v;
       if (typeof v === "string") {
         const n = parseInt(v, 10);
-        if (!Number.isNaN(n) && n > 0) {
-          id = n;
-          break;
-        }
+        if (!Number.isNaN(n) && n > 0) return n;
       }
     }
-    let title = "";
-    for (const k of ["LookupValue", "Label", "Title", "DisplayName", "title"] as const) {
-      const v = obj[k];
-      if (typeof v === "string" && v) {
-        title = v;
-        break;
-      }
-    }
-    return { id, title };
   }
-  return { id: null, title: "" };
+  return null;
 }
 
 function clampRequired<T extends string>(

@@ -89,37 +89,9 @@ export async function listEirs(): Promise<Eir[]> {
     listProjects(),
   ]);
 
-  // Snapshot the first item's raw field bag so the UI can render an
-  // inline debug banner if project-reference resolution fails. Lets us
-  // diagnose without DevTools — the user can just screenshot the banner.
-  if (items.length > 0) {
-    lastEirRawSample = {
-      itemId: parseInt(items[0].id, 10),
-      fields: items[0].fields as Record<string, unknown>,
-      projectsCount: projects.length,
-      projectsSample: projects.slice(0, 3),
-    };
-  }
-
   const eirs = items.map(toEir);
   attachEirReferences(eirs, projects);
   return eirs;
-}
-
-export interface EirRawSample {
-  itemId: number;
-  fields: Record<string, unknown>;
-  projectsCount: number;
-  projectsSample: ProjectReference[];
-}
-
-// Latest first-item raw sample from the most recent listEirs() call.
-// Exposed for the diagnostic banner in EirsView. Reset to null when there
-// are no EIRs to sample.
-let lastEirRawSample: EirRawSample | null = null;
-
-export function getLastEirRawSample(): EirRawSample | null {
-  return lastEirRawSample;
 }
 
 export async function getEir(id: number): Promise<Eir | null> {

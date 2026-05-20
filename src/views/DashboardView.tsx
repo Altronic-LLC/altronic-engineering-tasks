@@ -75,13 +75,31 @@ export function DashboardView() {
   );
 
   // ----- EIRs -----
-  // Project filter applies first, then "assigned to me" via assignedEngineers.
+  // EIR project column is a multi-choice text field, not a lookup — so we
+  // match against the title string (which the mapper packs the chosen
+  // choices into) as well as the legacy lookupId.
+  const selectedProjectTitle = useMemo(
+    () =>
+      projectId != null
+        ? projects.find((p) => p.lookupId === projectId)?.title.toLowerCase() ?? null
+        : null,
+    [projects, projectId],
+  );
   const projectScopedEirs = useMemo<Eir[]>(
     () =>
-      eirs.filter(
-        (e) => projectId == null || e.parentProject?.lookupId === projectId,
-      ),
-    [eirs, projectId],
+      eirs.filter((e) => {
+        if (projectId == null) return true;
+        if (e.parentProject?.lookupId === projectId) return true;
+        if (selectedProjectTitle && e.parentProject?.title) {
+          return e.parentProject.title
+            .toLowerCase()
+            .split(",")
+            .map((s) => s.trim())
+            .includes(selectedProjectTitle);
+        }
+        return false;
+      }),
+    [eirs, projectId, selectedProjectTitle],
   );
   const myEirs = useMemo(
     () =>
