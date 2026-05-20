@@ -368,7 +368,7 @@ export function EirDetailView() {
                   onChange={(v) =>
                     updateFields.mutate({
                       id: eir.id,
-                      fields: { Project_x0020_ReferenceLookupId: v ? parseInt(v, 10) : null },
+                      fields: { ProjectReferenceLookupId: v ? parseInt(v, 10) : null },
                     })
                   }
                 />

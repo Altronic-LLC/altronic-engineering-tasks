@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.2",
+    date: "2026-05-20",
+    changes: [
+      "EIR Project Reference now actually resolves — SharePoint was returning the lookup under the bare 'ProjectReference' key (no LookupId suffix), so the previous reader and the scanner both missed it; reads now accept the bare key plus expanded { LookupId } shapes, and writes use the canonical 'ProjectReferenceLookupId' that matches the column",
+      "Removed the temporary console diagnostic — we got what we needed",
+    ],
+  },
+  {
     version: "0.15.1",
     date: "2026-05-20",
     changes: [

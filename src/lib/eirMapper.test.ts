@@ -131,11 +131,11 @@ describe("toEir — people", () => {
 });
 
 describe("toEir — project lookup + bool fields", () => {
-  it("captures Project Reference lookup id and bool flag", () => {
+  it("captures Project Reference lookup id from the suffixed key", () => {
     const e = toEir(
       item({
         fields: {
-          Project_x0020_ReferenceLookupId: 501,
+          ProjectReferenceLookupId: 501,
           TaskPromotedFlag: true,
           Attachments: true,
         },
@@ -145,13 +145,39 @@ describe("toEir — project lookup + bool fields", () => {
     expect(e.taskPromotedFlag).toBe(true);
     expect(e.hasAttachments).toBe(true);
   });
+
+  it("captures Project Reference from the bare 'ProjectReference' key (Graph's no-$select shape)", () => {
+    const e = toEir(item({ fields: { ProjectReference: 412 } }));
+    expect(e.parentProject).toEqual({ lookupId: 412, title: "" });
+  });
+
+  it("captures Project Reference from a stringified id", () => {
+    const e = toEir(item({ fields: { ProjectReference: "274" } }));
+    expect(e.parentProject?.lookupId).toBe(274);
+  });
+
+  it("captures Project Reference from an expanded { LookupId } object", () => {
+    const e = toEir(
+      item({
+        fields: {
+          ProjectReference: { LookupId: 522, LookupValue: "0021-CleanBurn Telemetry" },
+        },
+      }),
+    );
+    expect(e.parentProject?.lookupId).toBe(522);
+  });
+
+  it("returns null when neither candidate is populated", () => {
+    const e = toEir(item({ fields: { Title: "(no project)" } }));
+    expect(e.parentProject).toBeNull();
+  });
 });
 
 describe("attachEirReferences", () => {
   it("fills project titles from the supplied projects catalogue", () => {
     const eirs: Eir[] = [
       {
-        ...toEir(item({ fields: { Project_x0020_ReferenceLookupId: 274 } })),
+        ...toEir(item({ fields: { ProjectReferenceLookupId: 274 } })),
       },
     ];
     const projects: ProjectReference[] = [{ lookupId: 274, title: "0000-Engineering Apps" }];
@@ -161,7 +187,7 @@ describe("attachEirReferences", () => {
 
   it("leaves the placeholder title when the project isn't in the catalogue", () => {
     const eirs: Eir[] = [
-      { ...toEir(item({ fields: { Project_x0020_ReferenceLookupId: 999 } })) },
+      { ...toEir(item({ fields: { ProjectReferenceLookupId: 999 } })) },
     ];
     attachEirReferences(eirs, []);
     expect(eirs[0].parentProject?.title).toBe("");

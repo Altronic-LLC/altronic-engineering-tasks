@@ -318,8 +318,8 @@ function applyFieldsLocally(
     const v = fields.LTBDate;
     next.ltbDate = v ? new Date(v as string) : null;
   }
-  if ("Project_x0020_ReferenceLookupId" in fields) {
-    const v = fields.Project_x0020_ReferenceLookupId;
+  if ("ProjectReferenceLookupId" in fields) {
+    const v = fields.ProjectReferenceLookupId;
     next.parentProject = v
       ? resolveProject(qc, Number(v)) ?? {
           lookupId: Number(v),
@@ -355,8 +355,8 @@ function buildInverseFields(prev: Eir, fields: Record<string, unknown>): Record<
       : null;
   if ("LTBDate" in fields)
     inv.LTBDate = prev.ltbDate ? prev.ltbDate.toISOString() : null;
-  if ("Project_x0020_ReferenceLookupId" in fields)
-    inv.Project_x0020_ReferenceLookupId = prev.parentProject?.lookupId ?? null;
+  if ("ProjectReferenceLookupId" in fields)
+    inv.ProjectReferenceLookupId = prev.parentProject?.lookupId ?? null;
   return inv;
 }
 
@@ -392,7 +392,7 @@ function messageForFieldsUpdate(fields: Record<string, unknown>): string {
         return "Requested completion date updated.";
       case "LTBDate":
         return "LTB date updated.";
-      case "Project_x0020_ReferenceLookupId":
+      case "ProjectReferenceLookupId":
         return "Project updated.";
       case "TaskReference":
         return "Task reference updated.";

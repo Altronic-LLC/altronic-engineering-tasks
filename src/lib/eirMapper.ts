@@ -105,23 +105,49 @@ export function attachEirReferences(
 /**
  * Read the EIR's project-reference lookup id from a graph fields bag.
  *
- * The display name on the SharePoint column is "Project Reference"; the
- * internal name depends on how the column was provisioned and we've seen
- * three variants across lists in this tenant. Rather than maintain an
- * ever-growing candidate list and keep being wrong, we scan EVERY field
- * key whose name looks like a project-reference lookup id and use the
- * first numeric value we find. That makes the mapper resilient to any
- * future column rename, and matches the same projects list as Tasks.
+ * Confirmed shape (from live Graph diagnostic on this tenant): the field
+ * comes back as the BARE internal column name `ProjectReference` — not
+ * `ProjectReferenceLookupId` — because we don't $select on it. The value
+ * can be a number, a numeric string, or an expanded object like
+ * `{ LookupId, LookupValue }`. We accept any of those plus the same-named
+ * variants seen elsewhere, so the mapper stays robust if the column is
+ * ever re-provisioned.
  */
 function readProjectLookupId(
   f: Record<string, unknown>,
 ): { lookupId: number; title: string } | null {
   for (const [key, raw] of Object.entries(f)) {
-    if (!key.endsWith("LookupId")) continue;
     if (!/project/i.test(key)) continue;
-    if (raw == null || raw === "" || raw === 0 || raw === "0") continue;
-    const n = toInt(raw, 0);
-    if (n > 0) return { lookupId: n, title: "" };
+    if (!/reference/i.test(key) && !key.endsWith("LookupId")) continue;
+    const id = extractLookupId(raw);
+    if (id != null) return { lookupId: id, title: "" };
+  }
+  return null;
+}
+
+/**
+ * Pull an integer lookup id out of whatever SharePoint returned for a
+ * lookup column. The same column can come back as a primitive int, a
+ * numeric string, or an object with `LookupId`/`Id`/`id` depending on
+ * how the request was shaped — handle all three so callers don't care.
+ */
+function extractLookupId(raw: unknown): number | null {
+  if (raw == null || raw === "" || raw === 0 || raw === "0") return null;
+  if (typeof raw === "number") return raw > 0 ? raw : null;
+  if (typeof raw === "string") {
+    const n = parseInt(raw, 10);
+    return Number.isNaN(n) || n <= 0 ? null : n;
+  }
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    const candidates = [obj.LookupId, obj.lookupId, obj.Id, obj.id];
+    for (const c of candidates) {
+      if (typeof c === "number" && c > 0) return c;
+      if (typeof c === "string") {
+        const n = parseInt(c, 10);
+        if (!Number.isNaN(n) && n > 0) return n;
+      }
+    }
   }
   return null;
 }
