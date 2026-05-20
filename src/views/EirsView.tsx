@@ -3,10 +3,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { FileText, Plus, Search as SearchIcon } from "lucide-react";
 import { useProjects } from "@/hooks/useTasks";
 import { useEirs } from "@/hooks/useEirs";
+import { getLastEirRawSample } from "@/api/eirs";
 import { LoadingTasks } from "@/components/LoadingTasks";
 import { MultiSelect, SingleSelect } from "@/components/SearchableSelect";
 import { EirFormModal } from "@/components/EirFormModal";
 import { EirRow } from "@/components/EirRow";
+import { USE_MOCK } from "@/api/config";
 import { EIR_STATUSES, type Eir, type EirStatus, type Person } from "@/types/task";
 import { cn } from "@/lib/cn";
 
@@ -132,6 +134,7 @@ export function EirsView() {
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:gap-5 sm:px-6 sm:py-6">
+      <ProjectRefDebugBanner eirs={eirs} />
       <header className="flex items-center gap-3">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cooper-red/10 text-cooper-red">
           <FileText className="h-5 w-5" />
@@ -310,6 +313,58 @@ function Pill({
         {count}
       </span>
     </button>
+  );
+}
+
+/**
+ * Diagnostic banner shown at the top of the EIRs page (real mode only) if
+ * the FIRST EIR has no resolved parent project. Surfaces the raw field
+ * names + values + projects-list size so we can pinpoint the disconnect
+ * without DevTools. Auto-hides once a project resolves.
+ */
+function ProjectRefDebugBanner({ eirs }: { eirs: Eir[] }) {
+  if (USE_MOCK) return null;
+  if (eirs.length === 0) return null;
+  // If ANY EIR has a resolved project, the wiring works — nothing to debug.
+  if (eirs.some((e) => e.parentProject && (e.parentProject.title || e.parentProject.lookupId > 0))) {
+    return null;
+  }
+  const sample = getLastEirRawSample();
+  if (!sample) return null;
+  const projectKeys = Object.keys(sample.fields)
+    .filter((k) => /project|reference/i.test(k))
+    .sort();
+  return (
+    <details className="rounded-lg border border-ajax-yellow/40 bg-ajax-yellow/5 p-3 text-xs">
+      <summary className="cursor-pointer font-semibold text-ajax-yellow">
+        Project Reference debug — no project resolved on the first EIR.
+        Click to expand and share with the developer.
+      </summary>
+      <div className="mt-2 space-y-1.5 font-mono text-[11px] text-fg">
+        <div>
+          <span className="text-fg-muted">First EIR item id: </span>
+          {sample.itemId}
+        </div>
+        <div>
+          <span className="text-fg-muted">Fields matching project|reference: </span>
+          {projectKeys.join(", ") || "(none)"}
+        </div>
+        {projectKeys.map((k) => (
+          <div key={k}>
+            <span className="text-fg-muted">{k} value: </span>
+            <code>{JSON.stringify(sample.fields[k])}</code>
+          </div>
+        ))}
+        <div>
+          <span className="text-fg-muted">Projects returned by listProjects(): </span>
+          {sample.projectsCount}
+        </div>
+        <div>
+          <span className="text-fg-muted">First 3 projects: </span>
+          <code>{JSON.stringify(sample.projectsSample)}</code>
+        </div>
+      </div>
+    </details>
   );
 }
 

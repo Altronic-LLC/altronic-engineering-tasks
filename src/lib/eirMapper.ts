@@ -93,8 +93,11 @@ export function attachEirReferences(
 ): Eir[] {
   const byId = new Map(projects.map((p) => [p.lookupId, p.title]));
   for (const e of eirs) {
-    if (e.parentProject) {
-      e.parentProject.title = byId.get(e.parentProject.lookupId) ?? e.parentProject.title;
+    if (e.parentProject && e.parentProject.lookupId > 0) {
+      // Only override a blank title — if the mapper already extracted a
+      // title from a string/managed-metadata value, that's authoritative.
+      const joined = byId.get(e.parentProject.lookupId);
+      if (joined && !e.parentProject.title) e.parentProject.title = joined;
     }
   }
   return eirs;
@@ -103,53 +106,91 @@ export function attachEirReferences(
 // ---- helpers ---------------------------------------------------------------
 
 /**
- * Read the EIR's project-reference lookup id from a graph fields bag.
+ * Read the EIR's project-reference from a graph fields bag.
  *
- * Confirmed shape (from live Graph diagnostic on this tenant): the field
- * comes back as the BARE internal column name `ProjectReference` — not
- * `ProjectReferenceLookupId` — because we don't $select on it. The value
- * can be a number, a numeric string, or an expanded object like
- * `{ LookupId, LookupValue }`. We accept any of those plus the same-named
- * variants seen elsewhere, so the mapper stays robust if the column is
- * ever re-provisioned.
+ * This column has been a moving target across tenants and provisioning
+ * methods: sometimes it comes back as `ProjectReferenceLookupId` (proper
+ * lookup column, lookup id available), sometimes as bare `ProjectReference`
+ * with a string value (text or managed-metadata column), sometimes as an
+ * empty `{}` (unexpanded lookup). We accept ALL of those and prefer
+ * whatever we can extract — a lookup id (which lets us join titles from
+ * the projects catalogue), a free-text title (which we display directly),
+ * or both.
  */
 function readProjectLookupId(
   f: Record<string, unknown>,
 ): { lookupId: number; title: string } | null {
+  let bestId = 0;
+  let bestTitle = "";
   for (const [key, raw] of Object.entries(f)) {
     if (!/project/i.test(key)) continue;
     if (!/reference/i.test(key) && !key.endsWith("LookupId")) continue;
-    const id = extractLookupId(raw);
-    if (id != null) return { lookupId: id, title: "" };
+    const { id, title } = extractLookupHints(raw);
+    if (id != null && bestId === 0) bestId = id;
+    if (title && !bestTitle) bestTitle = title;
   }
-  return null;
+  if (bestId === 0 && !bestTitle) return null;
+  // Use lookupId=0 as a "title-only" sentinel — attachEirReferences sees
+  // 0 and skips the join (no real project has id 0 in SharePoint).
+  return { lookupId: bestId, title: bestTitle };
 }
 
 /**
- * Pull an integer lookup id out of whatever SharePoint returned for a
- * lookup column. The same column can come back as a primitive int, a
- * numeric string, or an object with `LookupId`/`Id`/`id` depending on
- * how the request was shaped — handle all three so callers don't care.
+ * Pull whatever useful info we can out of a single field value. Lookup id
+ * goes to `.id`; any human-readable name (LookupValue, Label, Title,
+ * bare string) goes to `.title`.
  */
-function extractLookupId(raw: unknown): number | null {
-  if (raw == null || raw === "" || raw === 0 || raw === "0") return null;
-  if (typeof raw === "number") return raw > 0 ? raw : null;
+function extractLookupHints(raw: unknown): { id: number | null; title: string } {
+  if (raw == null || raw === "" || raw === 0 || raw === "0") {
+    return { id: null, title: "" };
+  }
+  if (typeof raw === "number") {
+    return { id: raw > 0 ? raw : null, title: "" };
+  }
   if (typeof raw === "string") {
+    // Could be a numeric lookup id ("412") OR a free-text project name
+    // ("2026-Cat Pyrometer, 133-6333"). Try numeric parse; if it consumes
+    // the WHOLE string we treat it as an id, otherwise as a title.
     const n = parseInt(raw, 10);
-    return Number.isNaN(n) || n <= 0 ? null : n;
+    if (!Number.isNaN(n) && String(n) === raw.trim()) {
+      return { id: n > 0 ? n : null, title: "" };
+    }
+    return { id: null, title: raw };
+  }
+  if (Array.isArray(raw)) {
+    // Multi-value lookup — take the first element.
+    return raw.length > 0
+      ? extractLookupHints(raw[0])
+      : { id: null, title: "" };
   }
   if (typeof raw === "object") {
     const obj = raw as Record<string, unknown>;
-    const candidates = [obj.LookupId, obj.lookupId, obj.Id, obj.id];
-    for (const c of candidates) {
-      if (typeof c === "number" && c > 0) return c;
-      if (typeof c === "string") {
-        const n = parseInt(c, 10);
-        if (!Number.isNaN(n) && n > 0) return n;
+    let id: number | null = null;
+    for (const k of ["LookupId", "lookupId", "Id", "id", "WssId"] as const) {
+      const v = obj[k];
+      if (typeof v === "number" && v > 0) {
+        id = v;
+        break;
+      }
+      if (typeof v === "string") {
+        const n = parseInt(v, 10);
+        if (!Number.isNaN(n) && n > 0) {
+          id = n;
+          break;
+        }
       }
     }
+    let title = "";
+    for (const k of ["LookupValue", "Label", "Title", "DisplayName", "title"] as const) {
+      const v = obj[k];
+      if (typeof v === "string" && v) {
+        title = v;
+        break;
+      }
+    }
+    return { id, title };
   }
-  return null;
+  return { id: null, title: "" };
 }
 
 function clampRequired<T extends string>(

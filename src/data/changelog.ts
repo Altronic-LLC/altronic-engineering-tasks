@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.4",
+    date: "2026-05-20",
+    changes: [
+      "EIR project reference reader now handles any shape SharePoint might return — plain integer, numeric string, free-text project name (like '2026-Cat Pyrometer, 133-6333'), expanded { LookupId, LookupValue } object, or managed-metadata { Label, WssId, TermGuid } — and displays whatever text/title it can extract, even when the lookup id is missing",
+      "Added an inline yellow debug banner at the top of the EIRs page that auto-shows in real mode when the first EIR doesn't resolve a project — surfaces the raw field name + value + projects-list size right in the UI, so we can diagnose without DevTools",
+    ],
+  },
+  {
     version: "0.15.3",
     date: "2026-05-20",
     changes: [

@@ -86,6 +86,7 @@ export async function listEirs(): Promise<Eir[]> {
     "EIRNo",
     "Description",
     "ProjectReferenceLookupId",
+    "ProjectReference",
     "Priority",
     "Reporter",
     "ReporterLookupId",
@@ -125,27 +126,16 @@ export async function listEirs(): Promise<Eir[]> {
     listProjects(),
   ]);
 
-  // Round-two diagnostic. Last round confirmed the field comes back under
-  // the bare key `ProjectReference`, but we still don't know what shape
-  // its VALUE has — that's what blocks the lookup join. Print the value,
-  // its type, and a sibling Reporter value for comparison (we know
-  // ReporterLookupId works, so it's a useful reference).
-  if (items.length > 0 && !diagnosticsLogged) {
-    diagnosticsLogged = true;
-    const fields = (items[0].fields ?? {}) as Record<string, unknown>;
-    /* eslint-disable no-console */
-    console.groupCollapsed("[EIR DEBUG] project-ref value diagnostic (round 2)");
-    console.log("Field keys returned:", Object.keys(fields).sort());
-    console.log("ProjectReferenceLookupId VALUE:", fields["ProjectReferenceLookupId"]);
-    console.log("ProjectReference VALUE:", fields["ProjectReference"]);
-    console.log("Sibling ReporterLookupId VALUE:", fields["ReporterLookupId"]);
-    console.log("First 5 projects from listProjects():", projects.slice(0, 5));
-    console.log(
-      "Resolved parentProject after mapping:",
-      toEir(items[0]).parentProject,
-    );
-    console.groupEnd();
-    /* eslint-enable no-console */
+  // Snapshot the first item's raw field bag so the UI can render an
+  // inline debug banner if project-reference resolution fails. Lets us
+  // diagnose without DevTools — the user can just screenshot the banner.
+  if (items.length > 0) {
+    lastEirRawSample = {
+      itemId: parseInt(items[0].id, 10),
+      fields: items[0].fields as Record<string, unknown>,
+      projectsCount: projects.length,
+      projectsSample: projects.slice(0, 3),
+    };
   }
 
   const eirs = items.map(toEir);
@@ -153,8 +143,21 @@ export async function listEirs(): Promise<Eir[]> {
   return eirs;
 }
 
-// Module-level flag so the diagnostic prints once per session.
-let diagnosticsLogged = false;
+export interface EirRawSample {
+  itemId: number;
+  fields: Record<string, unknown>;
+  projectsCount: number;
+  projectsSample: ProjectReference[];
+}
+
+// Latest first-item raw sample from the most recent listEirs() call.
+// Exposed for the diagnostic banner in EirsView. Reset to null when there
+// are no EIRs to sample.
+let lastEirRawSample: EirRawSample | null = null;
+
+export function getLastEirRawSample(): EirRawSample | null {
+  return lastEirRawSample;
+}
 
 export async function getEir(id: number): Promise<Eir | null> {
   const all = await listEirs();
