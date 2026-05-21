@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.4",
+    date: "2026-05-21",
+    changes: [
+      "Project Reference writes from the EIR detail picker now send the canonical Graph multi-choice payload — added a `multiChoiceField` helper that emits the `@odata.type: Collection(Edm.String)` annotation Graph requires for multi-select Choice columns; without it some tenants silently dropped the value on save",
+      "EIR Title is now editable inline on the detail page — hover the title to reveal a small edit pencil, click to enter an input, Enter saves (Escape cancels); the save is optimistic via the same useUpdateEirFields path everything else uses, with toast + undo",
+      "EIR Description is now editable too — swapped the read-only BodyCard for the same EditableTextCard pattern Engineering Response and Where Used already use, with HTML rendering for display and a textarea for editing",
+    ],
+  },
+  {
     version: "0.17.3",
     date: "2026-05-21",
     changes: [

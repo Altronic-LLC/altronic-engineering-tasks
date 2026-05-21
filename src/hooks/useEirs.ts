@@ -18,6 +18,7 @@ import type {
   Person,
 } from "@/types/task";
 import { pushToast } from "@/components/Toast";
+import { multiChoiceField } from "@/lib/graphFields";
 
 const EIRS_KEY = ["eirs", "list"] as const;
 
@@ -358,7 +359,7 @@ function buildInverseFields(prev: Eir, fields: Record<string, unknown>): Record<
     const titles = prev.parentProject?.title
       ? prev.parentProject.title.split(",").map((s) => s.trim()).filter(Boolean)
       : [];
-    inv.ProjectReference = titles;
+    Object.assign(inv, multiChoiceField("ProjectReference", titles));
   }
   return inv;
 }

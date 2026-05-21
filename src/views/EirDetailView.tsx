@@ -8,6 +8,7 @@ import {
   Flag,
   FolderOpen,
   HardHat,
+  Pencil,
   Tag,
   User,
   Users,
@@ -42,6 +43,7 @@ import { AttachmentsSection } from "@/components/AttachmentsSection";
 import { LoadingTasks } from "@/components/LoadingTasks";
 import { PersonMultiField } from "@/components/PersonMultiField";
 import { sanitiseHtml } from "@/lib/sanitiseHtml";
+import { multiChoiceField } from "@/lib/graphFields";
 import { cn } from "@/lib/cn";
 
 export function EirDetailView() {
@@ -189,12 +191,21 @@ export function EirDetailView() {
                 {eir.eirNo || `#${eir.id}`}
               </span>
             </div>
-            <h1 className="font-display text-xl font-semibold leading-tight text-fg sm:text-2xl">
-              {eir.title}
-            </h1>
+            <InlineTitle
+              value={eir.title}
+              onSave={(next) =>
+                updateFields.mutate({ id: eir.id, fields: { Title: next } })
+              }
+            />
           </div>
 
-          <BodyCard title="Description" body={eir.description} />
+          <EditableTextCard
+            title="Description"
+            value={eir.description}
+            onSave={(next) =>
+              updateFields.mutate({ id: eir.id, fields: { Description: next } })
+            }
+          />
           <EditableTextCard
             title="Engineering Response"
             value={eir.engineeringResponse}
@@ -373,7 +384,7 @@ export function EirDetailView() {
                   onChange={(titles) =>
                     updateFields.mutate({
                       id: eir.id,
-                      fields: { ProjectReference: titles },
+                      fields: multiChoiceField("ProjectReference", titles),
                     })
                   }
                 />
@@ -455,20 +466,68 @@ export function EirDetailView() {
   );
 }
 
-function BodyCard({ title, body }: { title: string; body: string }) {
+/**
+ * Inline-editable EIR title. Click the title (or the Edit pencil) to flip
+ * to an `<input>` pre-filled with the current value; Enter saves, Escape
+ * cancels. Save is optimistic via the parent `onSave` (updateEirFields,
+ * which already snapshots + rolls back on failure).
+ */
+function InlineTitle({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (next: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  function commit() {
+    const next = draft.trim();
+    if (next && next !== value) onSave(next);
+    setEditing(false);
+  }
+
+  if (!editing) {
+    return (
+      <div className="group flex items-start gap-2">
+        <h1 className="flex-1 font-display text-xl font-semibold leading-tight text-fg sm:text-2xl">
+          {value}
+        </h1>
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(value);
+            setEditing(true);
+          }}
+          className="shrink-0 rounded-md p-1 text-fg-muted opacity-0 transition-opacity hover:bg-surface-2 hover:text-fg group-hover:opacity-100 focus:opacity-100"
+          aria-label="Edit title"
+          title="Edit title"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
-      <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wider text-fg-muted">
-        {title}
-      </h2>
-      {body ? (
-        <div
-          className="comment-html"
-          dangerouslySetInnerHTML={{ __html: sanitiseHtml(body) }}
-        />
-      ) : (
-        <div className="text-sm text-fg-muted">Not set.</div>
-      )}
+    <div className="flex items-stretch gap-2">
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          } else if (e.key === "Escape") {
+            setDraft(value);
+            setEditing(false);
+          }
+        }}
+        className="flex-1 rounded-md border border-border bg-bg px-3 py-2 font-display text-xl font-semibold leading-tight text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-2xl"
+      />
     </div>
   );
 }

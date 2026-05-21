@@ -59,3 +59,26 @@ export function multiPersonField(
   const lookupIds = people.map((p) => p.lookupId).filter((x): x is number => !!x);
   return multiLookupField(fieldName, lookupIds);
 }
+
+/**
+ * Write payload for a multi-select Choice column (string values, not
+ * lookup ids). Graph wants the same annotated shape as multi-value
+ * lookups — `Collection(Edm.String)` instead of `Collection(Edm.Int32)`.
+ *
+ * Example:
+ *   multiChoiceField("ProjectReference", ["A", "B"])
+ *     ↓
+ *   {
+ *     "ProjectReference@odata.type": "Collection(Edm.String)",
+ *     "ProjectReference": ["A", "B"],
+ *   }
+ */
+export function multiChoiceField(
+  fieldName: string,
+  values: string[],
+): Record<string, unknown> {
+  return {
+    [`${fieldName}@odata.type`]: "Collection(Edm.String)",
+    [fieldName]: values,
+  };
+}
