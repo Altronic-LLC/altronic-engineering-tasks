@@ -5,6 +5,7 @@ import {
   createTask,
   deleteTask,
   editComment,
+  getTaskRawFields,
   listProjects,
   listTasks,
   setAssigned,
@@ -17,6 +18,7 @@ import {
   updateTaskFields,
   watchTask,
 } from "@/api/tasks";
+import { listTaskColumns } from "@/api/taskColumns";
 import type {
   Category,
   CommentAttachment,
@@ -53,6 +55,31 @@ export function useTask(id: number | null) {
     ...list,
     data: id !== null ? list.data?.find((t) => t.id === id) ?? null : null,
   };
+}
+
+/**
+ * Fetch the raw SharePoint `fields` bag for a single task — used by
+ * feature UIs that need columns the typed mapper doesn't surface (e.g.
+ * the PCB checklist). Separate from `useTask` because it skips the
+ * `$select` filter on the bulk list fetch and gets every column.
+ */
+export function useTaskRawFields(taskId: number | null) {
+  return useQuery<Record<string, unknown>>({
+    queryKey: ["task-raw-fields", taskId ?? 0] as const,
+    queryFn: () => getTaskRawFields(taskId!),
+    enabled: taskId != null,
+    retry: false,
+  });
+}
+
+/** Cached SharePoint Task list column metadata (display + internal names + choices). */
+export function useTaskColumns() {
+  return useQuery({
+    queryKey: ["task-columns"] as const,
+    queryFn: listTaskColumns,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 }
 
 export function useProjects() {

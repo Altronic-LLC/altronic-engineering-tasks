@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.19.0",
+    date: "2026-05-21",
+    changes: [
+      "New PCB Checklist card on tasks with category 'PCB' — mirrors the two-column layout from the original Power Apps form with 13 Yes/No checkboxes and 4 Choice radio groups; the card resolves SharePoint internal column names at runtime by display-name match (via a new `useTaskColumns` hook) so we don't have to guess at the encoded internal names, and a small `n/N` progress badge in the card header shows how many items are complete",
+      "Checkbox + radio changes write through the existing `useUpdateTaskFields` mutation (toast + undo) and patch the raw-fields cache for instant optimistic feedback; if SharePoint rejects the write, the field flips back",
+      "Card only renders when the task's category is 'PCB' — other categories see no change",
+    ],
+  },
+  {
     version: "0.18.3",
     date: "2026-05-21",
     changes: [

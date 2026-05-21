@@ -173,6 +173,13 @@ export interface Task {
   comments: Comment[];
   /** Whether the item has SharePoint attachments. */
   hasAttachments: boolean;
+  /**
+   * Raw SharePoint `fields` bag from Graph. Kept around so feature-specific
+   * UI (e.g. the PCB checklist on category=PCB tasks) can read columns
+   * the typed mapper doesn't surface, without forcing every new
+   * conditional field through the type definition.
+   */
+  rawFields?: Record<string, unknown>;
 }
 
 // =============================================================================

@@ -57,6 +57,9 @@ export function toTask(item: GraphListItem): Task {
     softwareRevision: (f.SoftwareRevision as string) ?? "",
     comments: parseCommunication(f.Communication as string),
     hasAttachments: !!f.Attachments,
+    // Keep the raw bag so feature UIs (e.g. the PCB checklist) can read
+    // columns that aren't part of the typed Task shape.
+    rawFields: f as Record<string, unknown>,
   };
 }
 

@@ -56,6 +56,7 @@ import { TestSheetFormModal } from "@/components/TestSheetFormModal";
 import { useTestSheets } from "@/hooks/useTestSheets";
 import { LabelChip, StatusBadge, statusColor } from "@/components/atoms";
 import { TaskAttachmentsSection } from "@/components/TaskAttachmentsSection";
+import { PcbChecklistCard } from "@/components/PcbChecklistCard";
 import { LoadingTasks } from "@/components/LoadingTasks";
 import { PersonMultiField } from "@/components/PersonMultiField";
 import { cn } from "@/lib/cn";
@@ -480,6 +481,8 @@ export function DetailView() {
               </div>
             </div>
           )}
+
+          {task.category === "PCB" && <PcbChecklistCard task={task} />}
 
           <TaskAttachmentsSection task={task} />
 

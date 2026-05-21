@@ -186,6 +186,24 @@ export async function listTasks(): Promise<Task[]> {
 }
 
 /** Fetch a single task by its list-item ID. */
+/**
+ * Fetch the raw SharePoint `fields` bag for a single task item, with no
+ * `$select` filter so every column on the list is in the response. Used
+ * by feature UIs (e.g. the PCB checklist) that need columns the typed
+ * mapper doesn't surface.
+ */
+export async function getTaskRawFields(id: number): Promise<Record<string, unknown>> {
+  if (USE_MOCK) {
+    const t = mockStore.find((x) => x.id === id);
+    return (t?.rawFields ?? {}) as Record<string, unknown>;
+  }
+  if (!SP_LIST_ID) return {};
+  const item = await graphFetch<GraphListItem>(
+    `/sites/${SP_SITE_ID}/lists/${SP_LIST_ID}/items/${id}?$expand=fields`,
+  );
+  return (item.fields ?? {}) as Record<string, unknown>;
+}
+
 export async function getTask(id: number): Promise<Task | null> {
   // We always fetch via listTasks to ensure parent/child links are populated;
   // the cost is small in mock mode and a single Graph call won't return the
