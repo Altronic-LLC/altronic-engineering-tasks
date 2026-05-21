@@ -1,6 +1,7 @@
-import { ArrowDown, ArrowLeft, ArrowUp, BookOpen, ExternalLink, Info, Repeat } from "lucide-react";
+import { ArrowDown, ArrowLeft, BookOpen, ExternalLink, Info, Key } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { CURRENT_VERSION } from "@/data/changelog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { cn } from "@/lib/cn";
 
 // =============================================================================
@@ -85,19 +86,151 @@ const SYSTEM_TIERS: Tier[] = [
 ];
 
 // =============================================================================
-// Data model — relationships are wired up inside the ReferenceHierarchy
-// component below (the tier layout shows them naturally). The shared
-// concepts list is the supporting cast that every entity touches.
+// Data model — ER-diagram style. Each entity is a table card with its key
+// columns and the foreign keys called out (FK → Target). This is the
+// schema view the engineering team asked for; the previous hierarchy
+// layout undersold how the relationships actually wire up.
 // =============================================================================
 
-const SHARED_CONCEPTS: NodeSpec[] = [
-  { label: "Person", hint: "Email + display name + lookupId", palette: "shared" },
-  { label: "Comments", hint: "Communication field, pipe-delimited", palette: "shared" },
-  { label: "Attachments", hint: "Files on the SharePoint list item", palette: "shared" },
+type ColumnKind = "pk" | "field" | "fk";
+
+interface SchemaColumn {
+  name: string;
+  type: string;
+  kind: ColumnKind;
+  /** Where this FK points, e.g. "Project.id" or "Person.id[]". */
+  references?: string;
+}
+
+interface SchemaTable {
+  name: string;
+  /** SharePoint list display name (or "Concept" for shared/derived ones). */
+  source: string;
+  palette: PaletteKey;
+  columns: SchemaColumn[];
+}
+
+const SCHEMA_TABLES: SchemaTable[] = [
+  {
+    name: "Project",
+    source: "Projects list",
+    palette: "entity",
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "title", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "Task",
+    source: "Project Task List",
+    palette: "entity",
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "title", type: "text", kind: "field" },
+      { name: "numberedTitle", type: "text", kind: "field" },
+      { name: "status", type: "choice", kind: "field" },
+      { name: "priority", type: "choice", kind: "field" },
+      { name: "category", type: "choice", kind: "field" },
+      { name: "labels", type: "choice[]", kind: "field" },
+      { name: "dueDate", type: "datetime", kind: "field" },
+      { name: "parentProjectId", type: "int", kind: "fk", references: "Project.id" },
+      { name: "parentTaskId", type: "int", kind: "fk", references: "Task.id" },
+      { name: "relatedProjects", type: "int[]", kind: "fk", references: "Project.id" },
+      { name: "assigned", type: "int[]", kind: "fk", references: "Person.id" },
+      { name: "watchers", type: "int[]", kind: "fk", references: "Person.id" },
+      { name: "description", type: "text", kind: "field" },
+      { name: "communication", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "EIR",
+    source: "Engineering Information Request",
+    palette: "entity",
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "eirNo", type: "text", kind: "field" },
+      { name: "title", type: "text", kind: "field" },
+      { name: "requestType", type: "choice", kind: "field" },
+      { name: "status", type: "choice", kind: "field" },
+      { name: "resolution", type: "choice", kind: "field" },
+      { name: "requestedPriority", type: "choice", kind: "field" },
+      { name: "projectReferences", type: "int[]", kind: "fk", references: "Project.id" },
+      { name: "taskReference", type: "text", kind: "field" },
+      { name: "reporter", type: "int", kind: "fk", references: "Person.id" },
+      { name: "assignedEngineers", type: "int[]", kind: "fk", references: "Person.id" },
+      { name: "watchers", type: "int[]", kind: "fk", references: "Person.id" },
+      { name: "description", type: "text", kind: "field" },
+      { name: "engineeringResponse", type: "text", kind: "field" },
+      { name: "whereUsed", type: "text", kind: "field" },
+      { name: "mfg / mfgPartNumber / altronicPartNumber", type: "text", kind: "field" },
+      { name: "eau / currentStock / currentPrice", type: "text", kind: "field" },
+      { name: "requestedCompletionDate / ltbDate", type: "datetime", kind: "field" },
+      { name: "buyerCode", type: "text", kind: "field" },
+      { name: "communication", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "TestSheet",
+    source: "Test Results",
+    palette: "entity",
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "title", type: "text", kind: "field" },
+      { name: "product / serialNumber / firmwareVersion", type: "text", kind: "field" },
+      { name: "purpose / results", type: "text", kind: "field" },
+      { name: "parentProjectId", type: "int", kind: "fk", references: "Project.id" },
+      { name: "parentTaskId", type: "int", kind: "fk", references: "Task.id" },
+      { name: "tester", type: "int", kind: "fk", references: "Person.id" },
+    ],
+  },
+  {
+    name: "Admin",
+    source: "Admins list",
+    palette: "entity",
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "email", type: "text", kind: "fk", references: "Person.email" },
+      { name: "displayName", type: "text", kind: "field" },
+      { name: "note", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "Person",
+    source: "Concept (resolved from SharePoint user info list)",
+    palette: "shared",
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "displayName", type: "text", kind: "field" },
+      { name: "email", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "Comment",
+    source: "Concept (parsed from Communication text field)",
+    palette: "shared",
+    columns: [
+      { name: "parentId", type: "int", kind: "fk", references: "Task.id / EIR.id" },
+      { name: "timestamp", type: "datetime", kind: "field" },
+      { name: "authorName", type: "text", kind: "field" },
+      { name: "authorEmail", type: "text", kind: "field" },
+      { name: "bodyHtml", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "Attachment",
+    source: "Concept (SharePoint REST list-item file)",
+    palette: "shared",
+    columns: [
+      { name: "parentId", type: "int", kind: "fk", references: "Task.id / EIR.id" },
+      { name: "fileName", type: "text", kind: "field" },
+      { name: "serverRelativeUrl", type: "text", kind: "field" },
+    ],
+  },
 ];
 
 export function AboutView() {
   const navigate = useNavigate();
+  const isAdmin = useIsAdmin();
 
   return (
     <div className="mx-auto max-w-[1100px] px-4 py-4 sm:px-6 sm:py-6">
@@ -148,6 +281,24 @@ export function AboutView() {
           >
             <ExternalLink className="h-3 w-3" /> Test Results
           </a>
+          <a
+            href="https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering/Lists/EIREngineering%20Information%20Request/AllItems.aspx"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-fg-muted hover:border-fg-muted hover:text-fg"
+          >
+            <ExternalLink className="h-3 w-3" /> EIRs
+          </a>
+          {isAdmin && (
+            <a
+              href="https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering/Lists/Admins/AllItems.aspx"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-fg-muted hover:border-fg-muted hover:text-fg"
+            >
+              <ExternalLink className="h-3 w-3" /> Admins
+            </a>
+          )}
           <Link
             to="/"
             className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-fg-muted hover:border-fg-muted hover:text-fg"
@@ -182,25 +333,13 @@ export function AboutView() {
 
       <Section
         title="Data model"
-        description="How the SharePoint entities reference each other. Project sits at the top — Task, EIR, and Test Sheet all reference it. Task is referenced in turn by EIR and Test Sheet. Each arrow shows the actual SharePoint column carrying the reference."
+        description="ER-diagram view of the SharePoint schema. Each card is one entity (a SharePoint list, or a derived concept). Primary keys are flagged PK; foreign keys carry an arrow with the target column they reference. Array types (int[]) indicate a multi-value relationship — these are SharePoint multi-value Lookup / multi-person columns."
       >
-        <ReferenceHierarchy />
-
-        <h3 className="mt-6 font-display text-xs font-semibold uppercase tracking-wider text-fg-muted">
-          Shared concepts (used by all entities)
-        </h3>
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {SHARED_CONCEPTS.map((n) => (
-            <DiagramNode key={n.label} node={n} className="w-full" />
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          {SCHEMA_TABLES.map((t) => (
+            <SchemaCard key={t.name} table={t} />
           ))}
         </div>
-        <div className="mt-3 grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-fg-muted sm:grid-cols-2">
-          <SharedRow concept="Person" sources="Task (Assigned · Watchers) · EIR (Reporter · Engineers · Watchers) · Test Sheet (Tester) · Admin (Email)" />
-          <SharedRow concept="Comments" sources="Task, EIR — via the Communication field" />
-          <SharedRow concept="Attachments" sources="Task, EIR — list-item files via SharePoint REST" />
-          <SharedRow concept="Admin" sources="Standalone list — only links to Person via email; everyone in the list sees the Admin nav link" />
-        </div>
-
         <Legend
           items={[
             { palette: "entity", label: "Entity (SharePoint list)" },
@@ -291,123 +430,72 @@ function DiagramNode({
  * Visual cue: every arrow points UPWARD because references in SharePoint
  * point at the parent (the child stores the lookup id).
  */
-function ReferenceHierarchy() {
-  return (
-    <div className="flex flex-col items-stretch gap-1">
-      {/* Tier 1 — Project */}
-      <TierRow>
-        <BigNode label="Project" palette="entity" />
-      </TierRow>
-
-      <ReferenceBar
-        upRefs={[
-          { field: "Parent Project Reference", from: "Task" },
-          { field: "Project Reference (multi-choice)", from: "EIR" },
-          { field: "Project Reference", from: "Test Sheet" },
-        ]}
-      />
-
-      {/* Tier 2 — Task (with self-link callout) */}
-      <TierRow>
-        <div className="flex items-center gap-2">
-          <BigNode label="Task" palette="entity" />
-          <SelfLoopBadge label="Parent Task — self-link (optional)" />
-        </div>
-      </TierRow>
-
-      <ReferenceBar
-        upRefs={[
-          { field: "Task Reference (text or Power Apps URL)", from: "EIR" },
-          { field: "Task Reference", from: "Test Sheet" },
-        ]}
-      />
-
-      {/* Tier 3 — EIR + Test Sheet */}
-      <TierRow>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <BigNode label="EIR" palette="entity" />
-          <BigNode label="Test Sheet" palette="entity" />
-        </div>
-      </TierRow>
-    </div>
-  );
-}
-
-function TierRow({ children }: { children: React.ReactNode }) {
-  return <div className="flex justify-center py-1">{children}</div>;
-}
-
-function BigNode({
-  label,
-  palette,
-}: {
-  label: string;
-  palette: PaletteKey;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-md border px-5 py-2.5 text-center shadow-sm",
-        PALETTE[palette],
-      )}
-    >
-      <div className="font-display text-sm font-semibold uppercase tracking-wider">
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function SelfLoopBadge({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-border bg-surface-2 px-2 py-1 text-[10px] uppercase tracking-wider text-fg-muted">
-      <Repeat className="h-3 w-3" />
-      {label}
-    </span>
-  );
-}
-
 /**
- * Reference bar between two tiers. Shows an upward arrow at the centre
- * (because references point at the parent) and lists each carrying
- * SharePoint column with its source entity called out.
+ * ER-diagram-style table card. Header carries the table name + the
+ * SharePoint list / concept it comes from; the body is a striped column
+ * list with type, kind (PK / FK / field), and the FK target where
+ * applicable.
  */
-function ReferenceBar({
-  upRefs,
-}: {
-  upRefs: { field: string; from: string }[];
-}) {
+function SchemaCard({ table }: { table: SchemaTable }) {
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-col items-center gap-1.5 py-1">
-      <ArrowUp className="h-5 w-5 text-fg-muted" />
-      <div className="w-full rounded-md border border-dashed border-border bg-surface-2/40 px-3 py-2">
-        <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
-          References ↑
+    <div className="overflow-hidden rounded-md border border-border bg-bg shadow-sm">
+      <div
+        className={cn(
+          "border-b border-border px-3 py-2",
+          PALETTE[table.palette],
+        )}
+      >
+        <div className="font-display text-sm font-semibold uppercase tracking-wider">
+          {table.name}
         </div>
-        <ul className="space-y-0.5">
-          {upRefs.map((r) => (
-            <li
-              key={`${r.field}-${r.from}`}
-              className="flex flex-wrap items-baseline gap-x-2 text-xs"
-            >
-              <span className="font-medium text-fg">{r.field}</span>
-              <span className="text-[10px] text-fg-muted">from</span>
-              <span className="rounded bg-cooper-red/15 px-1.5 py-0.5 text-[10px] font-semibold text-fg">
-                {r.from}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="text-[10px] text-fg-muted">{table.source}</div>
       </div>
-    </div>
-  );
-}
-
-function SharedRow({ concept, sources }: { concept: string; sources: string }) {
-  return (
-    <div className="flex gap-2 leading-snug">
-      <span className="shrink-0 font-semibold text-fg">{concept}</span>
-      <span>{sources}</span>
+      <table className="w-full text-xs">
+        <tbody>
+          {table.columns.map((col, i) => (
+            <tr
+              key={col.name}
+              className={cn(
+                i % 2 === 0 ? "bg-surface" : "bg-surface-2/40",
+                "border-b border-border last:border-b-0",
+              )}
+            >
+              <td className="w-8 px-2 py-1 align-top">
+                {col.kind === "pk" && (
+                  <span
+                    className="inline-flex items-center rounded bg-cooper-red/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-cooper-red"
+                    title="Primary key"
+                  >
+                    <Key className="h-2.5 w-2.5" />
+                  </span>
+                )}
+                {col.kind === "fk" && (
+                  <span
+                    className="inline-flex items-center rounded bg-superior-blue/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-superior-blue"
+                    title="Foreign key"
+                  >
+                    FK
+                  </span>
+                )}
+              </td>
+              <td className="px-1 py-1 font-mono font-semibold text-fg align-top">
+                {col.name}
+              </td>
+              <td className="px-1 py-1 font-mono text-[10px] text-fg-muted align-top">
+                {col.type}
+              </td>
+              <td className="px-2 py-1 text-[11px] text-fg-muted align-top">
+                {col.references && (
+                  <span className="inline-flex items-center gap-1">
+                    <span className="text-superior-blue">→</span>
+                    <span className="font-mono">{col.references}</span>
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

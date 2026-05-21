@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.10",
+    date: "2026-05-21",
+    changes: [
+      "Added EIRs and Admins quick-links to the About page header — both jump to the SharePoint list in a new tab; the Admins link only appears for users with admin access",
+      "Redrew the About page data model as a proper ER-diagram view — each entity is a table card with header (entity name + SharePoint source list), then columns listed with type and Primary-Key / Foreign-Key flags, and FK rows show the target column (`→ Project.id`, `→ Person.id[]`, etc.); array types call out multi-value relationships explicitly so the schema reads like a relational database drawing",
+    ],
+  },
+  {
     version: "0.17.9",
     date: "2026-05-21",
     changes: [
