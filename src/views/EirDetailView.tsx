@@ -59,16 +59,27 @@ export function EirDetailView() {
   const addComment = useAddEirComment();
   const editComment = useEditEirComment();
 
-  // Match the EIR's free-text Task Reference (e.g. "T115" or "T115-FOO-bar")
-  // to a real task so we can render an "Open task" link that lands on the
-  // right SharePoint item. The task number "T{n}" alone isn't the SharePoint
-  // ID — the ID lives on `task.id` and `T{n}` is the position within the
-  // task's project. Strategy: prefer an exact prefix match on numberedTitle;
-  // fall back to a numericId match for the rare case where the user typed
-  // the raw item ID.
+  // Match the EIR's Task Reference to a real task. The field can hold any
+  // of three shapes — depending on whether the EIR was promoted via the
+  // original Power Apps form, by hand, or via this app:
+  //
+  //   1. A Power Apps deep link, e.g.
+  //      `https://apps.powerapps.com/.../?...&ItemID=2755`
+  //      The `ItemID=` query param IS the SharePoint list-item id (== task.id).
+  //   2. A task number prefix like `T115` or `T115-PROJ-Title`. Matched
+  //      against task.numberedTitle.
+  //   3. A bare SharePoint item id like `2755`. Matched against task.id.
+  //
+  // We try them in that order so a URL doesn't get accidentally parsed as
+  // a bare id from a substring.
   const linkedTask = useMemo(() => {
     const raw = eir?.taskReference?.trim();
     if (!raw) return null;
+    const fromUrl = extractItemIdFromUrl(raw);
+    if (fromUrl != null) {
+      const byId = tasks.find((t) => t.id === fromUrl);
+      if (byId) return byId;
+    }
     const prefix = (/^T\d+/i.exec(raw)?.[0] ?? "").toUpperCase();
     if (prefix) {
       const byNumber = tasks.find((t) =>
@@ -84,6 +95,11 @@ export function EirDetailView() {
     }
     return null;
   }, [eir?.taskReference, tasks]);
+
+  // True when the stored value is a Power Apps URL (vs a typed "T115").
+  // Drives the UI swap below: instead of showing a hideous URL in a text
+  // input, we render the linked task as a chip.
+  const taskRefIsUrl = !!eir && extractItemIdFromUrl(eir.taskReference) != null;
 
   // People directory — collected across tasks + EIRs to give the pickers
   // a useful starting set even before the EIR list itself has watchers.
@@ -350,7 +366,10 @@ export function EirDetailView() {
                 icon={<FileText />}
                 label="Task Reference"
                 footer={
-                  linkedTask && (
+                  // For typed-text task refs, keep the bottom "Open task →"
+                  // link. For Power Apps URLs the chip above IS the link,
+                  // so a footer link would just be redundant.
+                  !taskRefIsUrl && linkedTask ? (
                     <Link
                       to={`/task/${linkedTask.id}`}
                       className="inline-flex items-center gap-1 text-xs text-accent underline-offset-2 hover:underline"
@@ -358,17 +377,32 @@ export function EirDetailView() {
                       <ExternalLink className="h-3 w-3" />
                       Open {linkedTask.numberedTitle || `task #${linkedTask.id}`}
                     </Link>
-                  )
+                  ) : null
                 }
               >
-                <InlineTextField
-                  label=""
-                  value={eir.taskReference}
-                  onSave={(v) =>
-                    updateFields.mutate({ id: eir.id, fields: { TaskReference: v } })
-                  }
-                  placeholder="e.g. T115"
-                />
+                {taskRefIsUrl ? (
+                  // Power Apps deep link — show as a clickable chip
+                  // pointing to the in-app detail page, not the ugly URL.
+                  <TaskRefChip
+                    task={linkedTask}
+                    fallbackItemId={extractItemIdFromUrl(eir.taskReference) ?? null}
+                    onClear={() =>
+                      updateFields.mutate({
+                        id: eir.id,
+                        fields: { TaskReference: "" },
+                      })
+                    }
+                  />
+                ) : (
+                  <InlineTextField
+                    label=""
+                    value={eir.taskReference}
+                    onSave={(v) =>
+                      updateFields.mutate({ id: eir.id, fields: { TaskReference: v } })
+                    }
+                    placeholder="e.g. T115"
+                  />
+                )}
               </SidebarField>
 
               <SidebarField icon={<Calendar />} label="Requested Completion">
@@ -540,6 +574,70 @@ function EditableTextCard({
 
 function looksLikeHtml(s: string): boolean {
   return /<\/?[a-z][\s\S]*?>/i.test(s);
+}
+
+/**
+ * Pull a SharePoint item id out of a Power Apps deep link. Promoted EIRs
+ * stamp the Task Reference field with a long URL whose `ItemID=` query
+ * param is the underlying SP list-item id (== `task.id` in this app).
+ * Returns null if `raw` isn't a Power Apps URL with an ItemID.
+ */
+function extractItemIdFromUrl(raw: string): number | null {
+  if (!raw || !/^https?:\/\//i.test(raw)) return null;
+  const match = /[?&]ItemID=(\d+)/i.exec(raw);
+  if (!match) return null;
+  const n = parseInt(match[1], 10);
+  return Number.isNaN(n) || n <= 0 ? null : n;
+}
+
+/**
+ * Sidebar chip for a Power Apps deep-link Task Reference. Renders the
+ * resolved task number (or the bare item id if the task hasn't loaded
+ * yet) as a link to the in-app task detail page — way nicer than showing
+ * a 200-char URL in a text input. A small "Clear" button next to the chip
+ * lets users break the link if they want to type a different value.
+ */
+function TaskRefChip({
+  task,
+  fallbackItemId,
+  onClear,
+}: {
+  task: import("@/types/task").Task | null;
+  fallbackItemId: number | null;
+  onClear: () => void;
+}) {
+  // Prefer the resolved task's numberedTitle ("T115-PROJ-Title"); fall
+  // back to "#<itemId>" so the user still has something clickable even
+  // before the tasks list has resolved.
+  const label =
+    task?.numberedTitle?.trim() ||
+    (task ? `Task #${task.id}` : fallbackItemId ? `Task #${fallbackItemId}` : "Linked task");
+  const target = task ? `/task/${task.id}` : fallbackItemId ? `/task/${fallbackItemId}` : null;
+  return (
+    <div className="flex items-center gap-1.5">
+      {target ? (
+        <Link
+          to={target}
+          className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-accent/40 bg-accent/10 px-2 py-1 text-sm font-medium text-accent transition-colors hover:bg-accent/20"
+          title={label}
+        >
+          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{label}</span>
+        </Link>
+      ) : (
+        <span className="text-sm text-fg-muted">{label}</span>
+      )}
+      <button
+        type="button"
+        onClick={onClear}
+        className="rounded p-1 text-xs text-fg-muted hover:bg-surface-2 hover:text-fg"
+        title="Clear task reference"
+        aria-label="Clear task reference"
+      >
+        ✕
+      </button>
+    </div>
+  );
 }
 
 /**

@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.10",
+    date: "2026-05-20",
+    changes: [
+      "EIRs promoted from the old Power Apps form had their Task Reference stored as a 200-character deep-link URL; the EIR detail page now recognises that URL, pulls the `ItemID=` query param out of it, and renders the linked task as a tidy clickable chip pointing at this app's task detail page — with a Clear button if you want to retype the reference by hand",
+    ],
+  },
+  {
     version: "0.15.9",
     date: "2026-05-20",
     changes: [

@@ -227,6 +227,23 @@ describe("toEir — project reference (multi-choice column) + bool fields", () =
   });
 });
 
+describe("toEir — task reference (Power Apps URL handling)", () => {
+  it("captures a Power Apps URL with ItemID in TaskReference verbatim", () => {
+    // The mapper itself doesn't unwrap the URL — extractItemIdFromUrl
+    // does that in the detail view at display time. Verify the field is
+    // preserved so the consumer can parse it.
+    const url =
+      "https://apps.powerapps.com/play/e/x/a/y?tenantId=z&hint=w&sourcetime=123&ItemID=2755";
+    const e = toEir(item({ fields: { TaskReference: url } }));
+    expect(e.taskReference).toBe(url);
+  });
+
+  it("preserves a plain-text Task Reference like 'T115'", () => {
+    const e = toEir(item({ fields: { TaskReference: "T115" } }));
+    expect(e.taskReference).toBe("T115");
+  });
+});
+
 describe("attachEirReferences", () => {
   it("fills project titles from the supplied projects catalogue", () => {
     const eirs: Eir[] = [
