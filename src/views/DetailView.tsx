@@ -50,6 +50,7 @@ import { wouldCreateCycle } from "@/lib/taskGraph";
 import { sanitiseHtml } from "@/lib/sanitiseHtml";
 import { CommentThread } from "@/components/CommentThread";
 import { CommentComposer } from "@/components/CommentComposer";
+import { useUploadTaskFile } from "@/hooks/useTaskFiles";
 import { TaskFormModal } from "@/components/TaskFormModal";
 import { TestSheetFormModal } from "@/components/TestSheetFormModal";
 import { useTestSheets } from "@/hooks/useTestSheets";
@@ -78,6 +79,7 @@ export function DetailView() {
   const setAssigned = useSetAssigned();
   const watchTask = useWatchTask();
   const unwatchTask = useUnwatchTask();
+  const uploadCommentFile = useUploadTaskFile(task ?? null);
   const [showEdit, setShowEdit] = useState(false);
   const [showNewTestSheet, setShowNewTestSheet] = useState(false);
   const { data: allTestSheets = [] } = useTestSheets();
@@ -498,6 +500,14 @@ export function DetailView() {
             <CommentComposer
               onSubmit={handleAddComment}
               mentionablePeople={allPeople}
+              uploadFile={async (file) => {
+                // Route comment attachments to the SharePoint project folder
+                // (or Miscellaneous with prefix) — same path as Attachments
+                // on this detail page. The composer then inlines a clickable
+                // hyperlink into the comment body HTML.
+                const uploaded = await uploadCommentFile.mutateAsync(file);
+                return { name: uploaded.name, webUrl: uploaded.webUrl };
+              }}
             />
             {newExternalComments.length > 0 && (
               <NewCommentsBanner

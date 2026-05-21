@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.1",
+    date: "2026-05-21",
+    changes: [
+      "Task comment attachments now also route to the SharePoint Project Folder — files dropped or selected in the comment composer upload to the same folder as the Attachments card, and a clickable hyperlink to each one is inlined at the bottom of the comment HTML; the legacy in-memory blob shape stays in place for the EIR composer until EIRs migrate to project folders too",
+    ],
+  },
+  {
     version: "0.18.0",
     date: "2026-05-21",
     changes: [

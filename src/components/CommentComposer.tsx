@@ -16,6 +16,16 @@ interface CommentComposerProps {
    * shows them in a popup when the user types `@`.
    */
   mentionablePeople?: Person[];
+  /**
+   * Optional per-file upload hook. When supplied, the composer uploads
+   * each attached File through this function before submit, and inlines
+   * the resulting links into the comment body HTML as `<a>` tags. The
+   * `attachments` array passed to `onSubmit` is empty in that case —
+   * everything's in the body. Used to route Task comment attachments
+   * into the SharePoint project folder; EIRs leave this unset and keep
+   * the legacy in-memory blob attachment shape.
+   */
+  uploadFile?: (file: File) => Promise<{ name: string; webUrl: string }>;
 }
 
 /**
@@ -25,14 +35,25 @@ interface CommentComposerProps {
  * via the buildCommentHtml() helper so the email-notification path can
  * later extract who to mail.
  */
+/**
+ * Local extension of CommentAttachment — keeps the raw File reference
+ * so we can upload it on submit when the parent provides `uploadFile`.
+ * Not exported; this stays inside the composer.
+ */
+interface PendingAttachment extends CommentAttachment {
+  file: File;
+}
+
 export function CommentComposer({
   onSubmit,
   disabled,
   mentionablePeople = [],
+  uploadFile,
 }: CommentComposerProps) {
   const [text, setText] = useState("");
-  const [attachments, setAttachments] = useState<CommentAttachment[]>([]);
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [busy, setBusy] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -53,7 +74,7 @@ export function CommentComposer({
   const atPosRef = useRef<number | null>(null);
 
   function addFiles(files: FileList | File[]) {
-    const newOnes: CommentAttachment[] = [];
+    const newOnes: PendingAttachment[] = [];
     for (const file of Array.from(files)) {
       newOnes.push({
         id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -61,6 +82,7 @@ export function CommentComposer({
         contentType: file.type,
         sizeBytes: file.size,
         objectUrl: URL.createObjectURL(file),
+        file,
       });
     }
     setAttachments((prev) => [...prev, ...newOnes]);
@@ -165,12 +187,48 @@ export function CommentComposer({
     const trimmed = text.trim();
     if (!trimmed && attachments.length === 0) return;
     setBusy(true);
+    setUploadError(null);
     try {
-      const html = trimmed ? buildCommentHtml(trimmed, mentions) : "";
-      await onSubmit(html, attachments);
+      let html = trimmed ? buildCommentHtml(trimmed, mentions) : "";
+
+      // If the parent wired up an upload hook (Task case), push each
+      // attached File to the project folder first, then inline a clean
+      // hyperlink for each one at the bottom of the body. The legacy
+      // `attachments` channel goes empty in that path — the links live
+      // in the comment HTML, which is what users actually see + click.
+      if (uploadFile && attachments.length > 0) {
+        const uploaded: { name: string; webUrl: string }[] = [];
+        for (const a of attachments) {
+          // eslint-disable-next-line no-await-in-loop
+          const result = await uploadFile(a.file);
+          uploaded.push(result);
+        }
+        const linksHtml = uploaded
+          .map(
+            (u) =>
+              `<p>📎 <a href="${escapeAttr(u.webUrl)}" target="_blank" rel="noopener noreferrer">${escapeText(u.name)}</a></p>`,
+          )
+          .join("");
+        html = html + linksHtml;
+        await onSubmit(html, []);
+      } else {
+        // Legacy in-memory attachment shape (EIR composer + mock mode).
+        await onSubmit(html, attachments);
+      }
+
       setText("");
+      // Release any blob URLs we created for previews.
+      for (const a of attachments) {
+        if (a.objectUrl) URL.revokeObjectURL(a.objectUrl);
+      }
       setAttachments([]);
       setMentions([]);
+    } catch (err) {
+      setUploadError(
+        err instanceof Error
+          ? `Couldn't attach file: ${err.message}`
+          : "Couldn't attach file.",
+      );
     } finally {
       setBusy(false);
     }
@@ -332,9 +390,18 @@ export function CommentComposer({
           className="flex items-center gap-1.5 rounded-md bg-accent px-3.5 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Send className="h-3.5 w-3.5" />
-          {busy ? "Sending…" : "Send"}
+          {busy
+            ? attachments.length > 0 && uploadFile
+              ? "Uploading…"
+              : "Sending…"
+            : "Send"}
         </button>
       </div>
+      {uploadError && (
+        <div className="mt-2 rounded-md border border-cooper-red/30 bg-cooper-red/10 px-2 py-1 text-xs text-cooper-red">
+          {uploadError}
+        </div>
+      )}
     </div>
   );
 }
@@ -382,4 +449,17 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Escape text content for inclusion in HTML between tags. */
+function escapeText(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** Escape a string for inclusion in a double-quoted HTML attribute value. */
+function escapeAttr(s: string): string {
+  return escapeText(s).replace(/"/g, "&quot;");
 }
