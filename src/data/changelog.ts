@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.3",
+    date: "2026-05-21",
+    changes: [
+      "EIR Reporter now resolves to a real display name even when Graph only returns the bare ReporterLookupId — added a best-effort fetch of the SharePoint User Information List during the EIR load and use it as the authoritative directory for lookupId-to-name resolution; if the directory call fails (permissions etc.) we still fall back to cross-pollination from peer EIRs and ultimately a 'User #N' placeholder, but the common case is now a proper name",
+      "Added `ReporterLookupId` to the EIR $select so the bare integer is always in the response — previously only `Reporter` was requested, and on EIRs where Graph didn't expand the column the field came back missing entirely",
+    ],
+  },
+  {
     version: "0.17.2",
     date: "2026-05-21",
     changes: [

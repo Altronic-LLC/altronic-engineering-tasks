@@ -93,6 +93,7 @@ export async function listEirs(): Promise<Eir[]> {
     "Resolution",
     "Priority",
     "Reporter",
+    "ReporterLookupId",
     "AssignedEngineer",
     "Watchers",
     "ProjectReference",
@@ -122,9 +123,16 @@ export async function listEirs(): Promise<Eir[]> {
   const path =
     `/sites/${SP_SITE_ID}/lists/${SP_EIRS_LIST_ID}` +
     `/items?$expand=fields($select=${select})&$top=200`;
-  const [items, projects] = await Promise.all([
+  const [items, projects, siteUsers] = await Promise.all([
     graphFetchAll<GraphListItem>(path),
     listProjects(),
+    // Best-effort: pull the SharePoint User Information List so we can
+    // resolve Reporter LookupIds (and anyone else who only came back as
+    // a bare id) to a real display name. If the call fails (permissions,
+    // odd list name on the tenant, etc.) we fall through with no
+    // directory — the cross-pollination from peers still does what it
+    // can, and the placeholder "User #N" shows up only as a last resort.
+    listSiteUsers().catch(() => []),
   ]);
 
   // One-time Reporter-shape diagnostic. The single-person Reporter column
@@ -144,8 +152,40 @@ export async function listEirs(): Promise<Eir[]> {
   }
 
   const eirs = items.map(toEir);
-  attachEirReferences(eirs, projects);
+  attachEirReferences(eirs, projects, siteUsers);
   return eirs;
+}
+
+/**
+ * Fetch the SharePoint User Information List — the hidden system list
+ * that holds every user who's ever been referenced on the site. Returns
+ * a Person[] keyed by SP lookupId. Used to resolve Reporter / Author /
+ * Watcher entries that only came back as bare lookupIds.
+ *
+ * Throws on any 4xx/5xx so callers can `.catch(() => [])` and degrade.
+ */
+async function listSiteUsers(): Promise<Person[]> {
+  // Graph accepts the list's display name (URL-encoded) as the list
+  // identifier on the /lists/{id} endpoint. The hidden list's title is
+  // "User Information List" on every modern SP site.
+  const path =
+    `/sites/${SP_SITE_ID}/lists/User%20Information%20List/items` +
+    `?$expand=fields($select=Title,EMail)&$top=500`;
+  const items = await graphFetchAll<GraphListItem>(path);
+  const people: Person[] = [];
+  for (const it of items) {
+    const f = it.fields ?? {};
+    const displayName = ((f.Title as string) ?? "").trim();
+    const email = ((f.EMail as string) ?? "").trim();
+    const lookupId = parseInt(it.id, 10);
+    if (!displayName || Number.isNaN(lookupId)) continue;
+    people.push({
+      displayName,
+      lookupId,
+      email: email || undefined,
+    });
+  }
+  return people;
 }
 
 let reporterDebugLogged = false;

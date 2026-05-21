@@ -133,6 +133,16 @@ describe("toEir — people", () => {
     expect(placeholder.reporter?.email).toBe("sarah@x.com");
   });
 
+  it("Reporter — attachEirReferences resolves from the site User Information List", () => {
+    const placeholder = toEir(item({ fields: { ReporterLookupId: 88 } }));
+    const siteUsers = [
+      { lookupId: 88, displayName: "Sarah Shaffer", email: "sarah@x.com" },
+    ];
+    attachEirReferences([placeholder], [], siteUsers);
+    expect(placeholder.reporter?.displayName).toBe("Sarah Shaffer");
+    expect(placeholder.reporter?.email).toBe("sarah@x.com");
+  });
+
   it("Assigned Engineers (multi person)", () => {
     const e = toEir(
       item({

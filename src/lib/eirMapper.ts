@@ -97,15 +97,22 @@ export function toEir(item: GraphListItem): Eir {
 export function attachEirReferences(
   eirs: Eir[],
   projects: ProjectReference[],
+  siteUsers: Person[] = [],
 ): Eir[] {
-  const byId = new Map(projects.map((p) => [p.lookupId, p.title]));
+  const byProjectId = new Map(projects.map((p) => [p.lookupId, p.title]));
 
-  // Cross-pollinate the people directory: any EIR whose Reporter / Watcher
-  // / Assigned Engineer came back with a fully-expanded name is a hint we
-  // can apply to other EIRs whose same-lookupId Person came back as a
-  // bare `User #N` placeholder (Graph sometimes expands a single-person
-  // column on one item and not another in the same response).
+  // Build a people directory keyed by SP lookupId. Three sources, in
+  // descending priority:
+  //   1. The SharePoint User Information List (passed in via siteUsers).
+  //   2. Any EIR in this response where Graph DID return a fully-
+  //      expanded Person object (Watchers / Assigned Engineers).
+  //   3. (Nothing — the placeholder "User #N" stays.)
   const peopleById = new Map<number, Person>();
+  for (const u of siteUsers) {
+    if (u.lookupId && u.displayName && !u.displayName.startsWith("User #")) {
+      peopleById.set(u.lookupId, u);
+    }
+  }
   const noteSeen = (p: Person | null | undefined) => {
     if (!p || !p.lookupId || p.displayName.startsWith("User #")) return;
     if (!peopleById.has(p.lookupId)) peopleById.set(p.lookupId, p);
@@ -118,7 +125,7 @@ export function attachEirReferences(
 
   for (const e of eirs) {
     if (e.parentProject && e.parentProject.lookupId > 0) {
-      const joined = byId.get(e.parentProject.lookupId);
+      const joined = byProjectId.get(e.parentProject.lookupId);
       if (joined && !e.parentProject.title) e.parentProject.title = joined;
     }
     if (e.reporter && e.reporter.displayName.startsWith("User #") && e.reporter.lookupId) {
