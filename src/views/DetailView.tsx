@@ -54,7 +54,7 @@ import { TaskFormModal } from "@/components/TaskFormModal";
 import { TestSheetFormModal } from "@/components/TestSheetFormModal";
 import { useTestSheets } from "@/hooks/useTestSheets";
 import { LabelChip, StatusBadge, statusColor } from "@/components/atoms";
-import { AttachmentsSection } from "@/components/AttachmentsSection";
+import { TaskAttachmentsSection } from "@/components/TaskAttachmentsSection";
 import { LoadingTasks } from "@/components/LoadingTasks";
 import { PersonMultiField } from "@/components/PersonMultiField";
 import { cn } from "@/lib/cn";
@@ -479,7 +479,7 @@ export function DetailView() {
             </div>
           )}
 
-          <AttachmentsSection parent="task" itemId={task.id} />
+          <TaskAttachmentsSection task={task} />
 
           {/* Comments card */}
           <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">

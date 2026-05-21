@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.0",
+    date: "2026-05-21",
+    changes: [
+      "Task attachments now route through the Project Folders document library instead of the legacy list-item attachments — when you upload a file from a task, the app looks up the task's Project Reference, finds the matching folder under `Documents/General/Project Folders/` via the folder's Project Reference metadata, and uploads there; if no folder matches, the file goes into the shared Miscellaneous folder with the project code prefixed onto the filename so it's still findable",
+      "Task Attachments card shows the 5 most-recently-modified files in the project folder with each filename as a hyperlink to SharePoint, plus a 'View all in SharePoint →' link that opens the full folder",
+      "No new IT permission needed — this uses the existing Microsoft Graph `Sites.Selected` scope (the SharePoint REST `AllSites.Manage` permission I asked for last time is only required if EIRs ever migrate to this same model; EIRs continue to use the list-item attachment path until then)",
+    ],
+  },
+  {
     version: "0.17.11",
     date: "2026-05-21",
     changes: [
