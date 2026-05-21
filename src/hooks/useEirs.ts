@@ -3,6 +3,7 @@ import {
   addEirComment,
   createEir,
   editEirComment,
+  getEirProjectReferenceChoices,
   listEirs,
   setEirAssignedEngineers,
   setEirReporter,
@@ -411,4 +412,17 @@ function messageForFieldsUpdate(fields: Record<string, unknown>): string {
     }
   }
   return "EIR updated.";
+}
+
+/**
+ * Fetch + cache the actual Choice column metadata for the EIR
+ * ProjectReference field. The picker uses this to constrain its
+ * options to values SharePoint will actually accept.
+ */
+export function useEirProjectChoices() {
+  return useQuery({
+    queryKey: ["eirs", "project-choices"] as const,
+    queryFn: getEirProjectReferenceChoices,
+    staleTime: 5 * 60_000,
+  });
 }

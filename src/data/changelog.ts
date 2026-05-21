@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.6",
+    date: "2026-05-21",
+    changes: [
+      "Project Reference picker on the EIR detail page now fetches the actual configured Choice values from the SharePoint column definition (via `/lists/{id}/columns?$select=name,choice`) and uses those as the option list — this was the 400 Bad Request root cause: PATCH-ing with a value not in the column's allowed choices is rejected; if the column allows free-text entry (or until the column metadata loads) we still surface every project from the Projects list as a fallback",
+    ],
+  },
+  {
     version: "0.17.5",
     date: "2026-05-21",
     changes: [

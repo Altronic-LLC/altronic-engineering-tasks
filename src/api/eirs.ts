@@ -157,6 +157,38 @@ export async function listEirs(): Promise<Eir[]> {
 }
 
 /**
+ * Fetch the allowed choice values for the EIR list's Project Reference
+ * column. SharePoint Choice columns store their allowed values on the
+ * column definition itself; trying to PATCH an item with a value that
+ * isn't in that list 400s with "value is not a valid choice."
+ *
+ * Returns the choices in display order, plus whether the column allows
+ * free-text entry (in which case any string is valid).
+ */
+export interface ProjectChoiceColumn {
+  choices: string[];
+  allowTextEntry: boolean;
+}
+export async function getEirProjectReferenceChoices(): Promise<ProjectChoiceColumn> {
+  if (USE_MOCK) {
+    return { choices: [], allowTextEntry: true };
+  }
+  if (!SP_EIRS_LIST_ID) {
+    return { choices: [], allowTextEntry: false };
+  }
+  const cols = await graphFetch<{ value: Array<{ name?: string; choice?: { choices?: string[]; allowTextEntry?: boolean } }> }>(
+    `/sites/${SP_SITE_ID}/lists/${SP_EIRS_LIST_ID}/columns?$select=name,choice`,
+  );
+  const col = (cols.value ?? []).find(
+    (c) => c.name?.toLowerCase() === "projectreference",
+  );
+  return {
+    choices: col?.choice?.choices ?? [],
+    allowTextEntry: !!col?.choice?.allowTextEntry,
+  };
+}
+
+/**
  * Fetch the SharePoint User Information List — the hidden system list
  * that holds every user who's ever been referenced on the site. Returns
  * a Person[] keyed by SP lookupId. Used to resolve Reporter / Author /

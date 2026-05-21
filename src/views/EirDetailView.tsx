@@ -17,6 +17,7 @@ import {
   useAddEirComment,
   useEditEirComment,
   useEir,
+  useEirProjectChoices,
   useSetEirAssignedEngineers,
   useSetEirReporter,
   useSetEirWatchers,
@@ -746,26 +747,47 @@ function ProjectChoicePicker({
   selectedTitle: string;
   onChange: (titles: string[]) => void;
 }) {
+  // Options come from the EIR list's ProjectReference Choice column
+  // itself — SharePoint will only accept values that exist in that
+  // configured choice list (unless the column allows free-text entry).
+  // Falls back to the Projects list titles if the column metadata
+  // hasn't loaded yet so the picker isn't blank on first open.
+  const { data: choiceCol } = useEirProjectChoices();
   const { data: projects = [] } = useProjects();
+
   const selected = selectedTitle
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
-  // Options = every project title from the Projects list, deduped. Then
-  // surface any currently-selected value that ISN'T in the projects list,
-  // so chips still render for archived/renamed projects.
   const seen = new Set<string>();
   const options: { value: string; label: string }[] = [];
-  for (const p of projects) {
-    if (!p.title || seen.has(p.title)) continue;
-    seen.add(p.title);
-    options.push({ value: p.title, label: p.title });
+
+  // 1. Real Choice values from the SharePoint column — these are the
+  //    ONLY values guaranteed to be accepted on write.
+  for (const c of choiceCol?.choices ?? []) {
+    const v = c.trim();
+    if (!v || seen.has(v)) continue;
+    seen.add(v);
+    options.push({ value: v, label: v });
   }
+
+  // 2. If the column metadata isn't loaded yet OR the column allows
+  //    free-text entry, surface the Projects list as a convenience.
+  if ((choiceCol?.choices.length ?? 0) === 0 || choiceCol?.allowTextEntry) {
+    for (const p of projects) {
+      if (!p.title || seen.has(p.title)) continue;
+      seen.add(p.title);
+      options.push({ value: p.title, label: p.title });
+    }
+  }
+
+  // 3. Currently-selected values that don't appear in either source —
+  //    surface so chips still render for legacy / archived choices.
   for (const s of selected) {
     if (!seen.has(s)) {
       seen.add(s);
-      options.push({ value: s, label: `${s} (not in projects list)` });
+      options.push({ value: s, label: `${s} (legacy value)` });
     }
   }
 
