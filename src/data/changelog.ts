@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.18.3",
+    date: "2026-05-21",
+    changes: [
+      "Misc-folder filename prefix is no longer dropped on tasks without a parent project — the resolver now derives the prefix from (1) the parentProject title, (2) the projects catalogue if the task came in with a blank title, (3) a `LID-<n>` stub for orphaned lookupIds, and (4) the task's numbered title as a final fallback (`T15-AMP-coil-replacement_drawing.pdf`) so files are still attributable",
+      "Miscellaneous folder is now matched case-insensitively (`Miscellaneous`, `Misc`, `MISC`, etc.) so a renamed folder doesn't silently kill the fallback",
+      "Every task file upload now logs a one-liner to the browser console showing which folder it picked + the final filename, so future routing surprises are diagnosable from DevTools without re-deploying",
+      "Added 9 unit tests pinning the misc-prefix behaviour (all four fallback layers + case-insensitive folder name) so this can't regress",
+    ],
+  },
+  {
     version: "0.18.2",
     date: "2026-05-21",
     changes: [

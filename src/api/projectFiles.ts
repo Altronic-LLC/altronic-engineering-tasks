@@ -27,7 +27,15 @@ import { SP_SITE_ID, USE_MOCK } from "./config";
 
 /** Library path containing project subfolders, relative to drive root. */
 const PROJECT_FOLDERS_PATH = "General/Project Folders";
-const MISC_FOLDER_NAME = "Miscellaneous";
+/**
+ * Folder name to fall through to when no project folder matches.
+ * Case-insensitive `includes("misc")` so the SharePoint folder can be
+ * "Miscellaneous", "Misc", "MISC", "Miscellaneous Projects", etc. without
+ * us caring which spelling someone used.
+ */
+function isMiscFolder(name: string): boolean {
+  return /misc/i.test(name);
+}
 
 /** How many recent files to surface on the task detail page. */
 export const RECENT_FILES_LIMIT = 5;
@@ -64,9 +72,18 @@ export type ResolvedFolder =
   | { kind: "project"; folder: ProjectFolder }
   | { kind: "misc"; folder: ProjectFolder; filenamePrefix: string };
 
-/** Take the leading code from a project reference value. */
-export function projectCodePrefix(projectRef: string): string {
-  return projectRef.trim().split(/\s+/)[0] ?? "";
+/**
+ * Take the leading code from a project reference value. Defensive about
+ * null / undefined / non-string inputs because `parentProject.title`
+ * sometimes comes back blank when the projects catalogue hasn't joined
+ * the lookup yet — and that empty string was the reason the Misc
+ * filename prefix was silently dropping on uploads.
+ */
+export function projectCodePrefix(projectRef: string | null | undefined): string {
+  if (typeof projectRef !== "string") return "";
+  const trimmed = projectRef.trim();
+  if (!trimmed) return "";
+  return trimmed.split(/\s+/)[0] ?? "";
 }
 
 // ---------------------------------------------------------------------------
@@ -143,7 +160,7 @@ export async function listProjectFolders(): Promise<ProjectFolder[]> {
     if (!child.folder) continue; // skip stray files
     const fields = child.listItem?.fields ?? {};
     const projectLookupId =
-      child.name === MISC_FOLDER_NAME ? 0 : readLookupId(fields);
+      isMiscFolder(child.name) ? 0 : readLookupId(fields);
     folders.push({
       id: child.id,
       name: child.name,
@@ -158,20 +175,50 @@ export async function listProjectFolders(): Promise<ProjectFolder[]> {
  * Resolve which folder a file should be written into for the given task
  * project. Returns the Miscellaneous folder with a filename prefix when
  * the project has no matching folder.
+ *
+ * `projects` is the same Projects-list catalogue `useProjects()` exposes.
+ * We use it as a backup source for the project title when the task's
+ * own `parentProject.title` came back blank (which happens if the task
+ * was loaded before the projects catalogue finished joining titles).
+ *
+ * `fallbackPrefix` is what we tag the filename with if there's no
+ * parent project at all (e.g. a task that hasn't been classified yet).
+ * Callers typically pass the task's NumberedTitle (`T15-...`) or
+ * `T-{itemId}` so the file is still findable by who-uploaded-it.
  */
 export function resolveFolderForProject(
   folders: ProjectFolder[],
   parentProject: { lookupId: number; title: string } | null,
+  projects: { lookupId: number; title: string }[] = [],
+  fallbackPrefix = "",
 ): ResolvedFolder | null {
+  // 1. Try to match a real project folder by lookupId.
   if (parentProject && parentProject.lookupId > 0) {
     const match = folders.find(
-      (f) => f.projectLookupId === parentProject.lookupId && f.name !== MISC_FOLDER_NAME,
+      (f) => f.projectLookupId === parentProject.lookupId && !isMiscFolder(f.name),
     );
     if (match) return { kind: "project", folder: match };
   }
-  const misc = folders.find((f) => f.name === MISC_FOLDER_NAME);
-  if (!misc) return null; // no Misc folder configured
-  const prefix = parentProject ? projectCodePrefix(parentProject.title) : "";
+
+  // 2. Fall through to Misc.
+  const misc = folders.find((f) => isMiscFolder(f.name));
+  if (!misc) return null; // no Miscellaneous folder configured
+
+  // Resolve the title — prefer the task's own title, fall back to the
+  // projects catalogue, then a lookupId-based stub, and finally the
+  // task-derived fallback prefix for the no-parent-project case.
+  let title = parentProject?.title?.trim() ?? "";
+  if (!title && parentProject?.lookupId) {
+    title =
+      projects.find((p) => p.lookupId === parentProject.lookupId)?.title ?? "";
+  }
+  let prefix = projectCodePrefix(title);
+  if (!prefix && parentProject?.lookupId) {
+    prefix = `LID-${parentProject.lookupId}`;
+  }
+  if (!prefix) {
+    prefix = projectCodePrefix(fallbackPrefix);
+  }
   return { kind: "misc", folder: misc, filenamePrefix: prefix };
 }
 
@@ -235,6 +282,15 @@ export async function uploadTaskFile(
     );
   }
   const finalName = targetFilename(resolved, file.name);
+
+  /* eslint-disable no-console */
+  console.log(
+    `[projectFiles] uploading "${file.name}" → ${resolved.folder.name} ` +
+      `as "${finalName}" (kind=${resolved.kind}` +
+      (resolved.kind === "misc" ? `, prefix="${resolved.filenamePrefix}"` : "") +
+      `)`,
+  );
+  /* eslint-enable no-console */
 
   if (USE_MOCK) {
     const key = resolved.kind === "project" ? resolved.folder.projectLookupId : 0;

@@ -14,6 +14,7 @@ import {
   type ProjectFolder,
   type ResolvedFolder,
 } from "@/api/projectFiles";
+import { useProjects } from "@/hooks/useTasks";
 import type { Task } from "@/types/task";
 
 const FOLDERS_KEY = ["project-files", "folders"] as const;
@@ -40,10 +41,20 @@ export function useResolvedTaskFolder(task: Task | null | undefined): {
   error: unknown;
 } {
   const { data: folders = [], isLoading, error } = useProjectFolders();
+  // Projects catalogue is a backup source for the project title when
+  // the task's own parentProject.title came back blank (which left the
+  // Misc filename without a prefix).
+  const { data: projects = [] } = useProjects();
   const resolved = useMemo(() => {
     if (!task) return null;
-    return resolveFolderForProject(folders, task.parentProject);
-  }, [folders, task]);
+    // If the task has no parent project, use its numbered title (e.g.
+    // "T15-AMP-coil") as the misc prefix so the file is still
+    // attributable to a specific task in SharePoint. NumberedTitle can
+    // be empty on freshly-created tasks; fall back to the bare item id.
+    const taskFallback =
+      (task.numberedTitle && task.numberedTitle.trim()) || `T-${task.id}`;
+    return resolveFolderForProject(folders, task.parentProject, projects, taskFallback);
+  }, [folders, task, projects]);
   return { resolved, isLoading, error };
 }
 
