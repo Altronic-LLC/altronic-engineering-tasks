@@ -92,11 +92,18 @@ describe("NotifyAppManagerButton", () => {
       email: "",
       lookupId: 0,
     });
-    // window.location.href is read-only in jsdom; replace with a setter spy.
+    // window.location.href is read-only in jsdom; replace the whole
+    // location object with a plain stub whose href setter we can spy on.
     const hrefSetter = vi.fn();
+    const locationStub = {} as Location;
+    Object.defineProperty(locationStub, "href", {
+      configurable: true,
+      get: () => "",
+      set: (v: string) => hrefSetter(v),
+    });
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { href: "", set href(v: string) { hrefSetter(v); } } as Location,
+      value: locationStub,
     });
 
     const user = userEvent.setup();
