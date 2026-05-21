@@ -105,13 +105,14 @@ export function AdminAdminsView() {
               {admins.map((a) => {
                 const isSelf =
                   (currentUser.email ?? "").toLowerCase() === a.email.toLowerCase();
+                const name = a.displayName || deriveNameFromEmail(a.email);
                 return (
                   <tr
                     key={a.id}
                     className="border-b border-border last:border-b-0 odd:bg-surface even:bg-surface-2/40"
                   >
                     <td className="px-3 py-2 font-medium text-fg">
-                      {a.displayName || <span className="text-fg-muted">—</span>}
+                      {name}
                       {isSelf && (
                         <span className="ml-2 rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
                           you
@@ -129,7 +130,7 @@ export function AdminAdminsView() {
                         onClick={() => {
                           if (
                             window.confirm(
-                              `Remove ${a.displayName || a.email} from the admin list?`,
+                              `Remove ${name} from the admin list?`,
                             )
                           ) {
                             remove.mutate(a.id);
@@ -153,13 +154,29 @@ export function AdminAdminsView() {
 
       {showNew && (
         <NewAdminModal
-          onClose={() => setShowNew(false)}
-          onSubmit={async (input) => {
-            await add.mutateAsync(input);
+          onClose={() => {
             setShowNew(false);
+            add.reset();
+          }}
+          onSubmit={async (input) => {
+            try {
+              await add.mutateAsync(input);
+              setShowNew(false);
+            } catch (err) {
+              // Don't close — leave the modal open so the user can read the
+              // error message rendered below and retry without re-typing.
+              console.error("Failed to add admin:", err);
+            }
           }}
           submitting={add.isPending}
+          error={add.error instanceof Error ? add.error.message : null}
         />
+      )}
+
+      {remove.error && (
+        <div className="rounded-md border border-cooper-red/40 bg-cooper-red/10 p-3 text-xs text-cooper-red">
+          Couldn't remove admin: {(remove.error as Error).message}
+        </div>
       )}
     </div>
   );
@@ -169,10 +186,12 @@ function NewAdminModal({
   onClose,
   onSubmit,
   submitting,
+  error,
 }: {
   onClose: () => void;
   onSubmit: (input: { email: string; displayName: string; note: string }) => void;
   submitting: boolean;
+  error: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -239,6 +258,11 @@ function NewAdminModal({
               className="rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </label>
+          {error && (
+            <div className="rounded-md border border-cooper-red/40 bg-cooper-red/10 px-2 py-1.5 text-xs text-cooper-red">
+              {error}
+            </div>
+          )}
           <div className="mt-2 flex justify-end gap-2">
             <button
               type="button"
@@ -259,4 +283,18 @@ function NewAdminModal({
       </div>
     </div>
   );
+}
+
+/**
+ * Make a readable "First Last" out of an email address when the user
+ * didn't bother filling in the Display Name field. Handles the common
+ * altronic-llc.com pattern `first.last@…` (capitalises each segment) and
+ * falls back to the raw local part for unusual formats.
+ */
+function deriveNameFromEmail(email: string): string {
+  const local = email.split("@")[0] ?? email;
+  if (!local) return email;
+  const parts = local.split(/[._\-]+/).filter(Boolean);
+  if (parts.length === 0) return local;
+  return parts.map((p) => p[0]!.toUpperCase() + p.slice(1)).join(" ");
 }

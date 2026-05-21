@@ -44,19 +44,54 @@ export async function listAdmins(): Promise<AdminEntry[]> {
   }
   if (!SP_ADMINS_LIST_ID) return [];
 
+  // No $select: column internal names depend on how SharePoint provisioned
+  // them (the same field can be `DisplayName`, `Display_x0020_Name`,
+  // `OData_DisplayName` etc.), so we let Graph return everything and pick
+  // whichever variant exists.
   const path =
     `/sites/${SP_SITE_ID}/lists/${SP_ADMINS_LIST_ID}` +
-    `/items?$expand=fields($select=Title,DisplayName,Note)&$top=200`;
+    `/items?$expand=fields&$top=200`;
   const items = await graphFetchAll<GraphListItem>(path);
+
+  // One-time diagnostic to surface the actual column names on this list.
+  if (items.length > 0 && !adminsDebugLogged) {
+    adminsDebugLogged = true;
+    const sample = items[0].fields as Record<string, unknown>;
+    /* eslint-disable no-console */
+    console.group("%c[ADMINS DEBUG] first item field keys", "color:#CB2C30;font-weight:bold");
+    console.log("Keys:", Object.keys(sample).sort());
+    console.log("Title:", sample.Title);
+    console.log("DisplayName:", sample.DisplayName);
+    console.log("Display_x0020_Name:", sample.Display_x0020_Name);
+    console.log("Note:", sample.Note);
+    console.groupEnd();
+    /* eslint-enable no-console */
+  }
+
   return items.map((it) => {
-    const f = it.fields ?? {};
+    const f = it.fields as Record<string, unknown>;
     return {
       id: parseInt(it.id, 10),
-      email: ((f.Title as string) ?? "").trim(),
-      displayName: ((f.DisplayName as string) ?? "").trim(),
-      note: ((f.Note as string) ?? "").trim(),
+      email: pickString(f, ["Title"]),
+      displayName: pickString(f, [
+        "DisplayName",
+        "Display_x0020_Name",
+        "OData_DisplayName",
+        "displayName",
+      ]),
+      note: pickString(f, ["Note", "Notes", "OData_Note"]),
     };
   });
+}
+
+let adminsDebugLogged = false;
+
+function pickString(f: Record<string, unknown>, keys: string[]): string {
+  for (const k of keys) {
+    const v = f[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
 }
 
 export async function addAdmin(input: {
@@ -73,25 +108,29 @@ export async function addAdmin(input: {
   if (!SP_ADMINS_LIST_ID) {
     throw new Error("Cannot add admin: VITE_SP_ADMINS_LIST_ID is not set.");
   }
+  // Write to both candidate internal names. SharePoint silently ignores
+  // unknown keys on a POST (unlike $select on GET, which 400s), so it's
+  // safe to send both — whichever column actually exists takes the value.
+  const fields: Record<string, string> = { Title: input.email };
+  if (input.displayName) {
+    fields.DisplayName = input.displayName;
+    fields.Display_x0020_Name = input.displayName;
+  }
+  if (input.note) {
+    fields.Note = input.note;
+  }
   const created = await graphFetch<GraphListItem>(
     `/sites/${SP_SITE_ID}/lists/${SP_ADMINS_LIST_ID}/items`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        fields: {
-          Title: input.email,
-          DisplayName: input.displayName,
-          Note: input.note,
-        },
-      }),
-    },
+    { method: "POST", body: JSON.stringify({ fields }) },
   );
-  const f = created.fields ?? {};
+  const f = created.fields as Record<string, unknown>;
   return {
     id: parseInt(created.id, 10),
-    email: ((f.Title as string) ?? input.email).trim(),
-    displayName: ((f.DisplayName as string) ?? input.displayName).trim(),
-    note: ((f.Note as string) ?? input.note).trim(),
+    email: pickString(f, ["Title"]) || input.email,
+    displayName:
+      pickString(f, ["DisplayName", "Display_x0020_Name", "OData_DisplayName"]) ||
+      input.displayName,
+    note: pickString(f, ["Note", "Notes"]) || input.note,
   };
 }
 

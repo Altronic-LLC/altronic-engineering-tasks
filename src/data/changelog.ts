@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.2",
+    date: "2026-05-20",
+    changes: [
+      "Admin add / remove failures now surface in the UI — modal stays open with a red error box, removal errors show under the table; no more silently swallowed mutations",
+      "Admin table falls back to deriving a 'First Last' from the email when the Display Name field is empty, so missing names don't render as a dash",
+      "Admin read/write now handles SharePoint provisioning where the column ended up as `Display_x0020_Name` instead of `DisplayName` (and other variants) — and prints a one-time browser-console diagnostic of the actual field names so we can iterate fast if the list was set up with yet another name",
+    ],
+  },
+  {
     version: "0.16.1",
     date: "2026-05-20",
     changes: [
