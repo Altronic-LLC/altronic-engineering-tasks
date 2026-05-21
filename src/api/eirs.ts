@@ -379,6 +379,19 @@ export async function updateEirFields(
   if (!SP_EIRS_LIST_ID) {
     throw new Error("Cannot update EIR: VITE_SP_EIRS_LIST_ID is not set.");
   }
+
+  // One-time diagnostic for ProjectReference writes specifically — print
+  // the exact request body so we can confirm what Graph receives.
+  if ("ProjectReference" in fields && !projectRefWriteLogged) {
+    projectRefWriteLogged = true;
+    /* eslint-disable no-console */
+    console.group("%c[EIR DEBUG] ProjectReference PATCH", "color:#CB2C30;font-weight:bold");
+    console.log("Item id:", id);
+    console.log("Request body:", JSON.stringify(fields, null, 2));
+    console.groupEnd();
+    /* eslint-enable no-console */
+  }
+
   await graphFetch(
     `/sites/${SP_SITE_ID}/lists/${SP_EIRS_LIST_ID}/items/${id}/fields`,
     { method: "PATCH", body: JSON.stringify(fields) },
@@ -387,6 +400,8 @@ export async function updateEirFields(
   if (!updated) throw new Error(`EIR ${id} disappeared after update`);
   return updated;
 }
+
+let projectRefWriteLogged = false;
 
 /** Replace the Assigned Engineer list. */
 export async function setEirAssignedEngineers(id: number, people: Person[]): Promise<Eir> {

@@ -61,24 +61,22 @@ export function multiPersonField(
 }
 
 /**
- * Write payload for a multi-select Choice column (string values, not
- * lookup ids). Graph wants the same annotated shape as multi-value
- * lookups — `Collection(Edm.String)` instead of `Collection(Edm.Int32)`.
+ * Write payload for a multi-select Choice column (string values).
+ *
+ * Graph v1.0 accepts a plain string array — unlike multi-value lookups,
+ * no `@odata.type` annotation is needed because Graph can infer the
+ * type from the array elements. Adding the annotation actually breaks
+ * the write on some tenants (the column silently drops the value), so
+ * we explicitly DON'T emit it.
  *
  * Example:
  *   multiChoiceField("ProjectReference", ["A", "B"])
  *     ↓
- *   {
- *     "ProjectReference@odata.type": "Collection(Edm.String)",
- *     "ProjectReference": ["A", "B"],
- *   }
+ *   { "ProjectReference": ["A", "B"] }
  */
 export function multiChoiceField(
   fieldName: string,
   values: string[],
 ): Record<string, unknown> {
-  return {
-    [`${fieldName}@odata.type`]: "Collection(Edm.String)",
-    [fieldName]: values,
-  };
+  return { [fieldName]: values };
 }

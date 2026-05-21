@@ -114,12 +114,20 @@ export function useUpdateEirFields() {
             : undefined,
       });
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (err, _vars, ctx) => {
       rollback(qc, ctx);
-      pushToast({ message: "Couldn't save changes — reverted.", variant: "error" });
+      const detail = err instanceof Error ? err.message : String(err);
+      pushToast({
+        message: `Couldn't save changes — reverted. ${truncate(detail, 240)}`,
+        variant: "error",
+      });
     },
     onSettled: () => invalidate(qc),
   });
+}
+
+function truncate(s: string, max: number): string {
+  return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
 export function useSetEirReporter() {

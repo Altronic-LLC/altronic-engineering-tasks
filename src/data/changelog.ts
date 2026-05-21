@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.5",
+    date: "2026-05-21",
+    changes: [
+      "Project Reference write payload simplified — dropped the `@odata.type: Collection(Edm.String)` annotation that v0.17.4 added; for Graph v1.0 multi-choice Choice columns a plain string array is the correct shape, and the annotation can cause the value to be silently dropped",
+      "EIR save errors now include the underlying Graph error message in the toast instead of a generic 'Couldn't save changes' line, so failures (especially this Project Reference one) are diagnosable from the UI without DevTools",
+      "Added a one-time browser-console log of the exact PATCH body the next time the Project Reference field is written — pasted-back output will let us see what Graph actually receives if writes still don't persist",
+    ],
+  },
+  {
     version: "0.17.4",
     date: "2026-05-21",
     changes: [
