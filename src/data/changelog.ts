@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.9",
+    date: "2026-05-21",
+    changes: [
+      "Navigating from a list (Tasks, EIRs, Test Sheets, etc.) into a detail page now scrolls to the top of the new page automatically — previously the scroll position carried over from the list so the detail header was below the fold; filter / query-string changes within the same page still keep their scroll position",
+    ],
+  },
+  {
     version: "0.17.8",
     date: "2026-05-21",
     changes: [

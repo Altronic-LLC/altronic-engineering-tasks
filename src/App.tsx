@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -22,6 +23,16 @@ export function App() {
   // include the app header/footer. Match any /…/print path.
   const location = useLocation();
   const isPrintRoute = location.pathname.endsWith("/print");
+
+  // Reset the window scroll on every route change. Without this, going
+  // from a long list (Tasks/EIRs scrolled halfway down) into a detail
+  // page lands the user at the same Y offset on the new page — which is
+  // jarring because the detail header isn't visible. Re-running on
+  // pathname change keeps query-string updates (filter changes) from
+  // jumping the user back to the top.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   return (
     <div className="flex min-h-full flex-col bg-bg">
