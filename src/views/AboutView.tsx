@@ -25,75 +25,91 @@ import { CURRENT_VERSION } from "@/data/changelog";
 
 const systemDiagram = `
 flowchart TB
-  Browser([User browser])
+  User([User in browser])
 
-  subgraph FE["Frontend (React SPA)"]
+  subgraph App [React SPA on GitHub Pages]
     direction TB
-    Views["Views<br/>Dashboard · List · Kanban<br/>Detail · Test Sheets · EIRs<br/>Admin (Projects · Admins)<br/>About · Manual"]
-    Hooks["React Query hooks<br/>useTasks · useTestSheets · useEirs<br/>useAdmins · useAttachments<br/>useFilters · useCurrentUser"]
-    API["API layer<br/>src/api/tasks.ts · testSheets.ts<br/>src/api/eirs.ts · admins.ts<br/>src/api/email.ts · attachments.ts"]
-    Views --> Hooks --> API
+    Views[Views]
+    Hooks[React Query hooks]
+    Api[API layer]
+    Views --> Hooks --> Api
   end
 
-  Browser --> FE
+  User --> Views
 
-  MSAL[/MSAL Entra ID/]
-  Mock[("Mock store<br/>in-memory + localStorage")]
-  Graph[/"Microsoft Graph v1.0"/]
-  SPREST[/"SharePoint REST - attachments only"/]
+  Msal[MSAL Entra ID]
+  Mock[Mock store - localStorage]
+  Graph[Microsoft Graph v1.0]
+  SpRest[SharePoint REST]
+  Mail[Shared mailbox]
 
-  API -- "VITE_USE_MOCK=true" --> Mock
-  API -- "VITE_USE_MOCK=false" --> Graph
-  API -- "list-item attachments" --> SPREST
+  Api -- demo mode --> Mock
+  Api -- live mode --> Graph
+  Api -- attachments --> SpRest
+  Api -- @-mentions --> Mail
 
-  Browser -. sign in .-> MSAL
-  MSAL -. access token .-> Graph
-  MSAL -. AllSites.Manage token .-> SPREST
+  User -. sign in .-> Msal
+  Msal -. Graph token .-> Graph
+  Msal -. SP token .-> SpRest
 
-  Mailbox[/"Shared mailbox<br/>VITE_SHARED_MAILBOX"/]
-  API -- "@-mention notifications<br/>(Mail.Send.Shared)" --> Mailbox
-  Mailbox -. email .-> Recipient([Mentioned user])
-
-  subgraph SP["SharePoint lists"]
-    direction TB
-    ProjectTaskList[("Project Task List")]
-    Projects[("Projects")]
-    TestResults[("Test Results")]
-    EIRs[("EIRs (Engineering<br/>Information Requests)")]
-    Admins[("Admins")]
+  subgraph Sp [SharePoint lists]
+    direction LR
+    L1[Project Task List]
+    L2[Projects]
+    L3[Test Results]
+    L4[EIRs]
+    L5[Admins]
   end
 
-  Graph --> SP
-  SPREST --> SP
+  Graph --> Sp
+  SpRest --> Sp
+
+  classDef ui fill:#CB2C30,stroke:#fff,color:#fff,stroke-width:1px
+  classDef auth fill:#7c3aed,stroke:#fff,color:#fff,stroke-width:1px
+  classDef gateway fill:#1f6feb,stroke:#fff,color:#fff,stroke-width:1px
+  classDef list fill:#0e7c0e,stroke:#fff,color:#fff,stroke-width:1px
+  classDef mock fill:#6b7280,stroke:#fff,color:#fff,stroke-width:1px
+
+  class User,Views,Hooks,Api ui
+  class Msal auth
+  class Graph,SpRest gateway
+  class L1,L2,L3,L4,L5 list
+  class Mock,Mail mock
 `.trim();
 
 const dataModelDiagram = `
 flowchart LR
-  Project[("Project")]
-  Task[("Task")]
-  TestSheet[("Test Sheet")]
-  EIR[("EIR")]
-  Admin[("Admin")]
+  Project[Project]
+  Task[Task]
+  TestSheet[Test Sheet]
+  EIR[EIR]
+  Admin[Admin]
 
-  Task -- "Parent Project Reference" --> Project
-  Task -- "Parent Task self-link" --> Task
-  TestSheet -- "Task Reference" --> Task
-  TestSheet -- "Project Reference" --> Project
-  EIR -- "Project Reference - multi-choice" --> Project
-  EIR -- "Task Reference - text or URL" --> Task
+  Task --> Project
+  Task --> Task
+  TestSheet --> Task
+  TestSheet --> Project
+  EIR --> Project
+  EIR --> Task
 
   Person((Person))
   Comments[Comments]
-  Attachments[File attachments - SharePoint REST]
+  Files[Attachments]
 
-  Task -- "Communication" --> Comments
-  Task -- "Assigned · Watchers" --> Person
-  Task -. "Attached files" .-> Attachments
-  TestSheet -- "Tester" --> Person
-  EIR -- "Reporter · Engineers · Watchers" --> Person
-  EIR -- "Communication" --> Comments
-  EIR -. "Attached files" .-> Attachments
-  Admin -- "Email grants admin access" --> Person
+  Task --> Person
+  Task --> Comments
+  Task -.-> Files
+  TestSheet --> Person
+  EIR --> Person
+  EIR --> Comments
+  EIR -.-> Files
+  Admin --> Person
+
+  classDef entity fill:#CB2C30,stroke:#fff,color:#fff,stroke-width:1px
+  classDef shared fill:#1f6feb,stroke:#fff,color:#fff,stroke-width:1px
+
+  class Project,Task,TestSheet,EIR,Admin entity
+  class Person,Comments,Files shared
 `.trim();
 
 const Mermaid = lazy(() => import("../components/MermaidDiagram"));

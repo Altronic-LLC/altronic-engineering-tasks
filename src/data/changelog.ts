@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.5",
+    date: "2026-05-20",
+    changes: [
+      "Redesigned About page diagrams from scratch — simpler shapes, no nested parens-in-quotes (which kept choking the Mermaid 11 parser), and colour-coded so different parts of the system stand out: red for the SPA, blue for Graph / SharePoint gateways, green for SharePoint lists, purple for Entra ID, grey for demo/mailbox; data-model diagram uses the same red/blue palette to separate entities from shared concepts",
+    ],
+  },
+  {
     version: "0.16.4",
     date: "2026-05-20",
     changes: [
