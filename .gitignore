@@ -10,3 +10,7 @@ coverage
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# Local-only — never push to the public repo.
+.claude/
+SESSION-NOTES.md
