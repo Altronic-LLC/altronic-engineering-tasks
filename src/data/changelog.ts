@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.0",
+    date: "2026-05-20",
+    changes: [
+      "New Admin → Admins page (/admin/admins) with a sortable table of who has admin access — admins can add or remove people directly from the UI, and anyone on the list immediately gets the Admin link in the header on their next reload",
+      "Admin access is now driven by an editable SharePoint list (VITE_SP_ADMINS_LIST_ID) instead of a hardcoded array — a small bootstrap set (ray.white@…, demo.user@…) stays in the code so nobody can lock themselves out by accidentally clearing the list",
+      "Toned down @-mention styling in descriptions and comments — names like 'Mark Balent' wrapped in mailto: anchors no longer render as loud red italic underlined links; they appear as plain bold text",
+    ],
+  },
+  {
     version: "0.15.10",
     date: "2026-05-20",
     changes: [

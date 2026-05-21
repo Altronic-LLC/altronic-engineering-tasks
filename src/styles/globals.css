@@ -96,6 +96,18 @@ h3,
 .comment-html a {
   @apply text-accent underline underline-offset-2 hover:no-underline;
 }
+/* SharePoint and Power Apps stamp @-mentions as `<a href="mailto:...">`
+   tags. Render those as subtle bold spans instead of loud red links — a
+   name in a description shouldn't look like a clickable external link.
+   Stripping italic from inside the anchor too keeps "<a><em>Name</em></a>"
+   readable (SharePoint produces that combo for some user-link styles). */
+.comment-html a[href^="mailto:"] {
+  @apply text-fg font-semibold no-underline;
+}
+.comment-html a em,
+.comment-html a i {
+  font-style: normal;
+}
 .comment-html img {
   @apply max-w-full h-auto rounded my-2;
 }

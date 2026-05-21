@@ -98,6 +98,18 @@ export interface ProjectReference {
 }
 
 /**
+ * Row in the Admins SharePoint list. Drives header-visibility and admin-
+ * page access. `id` is the SP list item id (used for delete).
+ */
+export interface AdminEntry {
+  id: number;
+  email: string;
+  displayName: string;
+  /** Optional note like "Engineering Manager" — purely cosmetic. */
+  note: string;
+}
+
+/**
  * A bare reference to another task — just the bits we need to render a
  * pill/link without re-fetching the full task. Used for parent and child
  * task references.

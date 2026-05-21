@@ -15,6 +15,13 @@ export const SP_TEST_RESULTS_LIST_ID = import.meta.env.VITE_SP_TEST_RESULTS_LIST
 export const SP_EIRS_LIST_ID = import.meta.env.VITE_SP_EIRS_LIST_ID;
 
 /**
+ * Admins list — single-column ("Email" Title-field) SharePoint list that
+ * controls who sees admin UI in this app. Optional; if unset, falls back
+ * to a small hardcoded set in `useIsAdmin`.
+ */
+export const SP_ADMINS_LIST_ID = import.meta.env.VITE_SP_ADMINS_LIST_ID;
+
+/**
  * SharePoint site web URL — used to call the SP REST API (specifically for
  * list-item attachments, which Graph v1.0 doesn't surface cleanly).
  * Example: https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering

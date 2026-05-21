@@ -123,7 +123,7 @@ export function Header() {
           <EngineeringListsMenu active={isInLists} pathname={pathname} />
           {isAdmin && (
             <NavLink
-              to="/admin/projects"
+              to="/admin/admins"
               active={isAdminPage}
               icon={<Shield className="h-4 w-4" />}
             >
