@@ -286,7 +286,13 @@ export interface Eir {
   reporter: Person | null;
   assignedEngineers: Person[];
   watchers: Person[];
-  parentProject: ProjectReference | null;
+  /**
+   * Project Reference is a multi-value Lookup column on the EIR list —
+   * same shape as the Tasks list's "Related Projects" (also called
+   * `ProjectReference` there). Stored as an array of project lookups;
+   * may be empty if no project was selected.
+   */
+  parentProjects: ProjectReference[];
   /** Free-text reference to a task (e.g. the NumberedTitle or item id). */
   taskReference: string;
 

@@ -68,41 +68,17 @@ export function EirsView() {
 
   const people = useMemo(() => collectPeople(eirs), [eirs]);
 
-  // EIR's project column is a multi-select Choice (text) — not a Lookup.
-  // The filter UI still talks in lookupIds (so the dropdown can share its
-  // option list with the Tasks filter), so we map each selected lookupId
-  // to its project title and then string-match against the EIR's stored
-  // title(s). Falls through to a lookupId-equality check too, for the
-  // edge case where an EIR was historically provisioned with a real
-  // lookup column instead of the current choice column.
-  const projectsById = useMemo(
-    () => new Map(projects.map((p) => [p.lookupId, p.title.toLowerCase()])),
-    [projects],
-  );
-  const selectedProjectTitles = useMemo(
-    () =>
-      projectIds
-        .map((id) => projectsById.get(id))
-        .filter((t): t is string => !!t),
-    [projectIds, projectsById],
-  );
-
+  // EIR Project Reference is a multi-value Lookup column — same shape as
+  // the Tasks Related Projects field. Filter matches by lookupId across
+  // any of the EIR's selected projects.
   const filteredByBar = useMemo(
     () =>
       eirs.filter((e) => {
         if (projectIds.length > 0) {
-          const ppid = e.parentProject?.lookupId ?? 0;
-          const eirTitles =
-            e.parentProject?.title
-              .toLowerCase()
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean) ?? [];
-          const matchedByLookup = ppid > 0 && projectIds.includes(ppid);
-          const matchedByTitle = selectedProjectTitles.some((t) =>
-            eirTitles.includes(t),
+          const matched = e.parentProjects.some((p) =>
+            projectIds.includes(p.lookupId),
           );
-          if (!matchedByLookup && !matchedByTitle) return false;
+          if (!matched) return false;
         }
         if (reporterEmail) {
           const key = (e.reporter?.email ?? e.reporter?.displayName ?? "").toLowerCase();
@@ -133,7 +109,7 @@ export function EirsView() {
         }
         return true;
       }),
-    [eirs, projectIds, selectedProjectTitles, reporterEmail, engineerEmails, query],
+    [eirs, projectIds, reporterEmail, engineerEmails, query],
   );
 
   const filtered = useMemo(

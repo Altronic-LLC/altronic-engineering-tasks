@@ -75,31 +75,15 @@ export function DashboardView() {
   );
 
   // ----- EIRs -----
-  // EIR project column is a multi-choice text field, not a lookup — so we
-  // match against the title string (which the mapper packs the chosen
-  // choices into) as well as the legacy lookupId.
-  const selectedProjectTitle = useMemo(
-    () =>
-      projectId != null
-        ? projects.find((p) => p.lookupId === projectId)?.title.toLowerCase() ?? null
-        : null,
-    [projects, projectId],
-  );
+  // EIR project reference is a multi-value Lookup — same shape as Tasks
+  // Related Projects. Scope matches by lookupId across the array.
   const projectScopedEirs = useMemo<Eir[]>(
     () =>
       eirs.filter((e) => {
         if (projectId == null) return true;
-        if (e.parentProject?.lookupId === projectId) return true;
-        if (selectedProjectTitle && e.parentProject?.title) {
-          return e.parentProject.title
-            .toLowerCase()
-            .split(",")
-            .map((s) => s.trim())
-            .includes(selectedProjectTitle);
-        }
-        return false;
+        return e.parentProjects.some((p) => p.lookupId === projectId);
       }),
-    [eirs, projectId, selectedProjectTitle],
+    [eirs, projectId],
   );
   const myEirs = useMemo(
     () =>

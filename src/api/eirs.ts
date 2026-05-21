@@ -7,7 +7,7 @@ import type {
   ProjectReference,
 } from "@/types/task";
 import { attachEirReferences, toEir } from "@/lib/eirMapper";
-import { multiPersonField } from "@/lib/graphFields";
+import { multiLookupField, multiPersonField } from "@/lib/graphFields";
 import { appendComment, replaceComment } from "@/lib/communicationParser";
 import { listProjects } from "./tasks";
 import { MOCK_EIRS } from "@/data/mockData";
@@ -97,6 +97,7 @@ export async function listEirs(): Promise<Eir[]> {
     "AssignedEngineer",
     "Watchers",
     "ProjectReference",
+    "ProjectReferenceLookupId",
     "EngineeringResponse",
     "WhereUsed",
     "EAU",
@@ -154,38 +155,6 @@ export async function listEirs(): Promise<Eir[]> {
   const eirs = items.map(toEir);
   attachEirReferences(eirs, projects, siteUsers);
   return eirs;
-}
-
-/**
- * Fetch the allowed choice values for the EIR list's Project Reference
- * column. SharePoint Choice columns store their allowed values on the
- * column definition itself; trying to PATCH an item with a value that
- * isn't in that list 400s with "value is not a valid choice."
- *
- * Returns the choices in display order, plus whether the column allows
- * free-text entry (in which case any string is valid).
- */
-export interface ProjectChoiceColumn {
-  choices: string[];
-  allowTextEntry: boolean;
-}
-export async function getEirProjectReferenceChoices(): Promise<ProjectChoiceColumn> {
-  if (USE_MOCK) {
-    return { choices: [], allowTextEntry: true };
-  }
-  if (!SP_EIRS_LIST_ID) {
-    return { choices: [], allowTextEntry: false };
-  }
-  const cols = await graphFetch<{ value: Array<{ name?: string; choice?: { choices?: string[]; allowTextEntry?: boolean } }> }>(
-    `/sites/${SP_SITE_ID}/lists/${SP_EIRS_LIST_ID}/columns?$select=name,choice`,
-  );
-  const col = (cols.value ?? []).find(
-    (c) => c.name?.toLowerCase() === "projectreference",
-  );
-  return {
-    choices: col?.choice?.choices ?? [],
-    allowTextEntry: !!col?.choice?.allowTextEntry,
-  };
 }
 
 /**
@@ -267,9 +236,9 @@ export async function createEir(input: CreateEirInput): Promise<Eir> {
       reporter: input.reporter ?? null,
       assignedEngineers: input.assignedEngineers ?? [],
       watchers: input.watchers ?? [],
-      parentProject: input.parentProjectLookupId
-        ? { lookupId: input.parentProjectLookupId, title: "" }
-        : null,
+      parentProjects: input.parentProjectLookupId
+        ? [{ lookupId: input.parentProjectLookupId, title: "" }]
+        : [],
       taskReference: input.taskReference ?? "",
       engineeringResponse: "",
       whereUsed: input.whereUsed ?? "",
@@ -312,7 +281,11 @@ export async function createEir(input: CreateEirInput): Promise<Eir> {
   if (input.resolution) fields.Resolution = input.resolution;
   if (input.requestedPriority) fields.Priority = input.requestedPriority;
   if (input.parentProjectLookupId) {
-    fields.ProjectReferenceLookupId = input.parentProjectLookupId;
+    // EIR Project Reference is a multi-value Lookup column — same shape
+    // as Tasks' Related Projects. Single-project create gets wrapped in
+    // an array, with the `Collection(Edm.Int32)` annotation Graph
+    // requires for multi-value lookup writes.
+    Object.assign(fields, multiLookupField("ProjectReference", [input.parentProjectLookupId]));
   }
   if (input.reporter?.lookupId) fields.ReporterLookupId = input.reporter.lookupId;
   if (input.assignedEngineers?.some((p) => !!p.lookupId)) {
@@ -376,18 +349,28 @@ export async function updateEirFields(
       const v = fields.LTBDate;
       next.ltbDate = v ? new Date(v as string) : null;
     }
-    if ("ProjectReference" in fields) {
-      const v = fields.ProjectReference;
-      if (Array.isArray(v) && v.length > 0) {
-        next.parentProject = {
-          lookupId: 0,
-          title: v.filter((x) => typeof x === "string").join(", "),
-        };
-      } else if (typeof v === "string" && v) {
-        next.parentProject = { lookupId: 0, title: v };
-      } else {
-        next.parentProject = null;
+    if (
+      "ProjectReferenceLookupId" in fields ||
+      "ProjectReference" in fields
+    ) {
+      // Multi-value Lookup write — Graph receives an integer array
+      // under `ProjectReferenceLookupId`. Mock store mirrors that.
+      const raw =
+        (fields.ProjectReferenceLookupId as unknown) ??
+        (fields.ProjectReference as unknown);
+      const ids: number[] = [];
+      if (Array.isArray(raw)) {
+        for (const x of raw) {
+          if (typeof x === "number" && x > 0) ids.push(x);
+          else if (typeof x === "string") {
+            const n = parseInt(x, 10);
+            if (!Number.isNaN(n) && n > 0) ids.push(n);
+          }
+        }
+      } else if (typeof raw === "number" && raw > 0) {
+        ids.push(raw);
       }
+      next.parentProjects = ids.map((id) => ({ lookupId: id, title: "" }));
     }
     if ("ReporterLookupId" in fields) {
       const v = fields.ReporterLookupId;
@@ -412,18 +395,6 @@ export async function updateEirFields(
     throw new Error("Cannot update EIR: VITE_SP_EIRS_LIST_ID is not set.");
   }
 
-  // One-time diagnostic for ProjectReference writes specifically — print
-  // the exact request body so we can confirm what Graph receives.
-  if ("ProjectReference" in fields && !projectRefWriteLogged) {
-    projectRefWriteLogged = true;
-    /* eslint-disable no-console */
-    console.group("%c[EIR DEBUG] ProjectReference PATCH", "color:#CB2C30;font-weight:bold");
-    console.log("Item id:", id);
-    console.log("Request body:", JSON.stringify(fields, null, 2));
-    console.groupEnd();
-    /* eslint-enable no-console */
-  }
-
   await graphFetch(
     `/sites/${SP_SITE_ID}/lists/${SP_EIRS_LIST_ID}/items/${id}/fields`,
     { method: "PATCH", body: JSON.stringify(fields) },
@@ -433,7 +404,6 @@ export async function updateEirFields(
   return updated;
 }
 
-let projectRefWriteLogged = false;
 
 /** Replace the Assigned Engineer list. */
 export async function setEirAssignedEngineers(id: number, people: Person[]): Promise<Eir> {

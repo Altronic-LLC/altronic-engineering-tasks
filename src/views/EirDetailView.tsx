@@ -17,7 +17,6 @@ import {
   useAddEirComment,
   useEditEirComment,
   useEir,
-  useEirProjectChoices,
   useSetEirAssignedEngineers,
   useSetEirReporter,
   useSetEirWatchers,
@@ -44,7 +43,7 @@ import { AttachmentsSection } from "@/components/AttachmentsSection";
 import { LoadingTasks } from "@/components/LoadingTasks";
 import { PersonMultiField } from "@/components/PersonMultiField";
 import { sanitiseHtml } from "@/lib/sanitiseHtml";
-import { multiChoiceField } from "@/lib/graphFields";
+import { multiLookupField } from "@/lib/graphFields";
 import { cn } from "@/lib/cn";
 
 export function EirDetailView() {
@@ -380,12 +379,12 @@ export function EirDetailView() {
               </SidebarField>
 
               <SidebarField icon={<FolderOpen />} label="Project Reference">
-                <ProjectChoicePicker
-                  selectedTitle={eir.parentProject?.title ?? ""}
-                  onChange={(titles) =>
+                <ProjectLookupPicker
+                  selected={eir.parentProjects}
+                  onChange={(ids) =>
                     updateFields.mutate({
                       id: eir.id,
-                      fields: multiChoiceField("ProjectReference", titles),
+                      fields: multiLookupField("ProjectReference", ids),
                     })
                   }
                 />
@@ -740,54 +739,36 @@ function LinkedTaskCard({
  * from the Projects list — its titles are the values configured as
  * allowed choices in SharePoint.
  */
-function ProjectChoicePicker({
-  selectedTitle,
+function ProjectLookupPicker({
+  selected,
   onChange,
 }: {
-  selectedTitle: string;
-  onChange: (titles: string[]) => void;
+  selected: { lookupId: number; title: string }[];
+  onChange: (lookupIds: number[]) => void;
 }) {
-  // Options come from the EIR list's ProjectReference Choice column
-  // itself — SharePoint will only accept values that exist in that
-  // configured choice list (unless the column allows free-text entry).
-  // Falls back to the Projects list titles if the column metadata
-  // hasn't loaded yet so the picker isn't blank on first open.
-  const { data: choiceCol } = useEirProjectChoices();
+  // Project Reference is a multi-value Lookup column on the EIR list,
+  // pointing at the Projects list. Options are every project; the picker
+  // emits lookup ids back to the caller, which writes them via the
+  // standard multiLookupField helper.
   const { data: projects = [] } = useProjects();
+  const selectedIds = selected.map((p) => String(p.lookupId));
 
-  const selected = selectedTitle
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const seen = new Set<string>();
+  // Surface any currently-selected lookupId that isn't in the projects
+  // list (archived, renamed, or not yet loaded) so the chip still shows.
+  const seen = new Set<number>();
   const options: { value: string; label: string }[] = [];
-
-  // 1. Real Choice values from the SharePoint column — these are the
-  //    ONLY values guaranteed to be accepted on write.
-  for (const c of choiceCol?.choices ?? []) {
-    const v = c.trim();
-    if (!v || seen.has(v)) continue;
-    seen.add(v);
-    options.push({ value: v, label: v });
+  for (const p of projects) {
+    if (seen.has(p.lookupId)) continue;
+    seen.add(p.lookupId);
+    options.push({ value: String(p.lookupId), label: p.title });
   }
-
-  // 2. If the column metadata isn't loaded yet OR the column allows
-  //    free-text entry, surface the Projects list as a convenience.
-  if ((choiceCol?.choices.length ?? 0) === 0 || choiceCol?.allowTextEntry) {
-    for (const p of projects) {
-      if (!p.title || seen.has(p.title)) continue;
-      seen.add(p.title);
-      options.push({ value: p.title, label: p.title });
-    }
-  }
-
-  // 3. Currently-selected values that don't appear in either source —
-  //    surface so chips still render for legacy / archived choices.
-  for (const s of selected) {
-    if (!seen.has(s)) {
-      seen.add(s);
-      options.push({ value: s, label: `${s} (legacy value)` });
+  for (const p of selected) {
+    if (!seen.has(p.lookupId)) {
+      seen.add(p.lookupId);
+      options.push({
+        value: String(p.lookupId),
+        label: p.title || `Project #${p.lookupId}`,
+      });
     }
   }
 
@@ -796,8 +777,13 @@ function ProjectChoicePicker({
       allLabel="No project assigned"
       searchPlaceholder="Search projects…"
       options={options}
-      selected={selected}
-      onChange={onChange}
+      selected={selectedIds}
+      onChange={(keys) => {
+        const ids = keys
+          .map((k) => parseInt(k, 10))
+          .filter((n) => !Number.isNaN(n) && n > 0);
+        onChange(ids);
+      }}
     />
   );
 }

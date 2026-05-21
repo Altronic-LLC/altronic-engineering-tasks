@@ -20,6 +20,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.8",
+    date: "2026-05-21",
+    changes: [
+      "EIR Project Reference is correctly typed as a multi-value Lookup column now (matching the SharePoint type list confirmed by the user) — the read mapper extracts an array of {lookupId, title} pairs from the expanded lookup objects, and writes go through the standard `multiLookupField` helper to `ProjectReferenceLookupId` with the Collection(Edm.Int32) annotation Graph requires; this is the same shape the Tasks list's Related Projects field uses, so the 400 'value is not a valid choice' Bad Request goes away",
+      "Renamed `Eir.parentProject` to `Eir.parentProjects: ProjectReference[]` to reflect that multiple projects can be selected; EirRow, EIR detail sidebar picker, EIRs filter, and dashboard EIR project scoping all updated to iterate the array (chips render one per project, filter matches if any chip is the selected project)",
+    ],
+  },
+  {
+    version: "0.17.7",
+    date: "2026-05-21",
+    changes: [
+      "Every failed Graph request now logs the full request body + response body to the browser console (in addition to the toast) — so when a write fails we get the actual error message instead of just a 400 stack trace, which we need to diagnose the EIR Project Reference 400",
+    ],
+  },
+  {
     version: "0.17.6",
     date: "2026-05-21",
     changes: [

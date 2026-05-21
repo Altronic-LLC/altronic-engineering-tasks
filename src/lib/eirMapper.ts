@@ -55,7 +55,7 @@ export function toEir(item: GraphListItem): Eir {
       parsePersonSingle(f.Reporter) ?? parsePersonSingle(f.ReporterLookupId),
     assignedEngineers: parsePersonMulti(f.AssignedEngineer),
     watchers: parsePersonMulti(f.Watchers),
-    parentProject: readProjectLookupId(f),
+    parentProjects: readProjectReferences(f),
     taskReference: (f.TaskReference as string) ?? "",
 
     engineeringResponse: (f.EngineeringResponse as string) ?? "",
@@ -124,10 +124,15 @@ export function attachEirReferences(
   }
 
   for (const e of eirs) {
-    if (e.parentProject && e.parentProject.lookupId > 0) {
-      const joined = byProjectId.get(e.parentProject.lookupId);
-      if (joined && !e.parentProject.title) e.parentProject.title = joined;
-    }
+    // Resolve every project reference's title from the projects catalogue
+    // when the mapper didn't get a name from the expanded lookup object.
+    e.parentProjects = e.parentProjects.map((p) => {
+      if (p.lookupId > 0 && !p.title) {
+        const title = byProjectId.get(p.lookupId);
+        if (title) return { ...p, title };
+      }
+      return p;
+    });
     if (e.reporter && e.reporter.displayName.startsWith("User #") && e.reporter.lookupId) {
       const resolved = peopleById.get(e.reporter.lookupId);
       if (resolved) {
@@ -145,122 +150,82 @@ export function attachEirReferences(
 // ---- helpers ---------------------------------------------------------------
 
 /**
- * Read the EIR's Project Reference field.
+ * Read the EIR's Project Reference field as an array of project lookups.
  *
- * Confirmed shape (per the SharePoint column definition on this list):
- * "Project Reference" is a **multi-select Choice column**, NOT a Lookup.
- * That means the value comes back as either:
- *   - an array of strings: `["2026-Cat Pyrometer, 133-6333"]`
- *   - a `;#`-delimited string: `";#2026-Cat Pyrometer, 133-6333;#"`
- *   - a single string: `"2026-Cat Pyrometer, 133-6333"`
+ * Per the EIR list's column definition, "Project Reference" is a
+ * **multi-value Lookup** (same shape as Tasks' "Related Projects" /
+ * `ProjectReference`). Graph returns the value under the bare field name
+ * `ProjectReference` as either:
+ *   - an array of `{ LookupId, LookupValue }` objects (multi-lookup, expanded)
+ *   - a single such object (some single-value lookup setups)
+ *   - an array of bare integers (`ProjectReferenceLookupId` if requested)
  *
- * There is no lookup id to join against — the choices themselves ARE the
- * project labels. We pack the chosen value(s) into `parentProject.title`
- * (joined with ", " when multiple) and use lookupId=0 to signal "no real
- * lookup join — title is authoritative."
+ * We pull (lookupId, title) pairs out of any of those shapes. Titles will
+ * be empty if the lookup wasn't expanded — `attachEirReferences` then
+ * joins them against the projects catalogue.
  */
-function readProjectLookupId(
-  f: Record<string, unknown>,
-): { lookupId: number; title: string } | null {
+function readProjectReferences(f: Record<string, unknown>): ProjectReference[] {
+  // Prefer the bare `ProjectReference` field (expanded shape), fall back
+  // to `ProjectReferenceLookupId` (suffixed integer-only shape) if that's
+  // what Graph returned this time.
+  const candidates: unknown[] = [];
   for (const [key, raw] of Object.entries(f)) {
     if (!/project/i.test(key)) continue;
-    if (!/reference/i.test(key) && !key.endsWith("LookupId")) continue;
-    const choices = extractChoiceValues(raw);
-    if (choices.length > 0) {
-      return { lookupId: 0, title: choices.join(", ") };
-    }
-    // If the value happens to be a real lookup id (legacy provisioning),
-    // fall back to id-based join. extractLookupId is the older code path.
-    const id = extractLookupId(raw);
-    if (id != null) return { lookupId: id, title: "" };
+    if (!/reference/i.test(key)) continue;
+    candidates.push(raw);
   }
-  return null;
+  const refs: ProjectReference[] = [];
+  for (const raw of candidates) {
+    extractProjectRefsInto(raw, refs);
+    if (refs.length > 0) break;
+  }
+  return refs;
 }
 
-/**
- * Pull the chosen labels out of whatever multi-select shape SharePoint
- * returned. Covers every variant we've seen:
- *
- *   - Choice multi-select         : ["choice1", "choice2"]   or  ";#a;#b;#"
- *   - Lookup multi-select         : [{LookupId, LookupValue}, ...]
- *   - Managed-metadata multi      : [{Label, TermGuid, WssId}, ...]
- *   - Single-value variants of any of the above (object or string)
- */
-function extractChoiceValues(raw: unknown): string[] {
-  if (raw == null || raw === "") return [];
-
+function extractProjectRefsInto(raw: unknown, out: ProjectReference[]): void {
+  if (raw == null || raw === "") return;
   if (Array.isArray(raw)) {
-    return raw
-      .map((v) => extractSingleLabel(v))
-      .filter((v): v is string => !!v);
+    for (const item of raw) extractProjectRefsInto(item, out);
+    return;
   }
-
-  if (typeof raw === "string") {
-    if (raw.includes(";#")) {
-      // ";#" delimiter from classic SP multi-choice serialisation.
-      return raw
-        .split(";#")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-    }
-    if (/^\d+$/.test(raw.trim())) return []; // numeric → let lookup-id path handle
-    return [raw.trim()];
+  if (typeof raw === "number") {
+    if (raw > 0) out.push({ lookupId: raw, title: "" });
+    return;
   }
-
-  // Single-object variant (single-value Lookup / Managed Metadata).
-  const single = extractSingleLabel(raw);
-  return single ? [single] : [];
-}
-
-/**
- * Reduce one element of a multi-select array (string or object) down to a
- * single display label. Returns "" if nothing usable is in the element.
- */
-function extractSingleLabel(v: unknown): string {
-  if (typeof v === "string") return v.trim();
-  if (v == null || typeof v !== "object") return "";
-  const obj = v as Record<string, unknown>;
-  for (const k of [
-    "LookupValue",
-    "Label",
-    "Title",
-    "DisplayName",
-    "Value",
-    "value",
-    "name",
-    "Name",
-  ] as const) {
-    const val = obj[k];
-    if (typeof val === "string" && val.trim()) return val.trim();
-  }
-  return "";
-}
-
-/**
- * Legacy fallback: pull an integer lookup id out of a field value when
- * the column happens to be a real Lookup (only kept for tenants that
- * provisioned EIRs differently). Multi-choice handling above runs first.
- */
-function extractLookupId(raw: unknown): number | null {
-  if (raw == null || raw === "" || raw === 0 || raw === "0") return null;
-  if (typeof raw === "number") return raw > 0 ? raw : null;
   if (typeof raw === "string") {
     const n = parseInt(raw, 10);
-    if (!Number.isNaN(n) && String(n) === raw.trim() && n > 0) return n;
-    return null;
+    if (!Number.isNaN(n) && n > 0 && String(n) === raw.trim()) {
+      out.push({ lookupId: n, title: "" });
+    }
+    return;
   }
   if (typeof raw === "object") {
     const obj = raw as Record<string, unknown>;
-    for (const k of ["LookupId", "lookupId", "Id", "id", "WssId"] as const) {
+    let lookupId = 0;
+    for (const k of ["LookupId", "lookupId", "Id", "id"] as const) {
       const v = obj[k];
-      if (typeof v === "number" && v > 0) return v;
+      if (typeof v === "number" && v > 0) {
+        lookupId = v;
+        break;
+      }
       if (typeof v === "string") {
         const n = parseInt(v, 10);
-        if (!Number.isNaN(n) && n > 0) return n;
+        if (!Number.isNaN(n) && n > 0) {
+          lookupId = n;
+          break;
+        }
       }
     }
+    let title = "";
+    for (const k of ["LookupValue", "Title", "DisplayName"] as const) {
+      const v = obj[k];
+      if (typeof v === "string" && v.trim()) {
+        title = v.trim();
+        break;
+      }
+    }
+    if (lookupId > 0) out.push({ lookupId, title });
   }
-  return null;
 }
 
 function clampRequired<T extends string>(

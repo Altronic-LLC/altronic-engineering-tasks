@@ -139,11 +139,8 @@ export function EirRow({ eir, onOpen }: EirRowProps) {
  * available via the chip's `title` tooltip.
  */
 function ProjectChips({ eir, maxVisible }: { eir: Eir; maxVisible: number }) {
-  const title = eir.parentProject?.title ?? "";
-  if (!title) return <span className="text-fg-muted">—</span>;
-  const all = title
-    .split(",")
-    .map((s) => s.trim())
+  const all = eir.parentProjects
+    .map((p) => p.title || `Project #${p.lookupId}`)
     .filter(Boolean);
   if (all.length === 0) return <span className="text-fg-muted">—</span>;
   const visible = all.slice(0, maxVisible);

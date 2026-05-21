@@ -3,7 +3,6 @@ import {
   addEirComment,
   createEir,
   editEirComment,
-  getEirProjectReferenceChoices,
   listEirs,
   setEirAssignedEngineers,
   setEirReporter,
@@ -19,7 +18,7 @@ import type {
   Person,
 } from "@/types/task";
 import { pushToast } from "@/components/Toast";
-import { multiChoiceField } from "@/lib/graphFields";
+import { multiLookupField } from "@/lib/graphFields";
 
 const EIRS_KEY = ["eirs", "list"] as const;
 
@@ -320,19 +319,25 @@ function applyFieldsLocally(
     const v = fields.LTBDate;
     next.ltbDate = v ? new Date(v as string) : null;
   }
-  if ("ProjectReference" in fields) {
-    // Multi-choice Choice column — the write is an array of strings.
-    const v = fields.ProjectReference;
-    if (Array.isArray(v) && v.length > 0) {
-      next.parentProject = {
-        lookupId: 0,
-        title: v.filter((x): x is string => typeof x === "string").join(", "),
-      };
-    } else if (typeof v === "string" && v) {
-      next.parentProject = { lookupId: 0, title: v };
-    } else {
-      next.parentProject = null;
+  if (
+    "ProjectReferenceLookupId" in fields ||
+    "ProjectReference" in fields
+  ) {
+    // Multi-value Lookup column — the write is an array of project
+    // lookupIds under `ProjectReferenceLookupId` (Graph requires the
+    // suffix for lookup-id collections).
+    const raw =
+      (fields.ProjectReferenceLookupId as unknown) ??
+      (fields.ProjectReference as unknown);
+    const ids: number[] = [];
+    if (Array.isArray(raw)) {
+      for (const x of raw) {
+        if (typeof x === "number" && x > 0) ids.push(x);
+      }
+    } else if (typeof raw === "number" && raw > 0) {
+      ids.push(raw);
     }
+    next.parentProjects = ids.map((id) => ({ lookupId: id, title: "" }));
   }
   return next;
 }
@@ -362,13 +367,12 @@ function buildInverseFields(prev: Eir, fields: Record<string, unknown>): Record<
       : null;
   if ("LTBDate" in fields)
     inv.LTBDate = prev.ltbDate ? prev.ltbDate.toISOString() : null;
-  if ("ProjectReference" in fields) {
-    // Reverse the multi-choice array by splitting the joined title back
-    // out. lookupId is 0 for choice-backed entries — title is the truth.
-    const titles = prev.parentProject?.title
-      ? prev.parentProject.title.split(",").map((s) => s.trim()).filter(Boolean)
-      : [];
-    Object.assign(inv, multiChoiceField("ProjectReference", titles));
+  if (
+    "ProjectReferenceLookupId" in fields ||
+    "ProjectReference" in fields
+  ) {
+    const ids = prev.parentProjects.map((p) => p.lookupId).filter((x) => x > 0);
+    Object.assign(inv, multiLookupField("ProjectReference", ids));
   }
   return inv;
 }
@@ -406,6 +410,7 @@ function messageForFieldsUpdate(fields: Record<string, unknown>): string {
       case "LTBDate":
         return "LTB date updated.";
       case "ProjectReference":
+      case "ProjectReferenceLookupId":
         return "Project updated.";
       case "TaskReference":
         return "Task reference updated.";
@@ -414,15 +419,3 @@ function messageForFieldsUpdate(fields: Record<string, unknown>): string {
   return "EIR updated.";
 }
 
-/**
- * Fetch + cache the actual Choice column metadata for the EIR
- * ProjectReference field. The picker uses this to constrain its
- * options to values SharePoint will actually accept.
- */
-export function useEirProjectChoices() {
-  return useQuery({
-    queryKey: ["eirs", "project-choices"] as const,
-    queryFn: getEirProjectReferenceChoices,
-    staleTime: 5 * 60_000,
-  });
-}
