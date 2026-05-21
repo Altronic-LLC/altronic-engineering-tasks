@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, X } from "lucide-react";
+import { HardHat, Info, Loader2, X } from "lucide-react";
 import { useProjects, useTasks } from "@/hooks/useTasks";
 import { useCreateEir } from "@/hooks/useEirs";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -17,9 +17,20 @@ interface EirFormModalProps {
 }
 
 /**
- * Create-EIR modal. Title + Project + Description are the hooks for a
- * useful EIR; everything else can be filled in from the detail sidebar
- * after creation.
+ * Create-EIR modal. Layout mirrors the legacy Power Apps form so users
+ * coming from the SharePoint UI feel at home: General Information up top
+ * (Request Type, Reporter, Requested Priority, Requested Completion Date,
+ * Subject, Description) followed by Purchasing Information (EAU, Current
+ * Stock, Current Price, MFG, LTB Date, MFG P/N, Altronic Part Number,
+ * Where Used).
+ *
+ * Required-field set matches the original form too: Request Type, Reporter,
+ * Requested Priority, Subject, Description.
+ *
+ * Project Reference is the EIR list's multi-choice column — write path is
+ * still on the legacy lookup shape and broken until the backlog rework
+ * lands; keeping the picker on the form as optional + flagged so users
+ * aren't surprised when it doesn't persist yet.
  */
 export function EirFormModal({ onClose }: EirFormModalProps) {
   const navigate = useNavigate();
@@ -28,22 +39,31 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
   const currentUser = useCurrentUser();
   const createEir = useCreateEir();
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [projectId, setProjectId] = useState<number | null>(null);
+  // --- General Information ---
   const [requestType, setRequestType] =
     useState<(typeof EIR_REQUEST_TYPES)[number]>("EIR");
+  const [reporter, setReporter] = useState<Person | null>(currentUser);
   const [requestedPriority, setRequestedPriority] = useState<
     (typeof EIR_REQUESTED_PRIORITIES)[number] | ""
   >("Medium");
-  const [reporter, setReporter] = useState<Person | null>(currentUser);
-  const [assignedEngineers, setAssignedEngineers] = useState<Person[]>([]);
-  const [taskReference, setTaskReference] = useState("");
-  const [whereUsed, setWhereUsed] = useState("");
+  const [requestedCompletionDate, setRequestedCompletionDate] = useState("");
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
+
+  // --- Purchasing Information ---
+  const [eau, setEau] = useState("");
+  const [currentStock, setCurrentStock] = useState("");
+  const [currentPrice, setCurrentPrice] = useState("");
   const [mfg, setMfg] = useState("");
+  const [ltbDate, setLtbDate] = useState("");
   const [mfgPartNumber, setMfgPartNumber] = useState("");
   const [altronicPartNumber, setAltronicPartNumber] = useState("");
-  const [requestedCompletionDate, setRequestedCompletionDate] = useState("");
+  const [whereUsed, setWhereUsed] = useState("");
+
+  // --- Optional in-app extras (kept because the detail page exposes them too) ---
+  const [projectId, setProjectId] = useState<number | null>(null);
+  const [assignedEngineers, setAssignedEngineers] = useState<Person[]>([]);
+  const [taskReference, setTaskReference] = useState("");
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,21 +93,26 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
     return people.find((p) => (p.email ?? p.displayName) === key) ?? null;
   }
 
+  /** Cross-field required-field gate. */
+  const missingRequired =
+    !subject.trim() ||
+    !description.trim() ||
+    !reporter ||
+    !requestedPriority ||
+    !requestType;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) {
-      setError("Title is required.");
-      return;
-    }
-    if (projectId == null) {
-      setError("Project Reference is required.");
-      return;
-    }
+    if (!subject.trim()) return setError("Subject is required.");
+    if (!description.trim()) return setError("Description is required.");
+    if (!reporter) return setError("Reporter is required.");
+    if (!requestedPriority) return setError("Requested Priority is required.");
+    if (!requestType) return setError("Request Type is required.");
     setError(null);
     setBusy(true);
     try {
       const created = await createEir.mutateAsync({
-        title: title.trim(),
+        title: subject.trim(),
         description,
         parentProjectLookupId: projectId,
         requestType,
@@ -98,12 +123,16 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
         assignedEngineers,
         taskReference,
         whereUsed,
+        eau,
+        currentStock,
+        currentPrice,
         mfg,
         mfgPartNumber,
         altronicPartNumber,
         requestedCompletionDate: requestedCompletionDate
           ? new Date(requestedCompletionDate)
           : null,
+        ltbDate: ltbDate ? new Date(ltbDate) : null,
       });
       onClose();
       navigate(`/eir/${created.id}`);
@@ -125,10 +154,12 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
     >
       <form
         onSubmit={handleSubmit}
-        className="flex w-full max-w-2xl flex-col bg-bg shadow-2xl sm:max-h-[90vh] sm:rounded-lg"
+        className="flex w-full max-w-3xl flex-col bg-bg shadow-2xl sm:max-h-[90vh] sm:rounded-lg"
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
-          <h2 className="font-display text-base font-semibold text-fg sm:text-lg">New EIR</h2>
+          <h2 className="font-display text-base font-semibold text-fg sm:text-lg">
+            New Engineering Information Request
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -147,31 +178,13 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FieldLabel label="Title" required className="sm:col-span-2">
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                autoFocus
-                required
-                className="input"
-              />
-            </FieldLabel>
+          {/* ---- General Information ---- */}
+          <SectionHeader icon={<Info className="h-4 w-4" />}>
+            General Information
+          </SectionHeader>
 
-            <FieldLabel label="Project Reference" required>
-              <SingleSelect
-                allLabel="Select a project…"
-                searchPlaceholder="Search projects…"
-                options={projects.map((p) => ({
-                  value: String(p.lookupId),
-                  label: p.title,
-                }))}
-                selected={projectId != null ? String(projectId) : null}
-                onChange={(v) => setProjectId(v ? parseInt(v, 10) : null)}
-              />
-            </FieldLabel>
-
-            <FieldLabel label="Request Type">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FieldLabel label="Request Type" required>
               <select
                 value={requestType}
                 onChange={(e) =>
@@ -187,7 +200,17 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
               </select>
             </FieldLabel>
 
-            <FieldLabel label="Requested Priority">
+            <FieldLabel label="Reporter" required>
+              <SingleSelect
+                allLabel="Enter a name or email"
+                searchPlaceholder="Search people…"
+                options={peopleOptions}
+                selected={reporter ? reporter.email ?? reporter.displayName : null}
+                onChange={(v) => setReporter(findPerson(v))}
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Requested Priority" required>
               <select
                 value={requestedPriority}
                 onChange={(e) =>
@@ -197,7 +220,7 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
                 }
                 className="input"
               >
-                <option value="">Not set</option>
+                <option value="">Select priority</option>
                 {EIR_REQUESTED_PRIORITIES.map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -215,13 +238,134 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
               />
             </FieldLabel>
 
-            <FieldLabel label="Reporter" className="sm:col-span-2">
+            <FieldLabel label="Subject" required className="sm:col-span-3">
+              <input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                autoFocus
+                required
+                placeholder="Enter Subject"
+                className="input"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Description" required className="sm:col-span-3">
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={5}
+                placeholder="Describe what you're requesting and why…"
+                className="input resize-y"
+              />
+            </FieldLabel>
+          </div>
+
+          {/* ---- Purchasing Information ---- */}
+          <SectionHeader icon={<HardHat className="h-4 w-4" />}>
+            Purchasing Information
+          </SectionHeader>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FieldLabel label="EAU">
+              <input
+                value={eau}
+                onChange={(e) => setEau(e.target.value)}
+                placeholder="Enter EAU"
+                className="input"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Current Stock">
+              <input
+                value={currentStock}
+                onChange={(e) => setCurrentStock(e.target.value)}
+                placeholder="Enter Current Stock"
+                className="input"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Current Price">
+              <input
+                value={currentPrice}
+                onChange={(e) => setCurrentPrice(e.target.value)}
+                placeholder="Enter Current Price"
+                className="input"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="MFG">
+              <input
+                value={mfg}
+                onChange={(e) => setMfg(e.target.value)}
+                placeholder="Enter Manufacturer"
+                className="input"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="LTB Date">
+              <input
+                type="date"
+                value={ltbDate}
+                onChange={(e) => setLtbDate(e.target.value)}
+                className="input"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="MFG P/N">
+              <input
+                value={mfgPartNumber}
+                onChange={(e) => setMfgPartNumber(e.target.value)}
+                placeholder="Enter Manufacturer Part Number"
+                className="input"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Altronic Part Number" className="sm:col-span-3">
+              <input
+                value={altronicPartNumber}
+                onChange={(e) => setAltronicPartNumber(e.target.value)}
+                placeholder="Enter Altronic Part Number"
+                className="input"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Where Used" className="sm:col-span-3">
+              <textarea
+                value={whereUsed}
+                onChange={(e) => setWhereUsed(e.target.value)}
+                rows={3}
+                placeholder="Where is this part used? Engines, products, jobs…"
+                className="input resize-y"
+              />
+            </FieldLabel>
+          </div>
+
+          {/* ---- Optional extras (in-app only — not in the legacy form) ---- */}
+          <SectionHeader>Optional</SectionHeader>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FieldLabel
+              label="Project Reference"
+              hint="The list column is a multi-select Choice — writes via this picker aren't fully wired up yet. Set the project from the EIR detail page after creating."
+            >
               <SingleSelect
-                allLabel="No reporter"
-                searchPlaceholder="Search people…"
-                options={peopleOptions}
-                selected={reporter ? reporter.email ?? reporter.displayName : null}
-                onChange={(v) => setReporter(findPerson(v))}
+                allLabel="No project selected"
+                searchPlaceholder="Search projects…"
+                options={projects.map((p) => ({
+                  value: String(p.lookupId),
+                  label: p.title,
+                }))}
+                selected={projectId != null ? String(projectId) : null}
+                onChange={(v) => setProjectId(v ? parseInt(v, 10) : null)}
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Task Reference" hint="e.g. T115 — links back to a task once set.">
+              <input
+                value={taskReference}
+                onChange={(e) => setTaskReference(e.target.value)}
+                placeholder="e.g. T115"
+                className="input"
               />
             </FieldLabel>
 
@@ -241,53 +385,13 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
                 }}
               />
             </FieldLabel>
-
-            <FieldLabel label="Description" className="sm:col-span-2">
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                className="input resize-y"
-              />
-            </FieldLabel>
-
-            <FieldLabel label="Task Reference (free text)">
-              <input
-                value={taskReference}
-                onChange={(e) => setTaskReference(e.target.value)}
-                placeholder="e.g. T115"
-                className="input"
-              />
-            </FieldLabel>
-
-            <FieldLabel label="Where Used">
-              <input
-                value={whereUsed}
-                onChange={(e) => setWhereUsed(e.target.value)}
-                className="input"
-              />
-            </FieldLabel>
-
-            <FieldLabel label="MFG">
-              <input value={mfg} onChange={(e) => setMfg(e.target.value)} className="input" />
-            </FieldLabel>
-
-            <FieldLabel label="MFG P/N">
-              <input
-                value={mfgPartNumber}
-                onChange={(e) => setMfgPartNumber(e.target.value)}
-                className="input"
-              />
-            </FieldLabel>
-
-            <FieldLabel label="Altronic Part Number" className="sm:col-span-2">
-              <input
-                value={altronicPartNumber}
-                onChange={(e) => setAltronicPartNumber(e.target.value)}
-                className="input"
-              />
-            </FieldLabel>
           </div>
+
+          <p className="mt-4 text-[11px] text-fg-muted">
+            Attachments aren't supported during creation yet — once the EIR
+            is saved, open the detail page and use the Attachments card to
+            upload files.
+          </p>
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-3 sm:px-5">
@@ -301,11 +405,11 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
           </button>
           <button
             type="submit"
-            disabled={busy || !title.trim() || projectId == null}
+            disabled={busy || missingRequired}
             className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {busy ? "Creating…" : "Create EIR"}
+            {busy ? "Saving…" : "Save"}
           </button>
         </div>
 
@@ -335,24 +439,42 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
   );
 }
 
+function SectionHeader({
+  icon,
+  children,
+}: {
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <h3 className="mb-3 mt-5 flex items-center gap-2 border-b border-border pb-1.5 font-display text-sm font-semibold uppercase tracking-wider text-fg first:mt-0">
+      {icon}
+      {children}
+    </h3>
+  );
+}
+
 function FieldLabel({
   label,
   required,
+  hint,
   className,
   children,
 }: {
   label: string;
   required?: boolean;
+  hint?: string;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className={`flex flex-col gap-1.5 ${className ?? ""}`}>
-      <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
+      <span className="flex items-baseline gap-1 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+        {required && <span className="text-cooper-red">*</span>}
         {label}
-        {required && <span className="ml-1 text-cooper-red">*</span>}
       </span>
       {children}
+      {hint && <span className="text-[11px] text-fg-muted">{hint}</span>}
     </label>
   );
 }

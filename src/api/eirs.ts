@@ -118,7 +118,9 @@ export interface CreateEirInput {
   mfgPartNumber?: string;
   currentPrice?: string;
   altronicPartNumber?: string;
+  buyerCode?: string;
   requestedCompletionDate?: Date | null;
+  ltbDate?: Date | null;
 }
 
 export async function createEir(input: CreateEirInput): Promise<Eir> {
@@ -150,7 +152,7 @@ export async function createEir(input: CreateEirInput): Promise<Eir> {
       currentPrice: input.currentPrice ?? "",
       altronicPartNumber: input.altronicPartNumber ?? "",
       requestedCompletionDate: input.requestedCompletionDate ?? null,
-      ltbDate: null,
+      ltbDate: input.ltbDate ?? null,
       priorityDate: null,
       priorityNumber: null,
       priorityCount: null,
@@ -158,7 +160,7 @@ export async function createEir(input: CreateEirInput): Promise<Eir> {
       riskPart: null,
       riskPartLevel: null,
       eirMeetingRelevant: null,
-      buyerCode: "",
+      buyerCode: input.buyerCode ?? "",
       taskPromotedFlag: false,
       createdAt: now,
       modifiedAt: now,
@@ -200,9 +202,11 @@ export async function createEir(input: CreateEirInput): Promise<Eir> {
   if (input.currentPrice) fields.Current_x0020_Price = input.currentPrice;
   if (input.altronicPartNumber)
     fields.Altronic_x0020_Part_x0020_Number = input.altronicPartNumber;
+  if (input.buyerCode) fields.BuyerCode = input.buyerCode;
   if (input.requestedCompletionDate)
     fields.Requested_x0020_Completion_x0020 =
       input.requestedCompletionDate.toISOString();
+  if (input.ltbDate) fields.LTBDate = input.ltbDate.toISOString();
 
   const created = await graphFetch<GraphListItem>(
     `/sites/${SP_SITE_ID}/lists/${SP_EIRS_LIST_ID}/items`,

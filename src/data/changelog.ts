@@ -20,6 +20,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.0",
+    date: "2026-05-21",
+    changes: [
+      "New-EIR form now covers every field from the original Power Apps form: General Information up top (Request Type, Reporter, Requested Priority, Requested Completion Date, Subject, Description) and a Purchasing Information section below (EAU, Current Stock, Current Price, MFG, LTB Date, MFG P/N, Altronic Part Number, Where Used)",
+      "Required-field set on create now matches the original form: Subject, Description, Reporter, Requested Priority, Request Type — Save button stays disabled until those five are filled in",
+      "Added EAU / Current Stock / Current Price / LTB Date / Buyer Code through the create API too (they were already on the Eir type but unreachable from the form), so values typed in the new sections actually persist",
+      "Optional in-app extras (Project Reference, Task Reference, Assigned Engineers) live in a separate 'Optional' subsection at the bottom of the form with a hint that Project Reference writes aren't wired up to the multi-choice column yet — set the project from the detail page after creating",
+    ],
+  },
+  {
     version: "0.16.7",
     date: "2026-05-20",
     changes: [
