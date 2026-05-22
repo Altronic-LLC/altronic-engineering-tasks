@@ -161,6 +161,13 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// SECURITY (Finding C2): Validate URL scheme before embedding as an href.
+// escapeHtml() sanitises HTML special characters (&, <, >, ", ') but it
+// does NOT check the URL scheme. A `javascript:` URI would survive escaping
+// and become a clickable link in the rendered email HTML. While pageUrl is
+// sourced from window.location.href (always https:// in practice), this
+// guard ensures a future code path or tampered value can never produce an
+// executable link. Falls back to "#" for any non-http(s) or unparseable URL.
 function safeHref(url: string): string {
   try {
     const u = new URL(url);

@@ -53,6 +53,14 @@ export async function listAdmins(): Promise<AdminEntry[]> {
     `/items?$expand=fields&$top=200`;
   const items = await graphFetchAll<GraphListItem>(path);
 
+  // SECURITY (Finding E2): A debug logging block that printed field keys and
+  // admin email addresses to the browser console was removed here. It was a
+  // one-time diagnostic aid used to discover SharePoint column names during
+  // initial setup. Leaving it in production meant any user opening browser
+  // DevTools (F12 → Console tab) could see admin email addresses on page load,
+  // and any screen share would passively leak them. The column names it was
+  // probing are now known and hardcoded in pickString() below.
+
   return items.map((it) => {
     const f = it.fields as Record<string, unknown>;
     return {
