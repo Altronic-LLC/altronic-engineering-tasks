@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.22.1",
+    date: "2026-05-22",
+    changes: [
+      "Graph 4xx errors in the browser console now include the access token's claims (scp, roles, aud, appid, tid, upn, exp) alongside the existing request/response dump — the only reliable way to confirm whether a missing scope is the cause of an otherwise-mysterious 404 (Graph hides missing-scope errors as 404 rather than 403). The full token is never logged; only the JWT payload claims, which aren't secret",
+    ],
+  },
+  {
     version: "0.22.0",
     date: "2026-05-22",
     changes: [

@@ -79,9 +79,18 @@ export async function graphFetch<T>(path: string, init: RequestInit = {}): Promi
     // errors collapse the body to just the URL otherwise, which makes
     // diagnostics impossible. Include the request body too if there was
     // one, so we can correlate what we sent with how Graph rejected it.
+    //
+    // Also log the diagnostic claims from the access token (scp, roles,
+    // aud, appid, tid, upn, exp). This is the only way to confirm a
+    // missing-scope problem from the field — Graph returns 404 (not 403)
+    // when a scope is missing, so the error code alone is ambiguous. The
+    // full token is NEVER logged; only the JWT payload claims, which
+    // aren't secret (they're decodable from any captured token).
+    const tokenClaims = decodeJwtClaims(accessToken);
     /* eslint-disable no-console */
     console.error(
       `[Graph ${response.status}] ${init.method ?? "GET"} ${url}\n` +
+        `Token claims: ${JSON.stringify(tokenClaims, null, 2)}\n` +
         `Request body: ${typeof init.body === "string" ? init.body : "(non-string)"}\n` +
         `Response body: ${body}`,
     );
@@ -129,5 +138,56 @@ export class SessionExpiredError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "SessionExpiredError";
+  }
+}
+
+/**
+ * Diagnostic claims pulled from a Graph access token. These come from the
+ * JWT payload, which isn't secret — but the keys we surface here are the
+ * ones that actually help diagnose permission / scope issues:
+ *
+ *   - scp: space-separated delegated scopes (e.g. "Sites.Selected User.Read")
+ *   - roles: array of app-only roles (empty for delegated tokens)
+ *   - aud: audience — should be Graph (00000003-0000-0000-c000-000000000046 or the host)
+ *   - appid: the Entra app registration id
+ *   - tid: tenant id
+ *   - upn: user principal name
+ *   - exp: ISO timestamp the token expires
+ *
+ * Returns null if the token can't be decoded (malformed, wrong format, etc.).
+ */
+export interface AccessTokenClaims {
+  scp?: string;
+  roles?: string[];
+  aud?: string;
+  appid?: string;
+  tid?: string;
+  upn?: string;
+  exp?: string;
+}
+
+export function decodeJwtClaims(token: string): AccessTokenClaims | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = parts[1]!;
+    // base64url → base64: swap `-`/`_` for `+`/`/`, then pad to 4-byte align.
+    const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const json = JSON.parse(atob(padded)) as Record<string, unknown>;
+    return {
+      scp: typeof json.scp === "string" ? json.scp : undefined,
+      roles: Array.isArray(json.roles) ? (json.roles as string[]) : undefined,
+      aud: typeof json.aud === "string" ? json.aud : undefined,
+      appid: typeof json.appid === "string" ? json.appid : undefined,
+      tid: typeof json.tid === "string" ? json.tid : undefined,
+      upn: typeof json.upn === "string" ? json.upn : undefined,
+      exp:
+        typeof json.exp === "number"
+          ? new Date(json.exp * 1000).toISOString()
+          : undefined,
+    };
+  } catch {
+    return null;
   }
 }
