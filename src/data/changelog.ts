@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.22.2",
+    date: "2026-05-22",
+    changes: [
+      "@-mention and Report-issue emails now go out for every user with Send-As on the shared mailbox, not just users with FullAccess. The Graph sendMail call no longer asks Exchange to save a copy to the shared mailbox's Sent Items folder (which silently required FullAccess on top of Send-As and made the call 404 for everyone without it)",
+      "Trade-off: the shared mailbox no longer accumulates a copy of every notification it triggers — for an internal notification system this is arguably better (no Sent Items inbox-bloat) but if you ever want a record of what went out, recipients still have it in their inboxes",
+    ],
+  },
+  {
     version: "0.22.1",
     date: "2026-05-22",
     changes: [

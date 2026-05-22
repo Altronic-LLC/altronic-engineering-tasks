@@ -125,9 +125,19 @@ async function sendOne(input: {
     message.attachments = input.attachments;
   }
 
+  // saveToSentItems: false is deliberate.
+  //
+  // saveToSentItems: true would have Graph write a copy of the message into
+  // the shared mailbox's Sent Items folder — which requires the signed-in
+  // user to hold FullAccess on the shared mailbox. We only require Send-As
+  // (granted broadly to ~175 commenters). Forcing FullAccess on top would
+  // mean every commenter can also read the shared mailbox's inbox, which
+  // we don't want. Setting this to false lets Send-As alone send the mail.
+  // The shared mailbox simply won't accumulate copies of every notification
+  // — arguably better for an internal notification system anyway.
   await graphFetch(`/users/${encodeURIComponent(SHARED_MAILBOX!)}/sendMail`, {
     method: "POST",
-    body: JSON.stringify({ message, saveToSentItems: true }),
+    body: JSON.stringify({ message, saveToSentItems: false }),
   });
 }
 

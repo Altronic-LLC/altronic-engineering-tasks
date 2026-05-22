@@ -70,7 +70,8 @@ describe("sendErrorReport", () => {
     );
     expect(init.method).toBe("POST");
     const body = JSON.parse(init.body as string);
-    expect(body.saveToSentItems).toBe(true);
+    // Intentionally false — see src/api/email.ts for the reasoning.
+    expect(body.saveToSentItems).toBe(false);
     expect(body.message.toRecipients[0].emailAddress.address).toBe(
       "ray.white@altronic-llc.com",
     );

@@ -71,9 +71,13 @@ export async function sendErrorReport(input: SendErrorReportInput): Promise<void
     ccRecipients,
   };
 
+  // saveToSentItems: false — same reasoning as src/api/email.ts: the
+  // Sent-Items write requires FullAccess on the shared mailbox, which we
+  // don't grant to all reporters. Send-As alone is enough to deliver mail
+  // when this flag is false.
   await graphFetch(`/users/${encodeURIComponent(SHARED_MAILBOX)}/sendMail`, {
     method: "POST",
-    body: JSON.stringify({ message, saveToSentItems: true }),
+    body: JSON.stringify({ message, saveToSentItems: false }),
   });
 }
 
