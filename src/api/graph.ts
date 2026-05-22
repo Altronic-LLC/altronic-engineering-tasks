@@ -82,7 +82,7 @@ export async function graphFetch<T>(path: string, init: RequestInit = {}): Promi
     /* eslint-disable no-console */
     console.error(
       `[Graph ${response.status}] ${init.method ?? "GET"} ${url}\n` +
-        `Request body: ${typeof init.body === "string" ? init.body : "(non-string)"}\n` +
+        `Request body: (redacted)\n` +
         `Response body: ${body}`,
     );
     /* eslint-enable no-console */
@@ -103,7 +103,11 @@ export async function graphFetchAll<T>(path: string): Promise<T[]> {
   while (url) {
     const page: { value: T[]; "@odata.nextLink"?: string } = await graphFetch(url);
     all.push(...page.value);
-    url = page["@odata.nextLink"];
+    const nextLink = page["@odata.nextLink"];
+    if (nextLink?.startsWith("http") && !nextLink.startsWith("https://graph.microsoft.com/")) {
+      throw new Error(`Unexpected @odata.nextLink origin: ${nextLink}`);
+    }
+    url = nextLink;
   }
   return all;
 }

@@ -12,6 +12,14 @@ import type { Person } from "@/types/task";
 // the email readable even if a recipient's mail client strips the span.
 // =============================================================================
 
+function isValidEmail(email: string): boolean {
+  return (
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
+    !email.includes("\n") &&
+    !email.includes("\r")
+  );
+}
+
 export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -108,7 +116,7 @@ export function extractMentionedRecipients(
   const nodes = doc.querySelectorAll("span.mention[data-email]");
   nodes.forEach((node) => {
     const email = node.getAttribute("data-email")?.trim();
-    if (!email) return;
+    if (!email || !isValidEmail(email)) return;
     const key = email.toLowerCase();
     if (seen.has(key)) return;
     // The chip text is `@Name`; strip the leading @ for the display name.

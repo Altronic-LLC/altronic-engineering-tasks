@@ -84,9 +84,10 @@ export async function uploadAttachment(
   const bytes = await file.arrayBuffer();
   // SP REST attachment upload requires a binary POST. The filename has to
   // travel as a URL parameter — encode it carefully.
+  const safeName = file.name.replace(/[/\\:\0]/g, "_").slice(0, 256);
   const path =
     `/_api/web/lists(guid'${listId}')/items(${itemId})` +
-    `/AttachmentFiles/add(FileName='${encodeURIComponent(file.name)}')`;
+    `/AttachmentFiles/add(FileName='${encodeURIComponent(safeName)}')`;
   const res = await spFetch<SpAttachmentFile>(path, {
     method: "POST",
     headers: { "Content-Type": "application/octet-stream" },
@@ -116,9 +117,10 @@ export async function deleteAttachment(
       `${parent === "eir" ? "VITE_SP_EIRS_LIST_ID" : "VITE_SP_LIST_ID"} is not set — attachments unavailable.`,
     );
   }
+  const safeFileName = fileName.replace(/[/\\:\0]/g, "_").slice(0, 256);
   const path =
     `/_api/web/lists(guid'${listId}')/items(${itemId})` +
-    `/AttachmentFiles/getByFileName('${encodeURIComponent(fileName)}')`;
+    `/AttachmentFiles/getByFileName('${encodeURIComponent(safeFileName)}')`;
   await spFetch(path, {
     method: "POST",
     headers: { "X-HTTP-Method": "DELETE", "If-Match": "*" },
