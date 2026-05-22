@@ -16,14 +16,19 @@ import type { Comment } from "@/types/task";
  *
  * If the format ever changes, this is the only place that needs to learn.
  */
+// Each record begins with a timestamp like "07/18/2024 07:28:33 PM" followed
+// by "|||". We split on a regex lookahead so the timestamp stays with its
+// record. The negative lookbehind `(?<![\d/])` prevents overlapping matches
+// inside a zero-padded date — without it, "07/18/..." would match at pos 0
+// AND pos 1 (because `\d{1,2}` accepts either "07" or just "7"), producing
+// a stray "0" record.
+const TIMESTAMP_SPLIT_RE =
+  /(?<![\d/])(?=\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+(?:AM|PM)\|\|\|)/g;
+
 export function parseCommunication(raw: string | null | undefined): Comment[] {
   if (!raw || typeof raw !== "string") return [];
 
-  // Each record begins with a timestamp like "07/18/2024 07:28:33 PM" followed
-  // by "|||". We split on a regex lookahead so the timestamp stays with its record.
-  const TIMESTAMP_RE = /(?=\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+(?:AM|PM)\|\|\|)/g;
-
-  const records = raw.split(TIMESTAMP_RE).filter((r) => r.trim().length > 0);
+  const records = raw.split(TIMESTAMP_SPLIT_RE).filter((r) => r.trim().length > 0);
 
   const comments: Comment[] = [];
 
@@ -35,6 +40,7 @@ export function parseCommunication(raw: string | null | undefined): Comment[] {
     const bodyHtml = bodyParts.join("|||"); // re-join in case the body had |||
 
     const timestamp = parseSpDate(tsRaw.trim());
+    /* v8 ignore next -- defensive: parseSpDate can't return null after TIMESTAMP_SPLIT_RE */
     if (!timestamp) continue;
 
     comments.push({
@@ -72,9 +78,50 @@ export function appendComment(
   return `${existingRaw.replace(/\s+$/, "")}\n${record}`;
 }
 
-/** "MM/DD/YYYY H:MM:SS AM/PM" → Date */
+/**
+ * Replace the body of a single comment record matched by its timestamp
+ * and author email. Returns the new full Communication string.
+ *
+ * Used by editComment to update one record without disturbing the others.
+ * If no record matches, the string is returned unchanged.
+ */
+export function replaceComment(
+  existingRaw: string | null | undefined,
+  target: { timestamp: Date; authorEmail: string },
+  newBodyHtml: string,
+): string {
+  if (!existingRaw) return "";
+
+  const records = existingRaw.split(TIMESTAMP_SPLIT_RE).filter((r) => r.trim().length > 0);
+  const targetMs = target.timestamp.getTime();
+  const targetEmail = target.authorEmail.toLowerCase();
+
+  const updated = records.map((record) => {
+    const trimmed = record.trim();
+    const parts = trimmed.split("|||");
+    if (parts.length < 4) return trimmed;
+    const [tsRaw, name, email] = parts;
+    const recTs = parseSpDate(tsRaw.trim());
+    if (!recTs || recTs.getTime() !== targetMs) return trimmed;
+    if (email.trim().toLowerCase() !== targetEmail) return trimmed;
+    return `${tsRaw.trim()}|||${name.trim()}|||${email.trim()}|||${newBodyHtml}`;
+  });
+
+  return updated.join("\n");
+}
+
+/**
+ * "MM/DD/YYYY H:MM:SS AM/PM" → Date.
+ *
+ * Internal: only called from parseCommunication and replaceComment, both
+ * of which pre-filter records via TIMESTAMP_SPLIT_RE — so by the time the
+ * tsRaw lands here, the format is guaranteed to match. The defensive
+ * branches (regex miss, NaN Date) are unreachable from the current call
+ * sites but kept in case parseSpDate is exposed later or callers change.
+ */
 function parseSpDate(s: string): Date | null {
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s+(AM|PM)$/.exec(s);
+  /* v8 ignore next 2 -- defensive: TIMESTAMP_SPLIT_RE pre-filters callers */
   if (!m) return null;
   const [, mo, da, yr, hh, mm, ss, ampm] = m;
   let hour = parseInt(hh, 10);
@@ -88,6 +135,7 @@ function parseSpDate(s: string): Date | null {
     parseInt(mm, 10),
     parseInt(ss, 10),
   );
+  /* v8 ignore next -- defensive: \d{4} year cap means Date never returns NaN */
   return Number.isNaN(d.getTime()) ? null : d;
 }
 

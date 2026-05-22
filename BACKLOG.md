@@ -12,23 +12,32 @@ needs detail, add a sub-bullet underneath it.
 
 ## Next up
 
-- **Show users when someone else just commented on the same task they're
-  viewing.** Polling-based, no realtime infrastructure required. When a
-  task's detail view is open, poll the comments list every 15–30 seconds.
-  If new comments appear since the user opened the page, show a small
-  banner like "New comment from Bob — refresh to see" with a refresh
-  button. When the user clicks Send on their own comment, do a quick
-  pre-flight check: if someone else commented in the last few seconds,
-  show a confirmation prompt ("Bob added a comment 5 seconds ago. Send
-  yours anyway?") before posting.
-  - This addresses the comment race-condition noted below (lost-update
-    on the pipe-delimited Communication field) by *making the conflict
-    visible* rather than preventing it. Race window shrinks from ~500ms
-    to ~15–30s and users see what happened instead of silently losing
-    data.
-  - Pure client-side, ~80 lines, polls the existing Graph endpoint. No
-    new backend, no Azure SignalR, no monthly cost.
-  - GitHub / Jira / Linear all do this pattern on issue comments.
+- **Catch-up notification on app open.** When a user lands on the app
+  after being away, surface a short "while you were gone" summary —
+  new tasks assigned to them, new comments on items they're watching,
+  EIRs that changed status, and anything @-mentioning them. Driven by
+  the user's last-seen timestamp (stored per-user, probably in
+  `localStorage` keyed by email + bumped on every full app load) and
+  the `lastModifiedDateTime` already on every Task / EIR / comment.
+  Render as a dismissible banner under the header on the Dashboard
+  with deep links into the affected items. Avoid emails for this —
+  this is the "I came back to the app" recap, not a push.
+
+- **PWA installable.** Wire the app so users can install it from the
+  browser (Edge "Apps" / Chrome "Install" / mobile "Add to Home
+  Screen"). Concrete steps: add `public/manifest.webmanifest` with
+  name, short_name, theme + background colour (Cooper Red on white),
+  icons (192/512 PNG + maskable), `display: "standalone"`,
+  `start_url: "/altronic-engineering-tasks/"`,
+  `scope: "/altronic-engineering-tasks/"`. Link from `index.html`,
+  add `<meta name="theme-color">`. Register a minimal service worker
+  (consider `vite-plugin-pwa` — handles manifest + SW + auto-update
+  pattern cleanly) with a network-first strategy for Graph calls and
+  cache-first for the built assets. Verify Lighthouse PWA score and
+  the install prompt appears in Edge on a fresh visit. Don't bother
+  with offline mode for SharePoint data yet — installable + chrome-
+  less window is the goal, offline-first is a separate, much bigger
+  effort.
 
 ## Later
 

@@ -1,4 +1,4 @@
-import type { Task, ProjectReference } from "@/types/task";
+import type { Eir, Task, ProjectReference, TestSheet } from "@/types/task";
 
 // =============================================================================
 // Mock data — modelled on the real Project Task List schema discovered during
@@ -31,7 +31,7 @@ const STEVEN = { displayName: "Steven Landreth", email: "steven.landreth@hoerbig
 const FEMI = { displayName: "femi Olugbon", email: "femi.olugbon@hoerbiger.com", lookupId: 198 };
 const BRANDON = { displayName: "Brandon Mirto", email: "brandon.mirto@hoerbiger.com", lookupId: 215 };
 
-export const MOCK_TASKS: Task[] = [
+const MOCK_TASKS_RAW: Omit<Task, "author">[] = [
   {
     id: 15,
     numberedTitle: "T0-335-Purchase Order from Jenbacher Needed",
@@ -395,5 +395,256 @@ export const MOCK_TASKS: Task[] = [
     comments: [],
     softwareRevision: "",
     hasAttachments: true,
+  },
+];
+
+// Inject `author` by mapping authorLookupId → known mock Person. Keeps the
+// per-task literals tidy and means we don't have to repeat the same object
+// on each task. New mock people just need to be added to this map.
+const PEOPLE_BY_LOOKUP_ID = new Map(
+  [SARAH, RAY, THOMAS, CHANDANA, AMANDA, STEVEN, FEMI, BRANDON].map((p) => [p.lookupId, p]),
+);
+
+export const MOCK_TASKS: Task[] = MOCK_TASKS_RAW.map((t) => ({
+  ...t,
+  author: PEOPLE_BY_LOOKUP_ID.get(t.authorLookupId) ?? null,
+}));
+
+// =============================================================================
+// Test Sheets — same shape mock data so the new TestSheets view has
+// something to render in demo mode. Each links to a real mock task by id
+// and a real mock project so the lookups resolve cleanly.
+// =============================================================================
+const taskRef = (id: number) => {
+  const t = MOCK_TASKS.find((x) => x.id === id);
+  return t ? { id: t.id, numberedTitle: t.numberedTitle } : null;
+};
+
+export const MOCK_TEST_SHEETS: TestSheet[] = [
+  {
+    id: 1,
+    title: "AMP-5000 Endurance Run — Unit #103",
+    product: "AMP-5000",
+    serialNumber: "AMP5K-2026-0103",
+    purpose:
+      "200-hour endurance run on prototype unit to validate driver-stage thermal margins under continuous duty.",
+    results:
+      "Pass. Junction temps held below 105°C across all 200 hours. No drift observed in coil current. Captured oscillograms attached in SharePoint.",
+    testDate: new Date("2026-04-22T14:00:00"),
+    parentProject: projectByName("0017-AMP-5000 Refresh"),
+    parentTask: taskRef(115),
+    tester: RAY,
+    testingSteps:
+      "1. Burn-in for 30 min at 25°C ambient.\n2. Step to 45°C ambient.\n3. Run continuous load profile per spec for 200h.\n4. Sample temps and currents every 5 min.\n5. Compare end-state to baseline.",
+    firmwareVersion: "5.2.0-rc3",
+    createdAt: new Date("2026-04-22T13:55:00"),
+    modifiedAt: new Date("2026-05-12T09:18:00"),
+    author: RAY,
+  },
+  {
+    id: 2,
+    title: "CleanBurn Telemetry — Lab dry-run",
+    product: "CleanBurn Edge Gateway",
+    serialNumber: "CB-LAB-007",
+    purpose:
+      "Verify telemetry packet format and timing against the new schema before deploying to the Brookfield site.",
+    results:
+      "Packets parse correctly. Two anomalies in the timestamp field on cold-boot — opening a ticket.",
+    testDate: new Date("2026-05-08T16:30:00"),
+    parentProject: projectByName("0021-CleanBurn Telemetry"),
+    parentTask: taskRef(63),
+    tester: CHANDANA,
+    testingSteps:
+      "Boot device cold.\nWatch first 60s of MQTT output.\nCompare to schema v2.1.\nRecord deltas.",
+    firmwareVersion: "1.4.2",
+    createdAt: new Date("2026-05-08T16:25:00"),
+    modifiedAt: new Date("2026-05-09T10:12:00"),
+    author: CHANDANA,
+  },
+  {
+    id: 3,
+    title: "AMP-5000 EMI sweep — pre-cert",
+    product: "AMP-5000",
+    serialNumber: "AMP5K-2026-0101",
+    purpose: "Internal EMI sweep ahead of third-party certification next month.",
+    results: "",
+    testDate: null,
+    parentProject: projectByName("0017-AMP-5000 Refresh"),
+    parentTask: taskRef(115),
+    tester: BRANDON,
+    testingSteps: "",
+    firmwareVersion: "5.2.0-rc3",
+    createdAt: new Date("2026-05-14T11:00:00"),
+    modifiedAt: new Date("2026-05-14T11:00:00"),
+    author: BRANDON,
+  },
+];
+
+// =============================================================================
+// EIRs — mock entries so the new EIR list / detail / dashboard count have
+// something to render in demo mode. When the real SharePoint list is wired
+// up, these get replaced by graphFetchAll output.
+// =============================================================================
+export const MOCK_EIRS: Eir[] = [
+  {
+    id: 1,
+    eirNo: "EIR-2026-0042",
+    title: "Replacement coil for AMP-5000 driver stage",
+    description:
+      "Current MFG indicated end-of-life for the driver-stage coil. Need replacement specs that match impedance + insulation rating.",
+    requestType: "EIR",
+    status: "Under Review",
+    resolution: "Pending",
+    requestedPriority: "High",
+    reporter: SARAH,
+    assignedEngineers: [RAY, THOMAS],
+    watchers: [CHANDANA],
+    parentProjects: [projectByName("0017-AMP-5000 Refresh")],
+    taskReference: "T115",
+    engineeringResponse: "",
+    whereUsed: "AMP-5000 driver board, rev D",
+    eau: "350",
+    currentStock: "42",
+    mfg: "Murata",
+    mfgPartNumber: "LQH3NPN221MGRL",
+    currentPrice: "$1.84",
+    altronicPartNumber: "C-450-220",
+    requestedCompletionDate: new Date("2026-06-15"),
+    ltbDate: new Date("2026-09-30"),
+    priorityDate: new Date("2026-05-10"),
+    priorityNumber: 2,
+    priorityCount: null,
+    technicalPriority: "Level 2",
+    riskPart: "Active",
+    riskPartLevel: "Level 1",
+    eirMeetingRelevant: "Yes",
+    buyerCode: "002 - Adele Riffle",
+    taskPromotedFlag: false,
+    createdAt: new Date("2026-05-10T13:22:00"),
+    modifiedAt: new Date("2026-05-14T09:10:00"),
+    author: SARAH,
+    comments: [],
+    hasAttachments: false,
+  },
+  {
+    id: 2,
+    eirNo: "EIR-2026-0043",
+    title: "CleanBurn telemetry — gateway antenna sourcing",
+    description:
+      "Existing antenna is being discontinued. Need an FCC-cert'd replacement with similar gain at 915 MHz for the gateway.",
+    requestType: "EIR",
+    status: "Response Accepted",
+    resolution: "Resolved",
+    requestedPriority: "Medium",
+    reporter: CHANDANA,
+    assignedEngineers: [BRANDON],
+    watchers: [SARAH, RAY],
+    parentProjects: [projectByName("0021-CleanBurn Telemetry")],
+    taskReference: "",
+    engineeringResponse:
+      "Approved replacement: Linx ANT-915-CW-QW. Comparable gain and footprint, FCC modular cert valid. Update BOM rev 1.4.2.",
+    whereUsed: "CleanBurn gateway main PCB",
+    eau: "1200",
+    currentStock: "180",
+    mfg: "Linx",
+    mfgPartNumber: "ANT-915-CW-QW",
+    currentPrice: "$3.42",
+    altronicPartNumber: "A-110-915",
+    requestedCompletionDate: new Date("2026-05-25"),
+    ltbDate: null,
+    priorityDate: new Date("2026-05-02"),
+    priorityNumber: 4,
+    priorityCount: null,
+    technicalPriority: "Level 3",
+    riskPart: "Active",
+    riskPartLevel: "Level 2",
+    eirMeetingRelevant: "Yes",
+    buyerCode: "003 - Katie Fleming",
+    taskPromotedFlag: false,
+    createdAt: new Date("2026-05-02T15:40:00"),
+    modifiedAt: new Date("2026-05-18T11:05:00"),
+    author: CHANDANA,
+    comments: [],
+    hasAttachments: false,
+  },
+  {
+    id: 3,
+    eirNo: "EIR-2026-0044",
+    title: "PT100 sensor extended range — DI controller",
+    description:
+      "Field site reports temperature readings clipping above 200°C. Want to verify PT100 range and consider hardware swap.",
+    requestType: "ECR",
+    status: "Under Review",
+    resolution: "Pending",
+    requestedPriority: "Low",
+    reporter: RAY,
+    assignedEngineers: [STEVEN],
+    watchers: [],
+    parentProjects: [projectByName("0030-Field Trial Tooling")],
+    taskReference: "",
+    engineeringResponse: "",
+    whereUsed: "DI-2000 ambient sensor input",
+    eau: "60",
+    currentStock: "8",
+    mfg: "Heraeus",
+    mfgPartNumber: "M422 PT100",
+    currentPrice: "$11.20",
+    altronicPartNumber: "S-200-PT100",
+    requestedCompletionDate: null,
+    ltbDate: null,
+    priorityDate: new Date("2026-05-15"),
+    priorityNumber: null,
+    priorityCount: null,
+    technicalPriority: null,
+    riskPart: "InActive",
+    riskPartLevel: null,
+    eirMeetingRelevant: "No",
+    buyerCode: "",
+    taskPromotedFlag: false,
+    createdAt: new Date("2026-05-15T10:00:00"),
+    modifiedAt: new Date("2026-05-15T10:00:00"),
+    author: RAY,
+    comments: [],
+    hasAttachments: false,
+  },
+  {
+    id: 4,
+    eirNo: "EIR-2026-0040",
+    title: "Replace obsolete connector — AMP-5000 power input",
+    description:
+      "Connector vendor pushed EOL. Need a pin-compatible replacement before stock runs out.",
+    requestType: "EIR",
+    status: "Closed",
+    resolution: "Promoted to Task",
+    requestedPriority: "High",
+    reporter: SARAH,
+    assignedEngineers: [RAY],
+    watchers: [],
+    parentProjects: [projectByName("0017-AMP-5000 Refresh")],
+    taskReference: "T15",
+    engineeringResponse: "Replacement located. Promoted to task T15 for BOM update.",
+    whereUsed: "AMP-5000 chassis, power input",
+    eau: "350",
+    currentStock: "15",
+    mfg: "Molex",
+    mfgPartNumber: "39-30-1080",
+    currentPrice: "$2.10",
+    altronicPartNumber: "X-330-080",
+    requestedCompletionDate: new Date("2026-03-01"),
+    ltbDate: new Date("2026-04-01"),
+    priorityDate: new Date("2026-01-12"),
+    priorityNumber: 1,
+    priorityCount: null,
+    technicalPriority: "Level 1",
+    riskPart: "Active",
+    riskPartLevel: "Level 1",
+    eirMeetingRelevant: "Yes",
+    buyerCode: "002 - Adele Riffle",
+    taskPromotedFlag: true,
+    createdAt: new Date("2026-01-12T14:00:00"),
+    modifiedAt: new Date("2026-02-22T16:30:00"),
+    author: SARAH,
+    comments: [],
+    hasAttachments: false,
   },
 ];

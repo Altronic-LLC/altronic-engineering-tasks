@@ -1,6 +1,7 @@
 node_modules
 dist
 dist-ssr
+coverage
 .env
 .env.local
 .env.*.local
@@ -10,3 +11,7 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 security-review*.md
+
+# Local-only — never push to the public repo.
+.claude/
+SESSION-NOTES.md

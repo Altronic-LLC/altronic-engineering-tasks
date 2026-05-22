@@ -48,6 +48,7 @@ export function attachTaskRelationships(tasks: Task[]): Task[] {
   for (const task of tasks) {
     if (!task.parentTask) continue;
     const parent = byId.get(task.parentTask.id);
+    /* v8 ignore next -- defensive: pass 1 already clears parentTask refs that don't resolve */
     if (!parent) continue;
     parent.childTasks.push({
       id: task.id,

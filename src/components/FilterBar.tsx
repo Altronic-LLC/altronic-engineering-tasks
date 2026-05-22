@@ -1,17 +1,20 @@
 import { Search } from "lucide-react";
 import type { Person, ProjectReference } from "@/types/task";
+import { MultiSelect, SingleSelect } from "./SearchableSelect";
 
 export interface Filters {
   search: string;
-  projectId: number | null;
-  assignedEmail: string | null;
+  /** Selected project lookup IDs. Empty array = all projects. */
+  projectIds: number[];
+  /** Selected assignee emails (or displayNames as a fallback). Empty = anyone. */
+  assignedEmails: string[];
   createdByEmail: string | null;
 }
 
 export const EMPTY_FILTERS: Filters = {
   search: "",
-  projectId: null,
-  assignedEmail: null,
+  projectIds: [],
+  assignedEmails: [],
   createdByEmail: null,
 };
 
@@ -24,44 +27,36 @@ interface FilterBarProps {
 
 export function FilterBar({ filters, onChange, projects, people }: FilterBarProps) {
   const peopleSorted = [...people].sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const peopleOptions = peopleSorted.map((p) => ({
+    value: p.email ?? p.displayName,
+    label: p.displayName,
+  }));
 
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
       <Field label="Project Reference">
-        <select
-          value={filters.projectId ?? ""}
-          onChange={(e) =>
+        <MultiSelect
+          allLabel="All projects"
+          searchPlaceholder="Search projects…"
+          options={projects.map((p) => ({ value: String(p.lookupId), label: p.title }))}
+          selected={filters.projectIds.map(String)}
+          onChange={(next) =>
             onChange({
               ...filters,
-              projectId: e.target.value ? parseInt(e.target.value, 10) : null,
+              projectIds: next.map((v) => parseInt(v, 10)).filter((n) => !Number.isNaN(n)),
             })
           }
-          className="select"
-        >
-          <option value="">All projects</option>
-          {projects.map((p) => (
-            <option key={p.lookupId} value={p.lookupId}>
-              {p.title}
-            </option>
-          ))}
-        </select>
+        />
       </Field>
 
       <Field label="Assigned">
-        <select
-          value={filters.assignedEmail ?? ""}
-          onChange={(e) =>
-            onChange({ ...filters, assignedEmail: e.target.value || null })
-          }
-          className="select"
-        >
-          <option value="">Anyone</option>
-          {peopleSorted.map((p) => (
-            <option key={p.email ?? p.displayName} value={p.email ?? p.displayName}>
-              {p.displayName}
-            </option>
-          ))}
-        </select>
+        <MultiSelect
+          allLabel="Anyone"
+          searchPlaceholder="Search people…"
+          options={peopleOptions}
+          selected={filters.assignedEmails}
+          onChange={(next) => onChange({ ...filters, assignedEmails: next })}
+        />
       </Field>
 
       <Field label="Search">
@@ -79,18 +74,13 @@ export function FilterBar({ filters, onChange, projects, people }: FilterBarProp
       </Field>
 
       <Field label="Created By">
-        <select
-          value={filters.createdByEmail ?? ""}
-          onChange={(e) => onChange({ ...filters, createdByEmail: e.target.value || null })}
-          className="select"
-        >
-          <option value="">Anyone</option>
-          {peopleSorted.map((p) => (
-            <option key={p.email ?? p.displayName} value={p.email ?? p.displayName}>
-              {p.displayName}
-            </option>
-          ))}
-        </select>
+        <SingleSelect
+          allLabel="Anyone"
+          searchPlaceholder="Search people…"
+          options={peopleOptions}
+          selected={filters.createdByEmail}
+          onChange={(next) => onChange({ ...filters, createdByEmail: next })}
+        />
       </Field>
 
       <style>{`

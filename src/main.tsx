@@ -6,7 +6,13 @@ import { App } from "./App";
 import { AuthProvider } from "./auth/AuthProvider";
 import { AuthGate } from "./auth/AuthGate";
 import { assertGraphConfigured } from "./api/config";
+import { installErrorCapture } from "./lib/errorBuffer";
 import "./styles/globals.css";
+
+// Mirror console errors + uncaught rejections into a bounded in-memory
+// buffer so the "Notify app manager" button can attach them to its
+// report email. Cheap to install, idempotent.
+installErrorCapture();
 
 // Fail loud if real-mode config is missing. In demo mode this is a no-op.
 // Without this check, a missing env var would only surface later when the
@@ -29,12 +35,14 @@ try {
 }
 
 // React Query client. Defaults are tuned for this app's read-heavy access
-// pattern — we cache lists for 30 seconds, refetch on window focus is off
-// because the SharePoint data doesn't change that often.
+// pattern — we cache lists for 2 minutes, refetch on window focus is off
+// because the SharePoint data doesn't change that often. The DetailView
+// has its own 20s background poll for live comment updates, so this longer
+// default doesn't compromise that experience.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
+      staleTime: 120_000,
       refetchOnWindowFocus: false,
       retry: (failureCount, error) => {
         // Don't retry session-expired — let the AuthGate handle re-login.

@@ -36,6 +36,8 @@ export function toTask(item: GraphListItem): Task {
     createdAt: new Date(item.createdDateTime),
     modifiedAt: new Date(item.lastModifiedDateTime),
     authorLookupId: toInt(f.AuthorLookupId, 0),
+    author: parseCreatedByUser(item.createdBy),
+    editor: parseCreatedByUser(item.lastModifiedBy),
     editorLookupId: toInt(f.EditorLookupId, 0),
     parentProject: f.Parent_x0020_Project_x0020_ReferLookupId
       ? { lookupId: toInt(f.Parent_x0020_Project_x0020_ReferLookupId, 0), title: "" }
@@ -56,6 +58,9 @@ export function toTask(item: GraphListItem): Task {
     softwareRevision: (f.SoftwareRevision as string) ?? "",
     comments: parseCommunication(f.Communication as string),
     hasAttachments: !!f.Attachments,
+    // Keep the raw bag so feature UIs (e.g. the PCB checklist) can read
+    // columns that aren't part of the typed Task shape.
+    rawFields: f as Record<string, unknown>,
   };
 }
 
@@ -76,6 +81,25 @@ function clampOptional<T extends string>(
 ): T | null {
   if (raw && (allowed as readonly string[]).includes(raw)) return raw as T;
   return null;
+}
+
+/**
+ * Map Graph's `createdBy.user` identity to a Person. The identity comes from
+ * the listItem envelope (not from `fields`), so it's always returned by
+ * default — no `$expand` needed. Some user objects don't include `email`
+ * (e.g. external/guest users), in which case we leave it undefined.
+ */
+function parseCreatedByUser(
+  createdBy: { user?: { displayName?: string; email?: string } } | undefined,
+): Person | null {
+  const user = createdBy?.user;
+  if (!user || !user.displayName) return null;
+  return {
+    displayName: user.displayName,
+    email: user.email,
+    // No SharePoint lookupId available from this identity. Leaving it
+    // undefined is fine — the "Created By" UI only needs the display name.
+  };
 }
 
 function parseLabels(raw: string | undefined): Label[] {

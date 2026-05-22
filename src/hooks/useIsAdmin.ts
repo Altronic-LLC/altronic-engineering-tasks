@@ -1,32 +1,31 @@
 import { useCurrentUser } from "./useCurrentUser";
+import { useAdmins } from "./useAdmins";
 
 /**
- * Hardcoded list of emails authorised to see and use admin pages.
+ * Bootstrap admin set. These accounts are admins even if the Admins
+ * SharePoint list is empty or unavailable — that way nobody can lock
+ * themselves out by accidentally removing every entry. The list is the
+ * authoritative source going forward; this set just guarantees there's
+ * always a path back in.
  *
- * TODO (backlog item: admin gating mechanism choice): replace this with a
- * SharePoint group-membership check or a dedicated permissions list. The
- * preferred long-term path is "Project Reference Admins" group on the
- * Altronic_Engineering site — check membership at sign-in via a single
- * Graph call to /me/memberOf. Until that's wired up, edits to this list
- * require a code push + deploy.
- *
- * In mock mode, the demo user IS an admin so the admin UI is exercisable
- * in the demo.
+ * In mock mode, the demo user is on this list so the admin UI is
+ * exercisable in the demo.
  */
-const ADMIN_EMAILS = new Set<string>([
+const BOOTSTRAP_ADMINS = new Set<string>([
   "ray.white@altronic-llc.com",
-  // Demo user (mock mode placeholder — see src/hooks/useCurrentUser.ts).
-  // Safe to leave in production: a user can't claim this email in real
-  // mode because real-mode emails come from MSAL's signed-in account.
   "demo.user@altronic-llc.com",
 ]);
 
 /**
- * Returns true if the signed-in user is authorised to use the admin UI
- * (project-creation page, future admin features).
+ * Returns true if the signed-in user is authorised to use the admin UI.
+ * Reads from the Admins SharePoint list (managed at /admin/admins) with
+ * the bootstrap set as a fallback.
  */
 export function useIsAdmin(): boolean {
   const user = useCurrentUser();
+  const { data: admins = [] } = useAdmins();
   if (!user.email) return false;
-  return ADMIN_EMAILS.has(user.email.toLowerCase());
+  const email = user.email.toLowerCase();
+  if (BOOTSTRAP_ADMINS.has(email)) return true;
+  return admins.some((a) => a.email.toLowerCase() === email);
 }

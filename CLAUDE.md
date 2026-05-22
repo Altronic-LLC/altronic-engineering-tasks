@@ -180,7 +180,7 @@ SharePoint internal column names (which is what Graph returns under
 |---|---|---|
 | `id` | (from `item.id`, not fields) | Numeric string in Graph, parsed to int |
 | `title` | `Title` | |
-| `numberedTitle` | `NumberedTitle` | Calculated, read-only |
+| `numberedTitle` | `NumberedTitle` | Writable text column, but the app owns it: format `T{n}-{projectRef}-{title}` where n = count of tasks already under the chosen project + 1. Form computes it; `createTask` writes it. |
 | `description` | `Description` | HTML or plain text |
 | `status` | `Status` | One of `STATUSES` |
 | `priority` | `Priority` | One of `PRIORITIES`, nullable |
@@ -233,10 +233,12 @@ depending on whether the column is single- or multi-person:
 
 `parsePersonField()` in `taskMapper.ts` normalises to `Person[]` either way.
 
-For writing: SharePoint expects person fields as `LookupId` only. The
-TaskField mutator (when added) needs to send e.g. `{ AssignedLookupId: 46 }`
-or for multi-person `{ AssignedLookupId: { results: [46, 87] } }`. **This is
-not yet implemented** — only Status and Communication updates are wired up.
+For writing: SharePoint person fields go in via `LookupId` only.
+
+- **Single-person:** `{ "TesterLookupId": 46 }` — just the integer.
+- **Multi-person:** `{ "AssignedLookupId@odata.type": "Collection(Edm.Int32)", "AssignedLookupId": [46, 87] }` — the **two-key** shape Graph v1.0 demands. The plain array (without the `@odata.type` annotation) and the older `{ results: [...] }` envelope both return a useless 400 invalidRequest.
+
+**Always go through the helper.** `src/lib/graphFields.ts` exports `multiPersonField(fieldName, people)` and `multiLookupField(fieldName, ids)` — they emit the correct two-key shape every time. Don't hand-build the payload elsewhere; you will forget the annotation and lose hours debugging the same 400.
 
 ## Parent project resolution
 
@@ -272,6 +274,24 @@ Already confirmed (don't change without re-verifying):
 - **Site URL:** <https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering>
 - **Task List ID:** `42fb8c19-5f33-4fdd-9ef7-df6f21433588`
 - **Task List name:** Project Task List
+- **Projects List ID:** `6280c711-14f6-4546-b730-8781b9d3c960` (env: `VITE_SP_PROJECTS_LIST_ID`)
+- **Test Results List ID:** `52173cd3-74ca-4d30-95c4-7a6b2d765edc` (env: `VITE_SP_TEST_RESULTS_LIST_ID`) — drives the Test Sheets view and the "Create Test Sheet" button on tasks. Both Project Reference and Task Reference columns point back to the lists above, so creating from a task is just two `LookupId` writes.
+- **EIRs List ID:** `8d00a762-288c-4678-afc4-cba2f24ac965` (env: `VITE_SP_EIRS_LIST_ID`) — Engineering Information Request list. Has its own Status / Resolution / Request Type workflows + a Communication field for comments. Project Reference is a lookup to the same Projects list; Task Reference is free-text. See `src/lib/eirMapper.ts` for the field-name quirks (`MFGP_x002f_N`, `Current_x0020_Price`, truncated `Requested_x0020_Completion_x0020`, the `Priority` choice column vs `Priority0` numeric column).
+- **Shared mailbox** (env: `VITE_SHARED_MAILBOX`) — email address that @-mention notifications send FROM. See setup below.
+- **App manager email** (env: `VITE_APP_MANAGER_EMAIL`) — recipient of "Report issue" reports sent from the life-buoy button in the header. Falls back to `ray.white@altronic-llc.com` if unset, so the button works on day one. Sent FROM the same shared mailbox, with the reporter CC'd. See `src/api/errorReport.ts`.
+
+## @-mention email notifications
+
+When a user posts a comment with `@SomeoneName` chips (picked from the mention dropdown in CommentComposer), the app POSTs `/users/{shared-mailbox}/sendMail` for each mentioned person. The mail comes from the configured shared mailbox via Send-As, so every recipient sees a consistent "From" address rather than the sender's personal mailbox.
+
+**One-time setup for the shared mailbox (Exchange admin task):**
+
+1. Create the shared mailbox in the Exchange admin centre (e.g. `engineering-tasks@altronic-llc.com`).
+2. Under **Mailbox delegation → Send As**, add every user who can post comments.
+3. In the Entra ID app registration, ensure `Mail.Send.Shared` is included in the requested scopes (already in `src/auth/msalConfig.ts`). The first user to send mail will trigger an admin-consent prompt for this scope — an admin needs to consent.
+4. Set the repo variable `VITE_SHARED_MAILBOX` to the mailbox address.
+
+If `VITE_SHARED_MAILBOX` is unset, the app falls back to a console.warn (real mode) or console.info (mock mode) — no mail goes out, comments still post normally.
 
 ## Theming
 
@@ -304,11 +324,74 @@ are available as Tailwind classes (`text-cooper-green`, `bg-ajax-yellow`, etc.).
 1. Create the view component in `src/views/`.
 2. Add a `<Route>` in `src/App.tsx`.
 3. Add a nav link in `src/components/Header.tsx`.
+4. **Update the system-flow diagram in `src/views/AboutView.tsx`** so the
+   new view appears in the architectural overview. See the rule below.
 
 ### Hook up the Header view switcher to add more views
 
 Add another `<Link>` block in `src/components/Header.tsx`, matching the
 pattern of the existing List and Kanban links.
+
+### Architectural changes — REQUIRED: update the About page diagrams
+
+`src/views/AboutView.tsx` is the in-app README. It renders two diagrams,
+hand-built as React/SVG (we used to use Mermaid; replaced it because the
+parser kept choking on edge cases):
+
+1. **System flow** — defined by the `SYSTEM_TIERS` array near the top.
+   Vertical tiers (User → React SPA → Auth & transport → SharePoint
+   lists) with colour-coded chips.
+2. **Data model** — a real ER diagram drawn on an SVG canvas. Tables
+   come from the `SCHEMA_TABLES` array (each entry has hand-tuned
+   `x` / `y` / `width` + columns); foreign-key relationships come from
+   the `CONNECTIONS` array with crow's-foot cardinality. Both are at the
+   top of `AboutView.tsx`.
+
+**Anything that's structurally visible to a user belongs in these
+diagrams. That means update the data at the top of `AboutView.tsx` in
+the SAME commit when you:**
+
+- Add or rename a route / view → add it to `SYSTEM_TIERS[].nodes`.
+- Add a new hook category (e.g. `useTestSheets`, `useProjects`) → add it
+  to the React SPA tier's Hooks chip.
+- Add a new module in `src/api/` (e.g. a third SharePoint list API) → add
+  it to the React SPA tier's API chip.
+- Add a new SharePoint list → add a `SCHEMA_TABLES` entry with position
+  + columns, AND add it to the SharePoint lists tier in `SYSTEM_TIERS`.
+- Add a new column on an existing entity → add a row in that table's
+  `columns` array (mind the height — neighbour positions may need a
+  small `y` bump if the new column pushes the bottom edge into another
+  table).
+- Add a new foreign-key relationship between lists → add a `CONNECTIONS`
+  entry with the FK column / target / cardinality.
+
+Tip when positioning tables: each row is `ROW_HEIGHT` (22px) tall and the
+header is `HEADER_HEIGHT` (50px). Total table height = HEADER + rows*22
++ ~6px padding — use that to budget vertical space between cards.
+
+No code-review hand-wringing, no separate ticket — just edit the arrays
+in the same commit. The footer "About" link is the source of truth that
+new team members see when they want to understand the system.
+
+### User-visible changes — REQUIRED: update the user manual
+
+`src/views/ManualView.tsx` is the in-app User Manual end users see when
+they click "User Manual" on the About page. Like the About diagrams, it
+goes stale fast if we don't maintain it deliberately.
+
+**Update the manual in the same commit when you:**
+
+- Add a user-facing feature (new view, new form, new toolbar action).
+- Change how an existing feature works (rename a field, move a button,
+  change a default).
+- Add/remove a keyboard shortcut.
+- Change a notification path (email recipients, who gets pinged, etc.).
+- Modify the filter / search semantics.
+
+Sections in the manual are organised by user task — drop additions into
+the right section rather than starting new ones. Keep section ids stable
+so external links don't break. Tone: declarative, present-tense, "you do
+X to get Y." Skip implementation detail.
 
 ## Known limitations / TODO
 
@@ -327,17 +410,30 @@ pattern of the existing List and Kanban links.
 - **Parent project resolution:** Needs the projects list ID
   (`VITE_SP_PROJECTS_LIST_ID`) — currently falls back to empty title until set.
 
+## Testing standard
+
+**This project targets 100% unit-test coverage** — lib, api, hooks, components,
+and views. Every change ships with tests for the code being added or modified.
+See `src/test/` for the runner setup (Vitest + React Testing Library +
+jsdom + a shared provider wrapper at `src/test/render.tsx`).
+
+Test files live next to source: `foo.ts` → `foo.test.ts`,
+`Bar.tsx` → `Bar.test.tsx`. Coverage thresholds in `vite.config.ts` are
+currently off pending a backfill of the existing codebase; once that lands,
+they'll be flipped to 100% across the board and gate CI.
+
 ## Testing checklist when you change things
 
 After any non-trivial change:
 
 1. `npm run typecheck` — no TS errors
-2. `npm run dev` — app loads with mock data, no console errors
-3. Click around all three views (list, kanban, detail)
-4. Try drag-and-drop on the Kanban (a card should move and persist)
-5. Try adding a comment (it should appear at the top of the thread)
-6. Toggle the theme (everything should re-skin cleanly)
-7. `npm run build` — production build succeeds
+2. `npm run test` — full unit suite green
+3. `npm run dev` — app loads with mock data, no console errors
+4. Click around all three views (list, kanban, detail)
+5. Try drag-and-drop on the Kanban (a card should move and persist)
+6. Try adding a comment (it should appear at the top of the thread)
+7. Toggle the theme (everything should re-skin cleanly)
+8. `npm run build` — production build succeeds
 
 For real-mode testing, set `VITE_USE_MOCK=false` and confirm:
 - Login pops up on first navigation

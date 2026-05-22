@@ -1,6 +1,6 @@
 import { Flag, Calendar, Paperclip, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { Label, Priority, Status } from "@/types/task";
+import type { EirStatus, Label, Priority, Status } from "@/types/task";
 
 export function PriorityFlag({ priority }: { priority: Priority | null }) {
   if (!priority) return null;
@@ -46,6 +46,35 @@ export function statusColor(status: Status): string {
       return "bg-cooper-red/15 text-cooper-red";
     case "Complete":
       return "bg-cooper-green/15 text-cooper-green";
+  }
+}
+
+export function EirStatusBadge({ status }: { status: EirStatus }) {
+  const colorClass = eirStatusColor(status);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+        colorClass,
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+export function eirStatusColor(status: EirStatus): string {
+  switch (status) {
+    case "Under Review":
+      return "bg-ajax-yellow/20 text-ajax-yellow";
+    case "EIR Not Accepted":
+      return "bg-cooper-red/15 text-cooper-red";
+    case "Response Accepted":
+      return "bg-cooper-green/15 text-cooper-green";
+    case "Response Not Accepted":
+      return "bg-cooper-red/15 text-cooper-red";
+    case "Closed":
+      return "bg-fg-muted/15 text-fg-muted";
   }
 }
 

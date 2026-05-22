@@ -22,11 +22,32 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Current Node LTS. Node 20 has a deprecation horizon mid-2026
+          # so we're getting ahead of it. Node 22 ships with npm 10.x by
+          # default; we bump to npm 11 below so CI matches typical local
+          # dev (where contributors usually have npm 11 already). Without
+          # the pin, every `npm install <new-dep>` locally would produce
+          # a lockfile shape CI rejects — that's the loop we want to end.
+          node-version: "22"
           cache: "npm"
 
       - name: Install
-        run: npm ci
+        # Node 22 ships with npm 10.x. Our contributors typically have
+        # npm 11 locally (Node 22+ with the latest), which produces a
+        # lockfile shape npm 10 rejects. The clean fix is to run `npm ci`
+        # through npx with a pinned version — no global install (which
+        # tends to fail with "Cannot find module 'promise-retry'" when
+        # npm tries to replace itself mid-run) and no version drift.
+        # Subsequent npm commands (test, build) just run scripts so they
+        # work fine on Node 22's built-in npm.
+        run: npx -y npm@11 ci
+
+      - name: Test
+        # Project standard is 100% unit-test coverage; tests must pass to
+        # deploy. The vitest coverage threshold is intentionally off until
+        # the existing codebase is backfilled — once that lands, switch on
+        # the thresholds in vite.config.ts and add `-- --coverage` here.
+        run: npm test
 
       - name: Build
         run: npm run build
@@ -40,6 +61,11 @@ jobs:
           VITE_SP_SITE_ID: ${{ vars.VITE_SP_SITE_ID }}
           VITE_SP_LIST_ID: ${{ vars.VITE_SP_LIST_ID }}
           VITE_SP_PROJECTS_LIST_ID: ${{ vars.VITE_SP_PROJECTS_LIST_ID }}
+          VITE_SP_TEST_RESULTS_LIST_ID: ${{ vars.VITE_SP_TEST_RESULTS_LIST_ID }}
+          VITE_SP_EIRS_LIST_ID: ${{ vars.VITE_SP_EIRS_LIST_ID }}
+          VITE_SHARED_MAILBOX: ${{ vars.VITE_SHARED_MAILBOX }}
+          VITE_SP_SITE_URL: ${{ vars.VITE_SP_SITE_URL }}
+          VITE_SP_ADMINS_LIST_ID: ${{ vars.VITE_SP_ADMINS_LIST_ID }}
 
       - name: Add 404 fallback for client-side routing
         # GitHub Pages serves /404.html for any unmatched path. Copying

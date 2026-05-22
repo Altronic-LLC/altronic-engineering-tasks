@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
+  ClipboardList,
   Eye,
   EyeOff,
   Flag,
@@ -11,12 +13,15 @@ import {
   GitBranch,
   Pencil,
   Plus,
+  Printer,
+  RefreshCw,
   Tag,
   User,
   X,
 } from "lucide-react";
 import {
   useAddComment,
+  useEditComment,
   useProjects,
   useSetAssigned,
   useSetParentProject,
@@ -35,6 +40,7 @@ import {
   PRIORITIES,
   STATUSES,
   type Category,
+  type Comment,
   type Label,
   type Person,
   type Priority,
@@ -44,8 +50,15 @@ import { wouldCreateCycle } from "@/lib/taskGraph";
 import { sanitiseHtml } from "@/lib/sanitiseHtml";
 import { CommentThread } from "@/components/CommentThread";
 import { CommentComposer } from "@/components/CommentComposer";
+import { useUploadTaskFile } from "@/hooks/useTaskFiles";
 import { TaskFormModal } from "@/components/TaskFormModal";
+import { TestSheetFormModal } from "@/components/TestSheetFormModal";
+import { useTestSheets } from "@/hooks/useTestSheets";
 import { LabelChip, StatusBadge, statusColor } from "@/components/atoms";
+import { TaskAttachmentsSection } from "@/components/TaskAttachmentsSection";
+import { PcbChecklistCard } from "@/components/PcbChecklistCard";
+import { LoadingTasks } from "@/components/LoadingTasks";
+import { PersonMultiField } from "@/components/PersonMultiField";
 import { cn } from "@/lib/cn";
 
 export function DetailView() {
@@ -57,15 +70,77 @@ export function DetailView() {
   const { data: projects = [] } = useProjects();
   const currentUser = useCurrentUser();
 
+  const queryClient = useQueryClient();
   const updateFields = useUpdateTaskFields();
   const addComment = useAddComment();
+  const editComment = useEditComment();
   const setParentTask = useSetParentTask();
   const setParentProject = useSetParentProject();
   const setRelatedProjects = useSetRelatedProjects();
   const setAssigned = useSetAssigned();
   const watchTask = useWatchTask();
   const unwatchTask = useUnwatchTask();
+  const uploadCommentFile = useUploadTaskFile(task ?? null);
   const [showEdit, setShowEdit] = useState(false);
+  const [showNewTestSheet, setShowNewTestSheet] = useState(false);
+  const { data: allTestSheets = [] } = useTestSheets();
+
+  // Comment-collision tracking: we render the comment thread from a frozen
+  // snapshot of "comments the user has acknowledged seeing." Background
+  // polling refreshes task.comments via the React Query cache; any comments
+  // that appear and aren't in the seen set get surfaced via a banner above
+  // the thread, rather than silently injected. The user clicks the banner's
+  // "Show new" button to roll the snapshot forward.
+  const [seenCommentKeys, setSeenCommentKeys] = useState<Set<string>>(() => new Set());
+  const [snapshotInitialised, setSnapshotInitialised] = useState(false);
+
+  // Seed the snapshot the first time the task loads.
+  useEffect(() => {
+    if (!task || snapshotInitialised) return;
+    setSeenCommentKeys(new Set(task.comments.map(commentKey)));
+    setSnapshotInitialised(true);
+  }, [task, snapshotInitialised]);
+
+  // Background poll: every 20s while the detail view is open, invalidate
+  // the tasks query so the cache (and therefore task.comments) refreshes.
+  // Pauses when the tab is hidden so we don't burn API quota in background
+  // tabs. The actual UI doesn't auto-update — the banner does.
+  useEffect(() => {
+    if (!taskId) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      queryClient.invalidateQueries({ queryKey: ["tasks", "list"] });
+    }, 20_000);
+    return () => window.clearInterval(id);
+  }, [taskId, queryClient]);
+
+  // Comments that have arrived from someone else since the user last
+  // refreshed/loaded. Drives the "new comment from X" banner.
+  const newExternalComments: Comment[] = useMemo(() => {
+    if (!task || !snapshotInitialised) return [];
+    const myEmail = (currentUser.email ?? "").toLowerCase();
+    return task.comments.filter((c) => {
+      if (seenCommentKeys.has(commentKey(c))) return false;
+      const author = (c.authorEmail ?? "").toLowerCase();
+      return author !== myEmail;
+    });
+  }, [task, seenCommentKeys, snapshotInitialised, currentUser.email]);
+
+  // Comments to render in the thread = whatever's in the snapshot. New
+  // external comments are hidden until the user clicks "Show new". Own
+  // comments — both historical and just-optimistically-inserted — always
+  // show; the seen-set is a tool for surfacing other people's updates,
+  // not for hiding your own writes from yourself.
+  const displayedComments: Comment[] = useMemo(() => {
+    if (!task) return [];
+    if (!snapshotInitialised) return task.comments;
+    const myEmail = (currentUser.email ?? "").toLowerCase();
+    return task.comments.filter((c) => {
+      const author = (c.authorEmail ?? "").toLowerCase();
+      if (author === myEmail) return true;
+      return seenCommentKeys.has(commentKey(c));
+    });
+  }, [task, seenCommentKeys, snapshotInitialised, currentUser.email]);
 
   // Build the set of people who appear on any task for the Assigned picker.
   const allPeople: Person[] = useMemo(() => {
@@ -80,7 +155,7 @@ export function DetailView() {
   }, [allTasks]);
 
   if (isLoading) {
-    return <div className="mx-auto max-w-[1400px] px-4 py-12 text-fg-muted">Loading task…</div>;
+    return <LoadingTasks noun="this task" />;
   }
 
   if (!task) {
@@ -177,9 +252,28 @@ export function DetailView() {
     }
   }
 
-  async function handleAddComment(bodyHtml: string, attachments: import("@/types/task").CommentAttachment[]) {
+  function handleShowNewComments() {
     if (!task) return;
-    await addComment.mutateAsync({
+    setSeenCommentKeys(new Set(task.comments.map(commentKey)));
+  }
+
+  function handleAddComment(
+    bodyHtml: string,
+    attachments: import("@/types/task").CommentAttachment[],
+  ) {
+    if (!task) return;
+    // Fire-and-forget. useAddComment's onMutate inserts the new comment in
+    // the React Query cache synchronously, so it shows up in the thread
+    // immediately. The actual Graph round-trip happens in the background.
+    //
+    // We used to refetch the whole tasks list first and pop a confirm()
+    // modal if someone else had just commented — the race window for the
+    // Communication field is real (it's a single text blob and last-write
+    // wins). But the modal added 2-4s to every send and the existing 20s
+    // background poll already surfaces concurrent comments through the
+    // banner above the thread. Trading the modal for the banner is the
+    // right call: speed for the common case, awareness for the rare one.
+    addComment.mutate({
       id: task.id,
       comment: {
         authorName: currentUser.displayName,
@@ -187,6 +281,18 @@ export function DetailView() {
         bodyHtml,
         attachments,
       },
+    });
+  }
+
+  async function handleEditComment(
+    comment: import("@/types/task").Comment,
+    newBodyHtml: string,
+  ) {
+    if (!task) return;
+    await editComment.mutateAsync({
+      id: task.id,
+      target: { timestamp: comment.timestamp, authorEmail: comment.authorEmail },
+      newBodyHtml,
     });
   }
 
@@ -209,8 +315,14 @@ export function DetailView() {
       </button>
 
       <div className="flex flex-col gap-4 lg:flex-row">
-        {/* Main column */}
-        <div className="flex flex-1 flex-col gap-4">
+        {/* Main column.
+            min-w-0 is the critical bit: flex items default to
+            min-width:auto, which refuses to shrink below the widest piece
+            of content inside them. A long URL or unbroken string in a
+            comment would push this column past the viewport, forcing a
+            horizontal page scrollbar. min-w-0 lets it shrink so the
+            comment-html wrap rules can actually take effect. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
           {/* Header card */}
           <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
             {/* Parent task pill if present */}
@@ -256,6 +368,25 @@ export function DetailView() {
                 Edit
               </button>
               <button
+                onClick={() => setShowNewTestSheet(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:bg-surface-2"
+                title="Create a test sheet linked to this task"
+              >
+                <ClipboardList className="h-4 w-4" />
+                <span className="hidden sm:inline">New Test Sheet</span>
+                <span className="sm:hidden">Test Sheet</span>
+              </button>
+              <Link
+                to={`/task/${task.id}/print`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-fg transition-colors hover:bg-surface-2"
+                title="Open a printable view in a new tab — use Save as PDF in the print dialog"
+              >
+                <Printer className="h-4 w-4" />
+                Print
+              </Link>
+              <button
                 onClick={handleWatchToggle}
                 className={cn(
                   "ml-auto inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
@@ -287,6 +418,42 @@ export function DetailView() {
             )}
           </div>
 
+          {/* Test sheets linked to this task — only renders if any exist. */}
+          {(() => {
+            const linkedSheets = allTestSheets.filter((s) => s.parentTask?.id === task.id);
+            if (linkedSheets.length === 0) return null;
+            return (
+              <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
+                <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wider text-fg-muted">
+                  Test sheets ({linkedSheets.length})
+                </h2>
+                <div className="flex flex-col gap-1.5">
+                  {linkedSheets.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => navigate(`/test-sheet/${s.id}`)}
+                      className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2 text-left text-sm transition-colors hover:border-fg-muted hover:bg-surface-2"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <ClipboardList className="h-3.5 w-3.5 shrink-0 text-fg-muted" />
+                        <span className="truncate font-medium text-fg">{s.title}</span>
+                      </div>
+                      <span className="shrink-0 text-xs text-fg-muted">
+                        {s.testDate
+                          ? s.testDate.toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "no date"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Child tasks card — only renders if this task has children */}
           {task.childTasks.length > 0 && (
             <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
@@ -315,14 +482,48 @@ export function DetailView() {
             </div>
           )}
 
+          {task.category === "PCB" && <PcbChecklistCard task={task} />}
+
+          <TaskAttachmentsSection task={task} />
+
           {/* Comments card */}
           <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
             <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wider text-fg-muted">
               Comments
             </h2>
-            <CommentComposer onSubmit={handleAddComment} />
+            {addComment.isError && (
+              <div className="mb-3 rounded-md border border-cooper-red/30 bg-cooper-red/10 px-3 py-2 text-xs text-cooper-red">
+                Couldn't post comment:{" "}
+                {addComment.error instanceof Error
+                  ? addComment.error.message
+                  : "unknown error"}
+                . Your comment was removed from the thread — try again.
+              </div>
+            )}
+            <CommentComposer
+              onSubmit={handleAddComment}
+              mentionablePeople={allPeople}
+              uploadFile={async (file) => {
+                // Route comment attachments to the SharePoint project folder
+                // (or Miscellaneous with prefix) — same path as Attachments
+                // on this detail page. The composer then inlines a clickable
+                // hyperlink into the comment body HTML.
+                const uploaded = await uploadCommentFile.mutateAsync(file);
+                return { name: uploaded.name, webUrl: uploaded.webUrl };
+              }}
+            />
+            {newExternalComments.length > 0 && (
+              <NewCommentsBanner
+                comments={newExternalComments}
+                onShow={handleShowNewComments}
+              />
+            )}
             <div className="mt-5">
-              <CommentThread comments={task.comments} />
+              <CommentThread
+                comments={displayedComments}
+                currentUserEmail={currentUser.email}
+                onEdit={handleEditComment}
+              />
             </div>
           </div>
         </div>
@@ -339,6 +540,27 @@ export function DetailView() {
                   hour: "numeric",
                   minute: "2-digit",
                 })}
+              </Field>
+
+              <Field icon={<User />} label="Created By">
+                {task.author ? task.author.displayName : "Unknown"}
+              </Field>
+
+              <Field icon={<Calendar />} label="Modified">
+                <div>
+                  {task.modifiedAt.toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </div>
+                {task.editor?.displayName && (
+                  <div className="text-[10px] text-fg-muted">
+                    by {task.editor.displayName}
+                  </div>
+                )}
               </Field>
 
               <Field icon={<Calendar />} label="Due Date">
@@ -367,13 +589,14 @@ export function DetailView() {
                 </select>
               </Field>
 
-              <PersonMultiField
-                icon={<User />}
-                label="Assigned"
-                value={task.assigned}
-                allPeople={allPeople}
-                onToggle={handleAssignedToggle}
-              />
+              <div>
+                <FieldLabel icon={<User />}>Assigned</FieldLabel>
+                <PersonMultiField
+                  value={task.assigned}
+                  allPeople={allPeople}
+                  onToggle={handleAssignedToggle}
+                />
+              </div>
 
               <div>
                 <FieldLabel icon={<CheckCircle2 />}>Status</FieldLabel>
@@ -527,6 +750,48 @@ export function DetailView() {
       {showEdit && (
         <TaskFormModal mode="edit" task={task} onClose={() => setShowEdit(false)} />
       )}
+      {showNewTestSheet && (
+        <TestSheetFormModal
+          mode="create"
+          fromTask={task}
+          onClose={() => setShowNewTestSheet(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function commentKey(c: Comment): string {
+  return `${c.timestamp.getTime()}|${(c.authorEmail ?? "").toLowerCase()}`;
+}
+
+function NewCommentsBanner({
+  comments,
+  onShow,
+}: {
+  comments: Comment[];
+  onShow: () => void;
+}) {
+  const authors = Array.from(new Set(comments.map((c) => c.authorName)));
+  const label =
+    comments.length === 1
+      ? `New comment from ${authors[0]}`
+      : authors.length === 1
+        ? `${comments.length} new comments from ${authors[0]}`
+        : `${comments.length} new comments from ${authors.slice(0, 2).join(", ")}${
+            authors.length > 2 ? ` +${authors.length - 2}` : ""
+          }`;
+
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm">
+      <span className="text-fg">{label}</span>
+      <button
+        onClick={onShow}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white shadow-sm transition-colors hover:bg-accent/90"
+      >
+        <RefreshCw className="h-3 w-3" />
+        Show new
+      </button>
     </div>
   );
 }
@@ -553,69 +818,6 @@ function Field({
     <div>
       <FieldLabel icon={icon}>{label}</FieldLabel>
       <div className="text-sm text-fg">{children}</div>
-    </div>
-  );
-}
-
-function PersonMultiField({
-  icon,
-  label,
-  value,
-  allPeople,
-  onToggle,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: Person[];
-  allPeople: Person[];
-  onToggle: (p: Person) => void;
-}) {
-  const selectedKeys = new Set(value.map((p) => (p.email ?? p.displayName).toLowerCase()));
-  const unselected = allPeople.filter(
-    (p) => !selectedKeys.has((p.email ?? p.displayName).toLowerCase()),
-  );
-
-  return (
-    <div>
-      <FieldLabel icon={icon}>{label}</FieldLabel>
-      {value.length === 0 ? (
-        <div className="text-sm text-fg-muted">Unassigned</div>
-      ) : (
-        <div className="flex flex-wrap gap-1.5">
-          {value.map((p) => (
-            <span
-              key={p.email ?? p.displayName}
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-xs text-fg"
-            >
-              {p.displayName}
-              <button
-                onClick={() => onToggle(p)}
-                className="rounded p-0.5 text-fg-muted hover:bg-surface hover:text-fg"
-                aria-label={`Remove ${p.displayName}`}
-              >
-                <X className="h-2.5 w-2.5" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      {unselected.length > 0 && (
-        <details className="mt-1.5 text-xs">
-          <summary className="cursor-pointer text-fg-muted hover:text-fg">+ Add person</summary>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {unselected.map((p) => (
-              <button
-                key={p.email ?? p.displayName}
-                onClick={() => onToggle(p)}
-                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] font-medium text-fg-muted hover:border-fg-muted hover:text-fg"
-              >
-                <Plus className="h-2.5 w-2.5" />
-                {p.displayName}
-              </button>
-            ))}
-          </div>
-        </details>
-      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { USE_MOCK } from "@/api/config";
 import { SignInPage } from "./SignInPage";
 
@@ -46,6 +47,7 @@ function writeDemoBypass(value: boolean) {
 export function AuthGate({ children }: { children: ReactNode }) {
   const isAuthenticated = useIsAuthenticated();
   const { accounts, instance } = useMsal();
+  const location = useLocation();
 
   // Track demo-mode bypass with React state too, so the click on "Continue
   // as Demo User" triggers a re-render even if sessionStorage write fails.
@@ -63,6 +65,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
       instance.setActiveAccount(accounts[0]);
     }
   }, [accounts, instance]);
+
+  // Skip the gate for the print route. The Print button opens it in a new
+  // tab, which has a fresh empty sessionStorage — so the demo bypass flag
+  // (which is sessionStorage-scoped) doesn't carry across, and the user
+  // would get bounced to the sign-in page. The route is only reachable
+  // from the in-app Print button, which already requires the parent tab
+  // to have passed the gate.
+  if (location.pathname.endsWith("/print")) return <>{children}</>;
 
   // Demo mode: show the sign-in page until the user clicks through.
   if (USE_MOCK) {

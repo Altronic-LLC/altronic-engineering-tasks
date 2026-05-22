@@ -75,6 +75,17 @@ export async function graphFetch<T>(path: string, init: RequestInit = {}): Promi
     if (response.status === 401) {
       throw new SessionExpiredError(`Graph returned 401: ${body}`);
     }
+    // Always log the full failure to the console — minified production
+    // errors collapse the body to just the URL otherwise, which makes
+    // diagnostics impossible. Include the request body too if there was
+    // one, so we can correlate what we sent with how Graph rejected it.
+    /* eslint-disable no-console */
+    console.error(
+      `[Graph ${response.status}] ${init.method ?? "GET"} ${url}\n` +
+        `Request body: ${typeof init.body === "string" ? init.body : "(non-string)"}\n` +
+        `Response body: ${body}`,
+    );
+    /* eslint-enable no-console */
     throw new GraphError(response.status, response.statusText, body, url);
   }
 

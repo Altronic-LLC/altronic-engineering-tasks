@@ -1,33 +1,63 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { useProjects, useTasks } from "@/hooks/useTasks";
+import { useFilters } from "@/hooks/useFilters";
 import { StatusPills } from "@/components/StatusPills";
-import { FilterBar, EMPTY_FILTERS, type Filters } from "@/components/FilterBar";
+import { EMPTY_FILTERS, FilterBar } from "@/components/FilterBar";
+import { LoadingTasks } from "@/components/LoadingTasks";
 import { TaskRow } from "@/components/TaskRow";
 import { TaskFormModal } from "@/components/TaskFormModal";
-import type { Person, Status, Task } from "@/types/task";
+import { applyFilters, collectPeople, type StatusFilter } from "@/lib/taskFilters";
+import { STATUSES, type Status } from "@/types/task";
 
-type StatusFilter = Status | "ALL_ACTIVE" | null;
+/**
+ * Read the initial status filter from a `?status=` URL param so the
+ * Dashboard cards can deep-link to specific status views. Accepts any
+ * known Status value or the literal "ALL_ACTIVE". Unknown values fall
+ * back to ALL_ACTIVE (the default).
+ */
+function readInitialStatus(raw: string | null): StatusFilter {
+  if (raw === "ALL_ACTIVE") return "ALL_ACTIVE";
+  if (raw && (STATUSES as readonly string[]).includes(raw)) return raw as Status;
+  return "ALL_ACTIVE";
+}
 
 export function ListView() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: tasks = [], isLoading } = useTasks();
   const { data: projects = [] } = useProjects();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL_ACTIVE");
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
+    readInitialStatus(searchParams.get("status")),
+  );
+  const [filters, setFilters] = useFilters();
   const [showNewTask, setShowNewTask] = useState(false);
 
   const people = useMemo(() => collectPeople(tasks), [tasks]);
+
+  // Two-pass filter so the StatusPills counts reflect the FilterBar
+  // selection without including the status filter (which is what the pills
+  // themselves are). If we passed the fully-filtered set, the active pill
+  // would always show its own count and every other pill would show 0.
+  const filteredByBar = useMemo(
+    () => applyFilters(tasks, null, filters),
+    [tasks, filters],
+  );
   const filtered = useMemo(
-    () => applyFilters(tasks, statusFilter, filters),
-    [tasks, statusFilter, filters],
+    () =>
+      // Newest first by creation date — same convention across every list
+      // in the app (tasks, EIRs, test sheets).
+      [...applyFilters(filteredByBar, statusFilter, EMPTY_FILTERS)].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+      ),
+    [filteredByBar, statusFilter],
   );
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:gap-5 sm:px-6 sm:py-6">
       <div className="flex items-start justify-between gap-3">
-        <StatusPills tasks={tasks} activeFilter={statusFilter} onChange={setStatusFilter} />
+        <StatusPills tasks={filteredByBar} activeFilter={statusFilter} onChange={setStatusFilter} />
         <button
           onClick={() => setShowNewTask(true)}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent/90"
@@ -40,7 +70,7 @@ export function ListView() {
       <FilterBar filters={filters} onChange={setFilters} projects={projects} people={people} />
 
       {isLoading ? (
-        <div className="py-16 text-center text-fg-muted">Loading tasks…</div>
+        <LoadingTasks />
       ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center text-fg-muted">
           No tasks match the current filters.
@@ -59,54 +89,4 @@ export function ListView() {
       {showNewTask && <TaskFormModal mode="create" onClose={() => setShowNewTask(false)} />}
     </div>
   );
-}
-
-function collectPeople(tasks: Task[]): Person[] {
-  const map = new Map<string, Person>();
-  for (const t of tasks) {
-    for (const p of [...t.assigned, ...t.watchers]) {
-      const key = p.email ?? p.displayName;
-      if (!map.has(key)) map.set(key, p);
-    }
-  }
-  return [...map.values()];
-}
-
-function applyFilters(
-  tasks: Task[],
-  statusFilter: StatusFilter,
-  filters: Filters,
-): Task[] {
-  return tasks.filter((t) => {
-    // Status filter
-    if (statusFilter === "ALL_ACTIVE" && t.status === "Complete") return false;
-    if (statusFilter && statusFilter !== "ALL_ACTIVE" && t.status !== statusFilter) return false;
-
-    // Project filter
-    if (filters.projectId != null && t.parentProject?.lookupId !== filters.projectId) return false;
-
-    // Assigned filter
-    if (filters.assignedEmail) {
-      const has = t.assigned.some(
-        (p) => (p.email ?? p.displayName) === filters.assignedEmail,
-      );
-      if (!has) return false;
-    }
-
-    // Search (covers title, description, and comments)
-    if (filters.search) {
-      const needle = filters.search.toLowerCase();
-      const hay = [
-        t.title,
-        t.numberedTitle,
-        t.description,
-        ...t.comments.map((c) => c.bodyHtml.replace(/<[^>]+>/g, "")),
-      ]
-        .join(" ")
-        .toLowerCase();
-      if (!hay.includes(needle)) return false;
-    }
-
-    return true;
-  });
 }

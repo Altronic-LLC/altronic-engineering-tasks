@@ -20,6 +20,744 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.21.1",
+    date: "2026-05-21",
+    changes: [
+      "'Report issue' button now also appears on the sign-in page (top right) so users who can't log in still have a path to flag the problem",
+      "When the button is pressed without a signed-in user, it opens a pre-filled draft in your default mail client (mailto:) instead of going through Graph sendMail — same destination, same captured-error attachment, you compose from your own mailbox so the maintainer knows exactly who reported it",
+    ],
+  },
+  {
+    version: "0.21.0",
+    date: "2026-05-21",
+    changes: [
+      "New 'Report issue' button in the header (life-buoy icon) — visible on every screen; opens a modal with a description field and previews the browser console errors captured during the session, then emails the whole bundle to the app manager with you CC'd so you have a paper trail",
+      "Console errors, warnings, uncaught exceptions, and unhandled promise rejections are now captured into a bounded in-memory buffer (last 100 entries) the moment the app boots — DevTools output is unaffected; the buffer clears after a successful report",
+      "Report destination defaults to ray.white@altronic-llc.com but is overridable via the `VITE_APP_MANAGER_EMAIL` repo variable; sends FROM the existing shared mailbox via Graph sendMail (same path as @-mention notifications)",
+    ],
+  },
+  {
+    version: "0.20.0",
+    date: "2026-05-21",
+    changes: [
+      "@-mentioned users on a task or EIR comment now automatically become watchers on that item — works for both lists; resolved against the existing people directory to get a real SharePoint LookupId before writing, falls through silently if the mentioned person isn't in the directory yet; toast confirms 'X is now watching this task / EIR' so the original commenter sees what happened",
+      "Removing yourself from the Watchers field is the off-switch — but a fresh @-mention will re-add you, so the mentioner needs to stop pinging if they actually want you to disengage; documented this in the User Manual's mention section",
+    ],
+  },
+  {
+    version: "0.19.2",
+    date: "2026-05-21",
+    changes: [
+      "Modified date on Task + EIR sidebars now also shows who last touched it as a small 'by Name' caption underneath — pulled from Graph's default `lastModifiedBy.user`; small and indiscrete so it doesn't compete with the rest of the sidebar",
+      "User Manual got a new 'PCB checklist' section covering how the card appears on category=PCB tasks, what the 17 items are, how the done/total counter works, optimistic save + undo, and what the 'column missing' note means if a row shows up red",
+    ],
+  },
+  {
+    version: "0.19.1",
+    date: "2026-05-21",
+    changes: [
+      "Added a 'Modified' date/time field next to 'Created' on both the Task and EIR detail sidebars — pulled from SharePoint's default lastModifiedDateTime so it's free; useful for telling at a glance when a record was last touched and for spotting stale items",
+    ],
+  },
+  {
+    version: "0.19.0",
+    date: "2026-05-21",
+    changes: [
+      "New PCB Checklist card on tasks with category 'PCB' — mirrors the two-column layout from the original Power Apps form with 13 Yes/No checkboxes and 4 Choice radio groups; the card resolves SharePoint internal column names at runtime by display-name match (via a new `useTaskColumns` hook) so we don't have to guess at the encoded internal names, and a small `n/N` progress badge in the card header shows how many items are complete",
+      "Checkbox + radio changes write through the existing `useUpdateTaskFields` mutation (toast + undo) and patch the raw-fields cache for instant optimistic feedback; if SharePoint rejects the write, the field flips back",
+      "Card only renders when the task's category is 'PCB' — other categories see no change",
+    ],
+  },
+  {
+    version: "0.18.3",
+    date: "2026-05-21",
+    changes: [
+      "Misc-folder filename prefix is no longer dropped on tasks without a parent project — the resolver now derives the prefix from (1) the parentProject title, (2) the projects catalogue if the task came in with a blank title, (3) a `LID-<n>` stub for orphaned lookupIds, and (4) the task's numbered title as a final fallback (`T15-AMP-coil-replacement_drawing.pdf`) so files are still attributable",
+      "Miscellaneous folder is now matched case-insensitively (`Miscellaneous`, `Misc`, `MISC`, etc.) so a renamed folder doesn't silently kill the fallback",
+      "Every task file upload now logs a one-liner to the browser console showing which folder it picked + the final filename, so future routing surprises are diagnosable from DevTools without re-deploying",
+      "Added 9 unit tests pinning the misc-prefix behaviour (all four fallback layers + case-insensitive folder name) so this can't regress",
+    ],
+  },
+  {
+    version: "0.18.2",
+    date: "2026-05-21",
+    changes: [
+      "About diagrams updated for the new attachments routing — system flow now lists the Documents library under SharePoint storage and the `projectFiles` API + `useTaskFiles` hook on the SPA tier; ER diagram adds ProjectFolder + ProjectFile entities with foreign keys to Project, and the EIR-only Attachment entity is now correctly scoped to EIR.id (the Task → Attachment link is gone)",
+      "User Manual got a dedicated 'Task attachments' section walking through the project-folder routing, the Miscellaneous fallback with filename prefix, the 5-most-recent display + 'View all' link, and how comment attachments piggyback on the same path; the Comments section's Attachments sub-heading was rewritten to call out the task vs EIR difference",
+      "README rewritten — frames the app as the canonical home for every internal Altronic engineering tool going forward (Tasks + EIRs + Test Sheets today, anything new should land here as a new view), documents the Project Folders attachment routing up front, and lists every env var the deploy needs",
+    ],
+  },
+  {
+    version: "0.18.1",
+    date: "2026-05-21",
+    changes: [
+      "Task comment attachments now also route to the SharePoint Project Folder — files dropped or selected in the comment composer upload to the same folder as the Attachments card, and a clickable hyperlink to each one is inlined at the bottom of the comment HTML; the legacy in-memory blob shape stays in place for the EIR composer until EIRs migrate to project folders too",
+    ],
+  },
+  {
+    version: "0.18.0",
+    date: "2026-05-21",
+    changes: [
+      "Task attachments now route through the Project Folders document library instead of the legacy list-item attachments — when you upload a file from a task, the app looks up the task's Project Reference, finds the matching folder under `Documents/General/Project Folders/` via the folder's Project Reference metadata, and uploads there; if no folder matches, the file goes into the shared Miscellaneous folder with the project code prefixed onto the filename so it's still findable",
+      "Task Attachments card shows the 5 most-recently-modified files in the project folder with each filename as a hyperlink to SharePoint, plus a 'View all in SharePoint →' link that opens the full folder",
+      "No new IT permission needed — this uses the existing Microsoft Graph `Sites.Selected` scope (the SharePoint REST `AllSites.Manage` permission I asked for last time is only required if EIRs ever migrate to this same model; EIRs continue to use the list-item attachment path until then)",
+    ],
+  },
+  {
+    version: "0.17.11",
+    date: "2026-05-21",
+    changes: [
+      "Data model redrawn as a proper ER diagram on a single SVG canvas — tables are positioned next to one another with crow's-foot connectors running between them, the same Visio-style schema diagram the user requested; PK rows carry a red PK badge with a dashed separator below, FK rows carry a blue FK badge and a connector to the referenced table; cardinality is marked at each connector end (open circle = one, three-prong = many)",
+    ],
+  },
+  {
+    version: "0.17.10",
+    date: "2026-05-21",
+    changes: [
+      "Added EIRs and Admins quick-links to the About page header — both jump to the SharePoint list in a new tab; the Admins link only appears for users with admin access",
+      "Redrew the About page data model as a proper ER-diagram view — each entity is a table card with header (entity name + SharePoint source list), then columns listed with type and Primary-Key / Foreign-Key flags, and FK rows show the target column (`→ Project.id`, `→ Person.id[]`, etc.); array types call out multi-value relationships explicitly so the schema reads like a relational database drawing",
+    ],
+  },
+  {
+    version: "0.17.9",
+    date: "2026-05-21",
+    changes: [
+      "Navigating from a list (Tasks, EIRs, Test Sheets, etc.) into a detail page now scrolls to the top of the new page automatically — previously the scroll position carried over from the list so the detail header was below the fold; filter / query-string changes within the same page still keep their scroll position",
+    ],
+  },
+  {
+    version: "0.17.8",
+    date: "2026-05-21",
+    changes: [
+      "EIR Project Reference is correctly typed as a multi-value Lookup column now (matching the SharePoint type list confirmed by the user) — the read mapper extracts an array of {lookupId, title} pairs from the expanded lookup objects, and writes go through the standard `multiLookupField` helper to `ProjectReferenceLookupId` with the Collection(Edm.Int32) annotation Graph requires; this is the same shape the Tasks list's Related Projects field uses, so the 400 'value is not a valid choice' Bad Request goes away",
+      "Renamed `Eir.parentProject` to `Eir.parentProjects: ProjectReference[]` to reflect that multiple projects can be selected; EirRow, EIR detail sidebar picker, EIRs filter, and dashboard EIR project scoping all updated to iterate the array (chips render one per project, filter matches if any chip is the selected project)",
+    ],
+  },
+  {
+    version: "0.17.7",
+    date: "2026-05-21",
+    changes: [
+      "Every failed Graph request now logs the full request body + response body to the browser console (in addition to the toast) — so when a write fails we get the actual error message instead of just a 400 stack trace, which we need to diagnose the EIR Project Reference 400",
+    ],
+  },
+  {
+    version: "0.17.6",
+    date: "2026-05-21",
+    changes: [
+      "Project Reference picker on the EIR detail page now fetches the actual configured Choice values from the SharePoint column definition (via `/lists/{id}/columns?$select=name,choice`) and uses those as the option list — this was the 400 Bad Request root cause: PATCH-ing with a value not in the column's allowed choices is rejected; if the column allows free-text entry (or until the column metadata loads) we still surface every project from the Projects list as a fallback",
+    ],
+  },
+  {
+    version: "0.17.5",
+    date: "2026-05-21",
+    changes: [
+      "Project Reference write payload simplified — dropped the `@odata.type: Collection(Edm.String)` annotation that v0.17.4 added; for Graph v1.0 multi-choice Choice columns a plain string array is the correct shape, and the annotation can cause the value to be silently dropped",
+      "EIR save errors now include the underlying Graph error message in the toast instead of a generic 'Couldn't save changes' line, so failures (especially this Project Reference one) are diagnosable from the UI without DevTools",
+      "Added a one-time browser-console log of the exact PATCH body the next time the Project Reference field is written — pasted-back output will let us see what Graph actually receives if writes still don't persist",
+    ],
+  },
+  {
+    version: "0.17.4",
+    date: "2026-05-21",
+    changes: [
+      "Project Reference writes from the EIR detail picker now send the canonical Graph multi-choice payload — added a `multiChoiceField` helper that emits the `@odata.type: Collection(Edm.String)` annotation Graph requires for multi-select Choice columns; without it some tenants silently dropped the value on save",
+      "EIR Title is now editable inline on the detail page — hover the title to reveal a small edit pencil, click to enter an input, Enter saves (Escape cancels); the save is optimistic via the same useUpdateEirFields path everything else uses, with toast + undo",
+      "EIR Description is now editable too — swapped the read-only BodyCard for the same EditableTextCard pattern Engineering Response and Where Used already use, with HTML rendering for display and a textarea for editing",
+    ],
+  },
+  {
+    version: "0.17.3",
+    date: "2026-05-21",
+    changes: [
+      "EIR Reporter now resolves to a real display name even when Graph only returns the bare ReporterLookupId — added a best-effort fetch of the SharePoint User Information List during the EIR load and use it as the authoritative directory for lookupId-to-name resolution; if the directory call fails (permissions etc.) we still fall back to cross-pollination from peer EIRs and ultimately a 'User #N' placeholder, but the common case is now a proper name",
+      "Added `ReporterLookupId` to the EIR $select so the bare integer is always in the response — previously only `Reporter` was requested, and on EIRs where Graph didn't expand the column the field came back missing entirely",
+    ],
+  },
+  {
+    version: "0.17.2",
+    date: "2026-05-21",
+    changes: [
+      "EIR Reporter now renders even when Graph returns just the bare ReporterLookupId instead of the expanded person object — the mapper falls back to building a placeholder Person from the lookupId, then attachEirReferences cross-pollinates real names from any other EIR in the response where the same person did come back expanded, so the list and detail show the right name in either case",
+      "Added a one-time browser-console diagnostic for the Reporter field on the first EIR — logs the value of `Reporter` (object?), `ReporterLookupId` (int?), and the resolved Person after mapping, so we can confirm which shape Graph is actually returning",
+    ],
+  },
+  {
+    version: "0.17.1",
+    date: "2026-05-21",
+    changes: [
+      "New-EIR form is now just General Information + Purchasing Information — dropped the optional Project Reference / Task Reference / Assigned Engineers section; everything past the required fields is set from the EIR detail page after Save",
+      "Renamed the header dropdown from 'Engineering Lists' to 'Engineering Requests' (the short mobile label too) — Manual updated to match",
+      "Reporter now renders again on EIR detail — brought back an explicit Graph $select that asks for Reporter / AssignedEngineer / Watchers by name so the person columns come back expanded with LookupValue + Email instead of just the bare LookupId",
+      "EIR Project Reference is editable from the detail sidebar again — replaced the read-only chip list with a real multi-select picker that uses Project titles from the Projects list as the allowed choices and writes the multi-choice array back to SharePoint",
+    ],
+  },
+  {
+    version: "0.17.0",
+    date: "2026-05-21",
+    changes: [
+      "New-EIR form now covers every field from the original Power Apps form: General Information up top (Request Type, Reporter, Requested Priority, Requested Completion Date, Subject, Description) and a Purchasing Information section below (EAU, Current Stock, Current Price, MFG, LTB Date, MFG P/N, Altronic Part Number, Where Used)",
+      "Required-field set on create now matches the original form: Subject, Description, Reporter, Requested Priority, Request Type — Save button stays disabled until those five are filled in",
+      "Added EAU / Current Stock / Current Price / LTB Date / Buyer Code through the create API too (they were already on the Eir type but unreachable from the form), so values typed in the new sections actually persist",
+      "Optional in-app extras (Project Reference, Task Reference, Assigned Engineers) live in a separate 'Optional' subsection at the bottom of the form with a hint that Project Reference writes aren't wired up to the multi-choice column yet — set the project from the detail page after creating",
+    ],
+  },
+  {
+    version: "0.16.7",
+    date: "2026-05-20",
+    changes: [
+      "Data model on the About page now reads as a proper three-tier hierarchy — Project at the top, Task in the middle (with its 'Parent Task' self-link called out), and EIR + Test Sheet at the bottom; between each tier a labelled bar lists every SharePoint column that carries the reference and which entity each one comes from, so Project Reference and Task Reference relationships are visually obvious",
+      "Shared concepts (Person, Comments, Attachments, Admin) moved below the hierarchy with a short note for each describing which entities touch it and via which field",
+    ],
+  },
+  {
+    version: "0.16.6",
+    date: "2026-05-20",
+    changes: [
+      "Replaced the About page Mermaid diagrams with a hand-built HTML/Tailwind layout — same information laid out as tier cards (System flow) and entity cards with bulleted relationships (Data model), colour-coded with the Cooper palette and zero chance of 'syntax error in text' on the live page",
+    ],
+  },
+  {
+    version: "0.16.5",
+    date: "2026-05-20",
+    changes: [
+      "Redesigned About page diagrams from scratch — simpler shapes, no nested parens-in-quotes (which kept choking the Mermaid 11 parser), and colour-coded so different parts of the system stand out: red for the SPA, blue for Graph / SharePoint gateways, green for SharePoint lists, purple for Entra ID, grey for demo/mailbox; data-model diagram uses the same red/blue palette to separate entities from shared concepts",
+    ],
+  },
+  {
+    version: "0.16.4",
+    date: "2026-05-20",
+    changes: [
+      "Adding an admin no longer 400s — turned out Graph rejects the whole POST when even one field name doesn't exist (not 'silently ignored' as I'd assumed), so removed the speculative `Display_x0020_Name` write key; writes now go to the real DisplayName column only",
+      "About-page Mermaid diagrams no longer render 'Syntax error in text' — the trapezoid shape combined with parentheses in the quoted label was crashing the Mermaid 11 parser; rewrote both diagrams with simpler labels (no nested parens in quoted node text)",
+    ],
+  },
+  {
+    version: "0.16.3",
+    date: "2026-05-20",
+    changes: [
+      "About-page diagrams updated: system flow now shows the SharePoint REST audience (for attachments) and the Admins list; data-model diagram now shows Attachments and the Admin entity, plus the EIR project-reference column is annotated as multi-choice text instead of a lookup",
+      "User Manual updated with a new Admin section (how the Admin link is gated, how to add/remove admins, how to reach the Project References editor) and an Attachments + Linked Task callout in the EIRs section",
+    ],
+  },
+  {
+    version: "0.16.2",
+    date: "2026-05-20",
+    changes: [
+      "Admin add / remove failures now surface in the UI — modal stays open with a red error box, removal errors show under the table; no more silently swallowed mutations",
+      "Admin table falls back to deriving a 'First Last' from the email when the Display Name field is empty, so missing names don't render as a dash",
+      "Admin read/write now handles SharePoint provisioning where the column ended up as `Display_x0020_Name` instead of `DisplayName` (and other variants) — and prints a one-time browser-console diagnostic of the actual field names so we can iterate fast if the list was set up with yet another name",
+    ],
+  },
+  {
+    version: "0.16.1",
+    date: "2026-05-20",
+    changes: [
+      "Task Reference moved out of the EIR sidebar into a 'Linked Task' card in the main column — same look and feel as the 'Child tasks' card on the task detail (title on the left, status badge on the right), with a small Edit/Add affordance for changing the reference; Power Apps URLs no longer leak into the sidebar at all",
+      "Mention-style anchors in descriptions and comments no longer escape the styling rule — previously only `mailto:` anchors were caught, now any non-http link (anchor-only, missing href, javascript:, etc.) renders as plain bold text instead of loud red italic underline",
+    ],
+  },
+  {
+    version: "0.16.0",
+    date: "2026-05-20",
+    changes: [
+      "New Admin → Admins page (/admin/admins) with a sortable table of who has admin access — admins can add or remove people directly from the UI, and anyone on the list immediately gets the Admin link in the header on their next reload",
+      "Admin access is now driven by an editable SharePoint list (VITE_SP_ADMINS_LIST_ID) instead of a hardcoded array — a small bootstrap set (ray.white@…, demo.user@…) stays in the code so nobody can lock themselves out by accidentally clearing the list",
+      "Toned down @-mention styling in descriptions and comments — names like 'Mark Balent' wrapped in mailto: anchors no longer render as loud red italic underlined links; they appear as plain bold text",
+    ],
+  },
+  {
+    version: "0.15.10",
+    date: "2026-05-20",
+    changes: [
+      "EIRs promoted from the old Power Apps form had their Task Reference stored as a 200-character deep-link URL; the EIR detail page now recognises that URL, pulls the `ItemID=` query param out of it, and renders the linked task as a tidy clickable chip pointing at this app's task detail page — with a Clear button if you want to retype the reference by hand",
+    ],
+  },
+  {
+    version: "0.15.9",
+    date: "2026-05-20",
+    changes: [
+      "EIR project references now render as chips instead of an awkwardly truncated comma string — list rows show up to 3 chips with '+N more' for any overflow (full list on hover), and the detail page shows each project on its own chip",
+      "Fixed the Entra sign-in prompt that fired every time you opened a task or EIR detail page — root cause was the MSAL redirect URI being the current pathname (e.g. /task/123) which isn't registered with the app, so each silent-token refresh kicked into an interactive popup; the redirect URI is now pinned to the app's base URL",
+      "Attachments section now does silent-only token acquisition for the SharePoint REST scope — if an admin hasn't granted the AllSites.Manage permission yet, the section shows a friendly notice instead of triggering an Entra popup that asks you to sign in again",
+      "Removed the temporary EIR project-reference diagnostic console log",
+    ],
+  },
+  {
+    version: "0.15.8",
+    date: "2026-05-20",
+    changes: [
+      "EIR Project Reference reader now extracts labels from ALL multi-select shapes — string arrays (Choice multi-select), ';#'-delimited strings, single strings, AND arrays of {LookupValue, ...} or {Label, TermGuid} objects (Lookup-multi and Managed-Metadata multi-select); previous version only pulled strings out of arrays and missed object shapes",
+      "Added a one-time browser-console diagnostic that prints the exact type and value of ProjectReference on the first EIR — so the next disconnect (if any) is one round-trip away from being fixed",
+    ],
+  },
+  {
+    version: "0.15.7",
+    date: "2026-05-20",
+    changes: [
+      "EIRs page now surfaces the underlying error message when the list fails to load (instead of silently showing 'No EIRs match the current filters') — so we can see exactly what Graph is rejecting",
+    ],
+  },
+  {
+    version: "0.15.6",
+    date: "2026-05-20",
+    changes: [
+      "EIR Project Reference resolved at last — the column is a multi-select Choice field (text values), not a Lookup, so we now parse the array / `;#`-delimited string / single string Graph returns and display the chosen project name(s) joined by commas",
+      "EIRs project filter now matches against the project's title text (not lookup ids), so filtering by project on the EIRs page and the dashboard scoping works again",
+      "Removed the temporary yellow debug banner from the EIRs page",
+    ],
+  },
+  {
+    version: "0.15.5",
+    date: "2026-05-20",
+    changes: [
+      "Fixed EIRs failing to load — the previous attempt to coax Graph into expanding the project lookup via $select was rejected by Graph (bare lookup column names aren't valid in $select), which 400'd the whole EIR list request; reverted to no-$select so the list loads again, and rely on the tolerant mapper from the prior release to read the bare ProjectReference value directly",
+    ],
+  },
+  {
+    version: "0.15.4",
+    date: "2026-05-20",
+    changes: [
+      "EIR project reference reader now handles any shape SharePoint might return — plain integer, numeric string, free-text project name (like '2026-Cat Pyrometer, 133-6333'), expanded { LookupId, LookupValue } object, or managed-metadata { Label, WssId, TermGuid } — and displays whatever text/title it can extract, even when the lookup id is missing",
+      "Added an inline yellow debug banner at the top of the EIRs page that auto-shows in real mode when the first EIR doesn't resolve a project — surfaces the raw field name + value + projects-list size right in the UI, so we can diagnose without DevTools",
+    ],
+  },
+  {
+    version: "0.15.3",
+    date: "2026-05-20",
+    changes: [
+      "EIR descriptions and comments no longer render as unreadable black text on the dark theme — the rich-text editor in the original Power Apps form stamps inline color:black on every paragraph it produces, so we now strip inline style / color / bgcolor attributes during sanitise and let the theme own colour",
+      "Switched EIR list fetch back to an explicit $select that asks for ProjectReferenceLookupId by name — Graph only materialises lookup ids when the suffixed column name is requested explicitly; without it, the bare ProjectReference field comes through but with no usable value",
+      "Re-added a one-time browser-console diagnostic so we can verify the project lookup id is actually arriving this time",
+    ],
+  },
+  {
+    version: "0.15.2",
+    date: "2026-05-20",
+    changes: [
+      "EIR Project Reference now actually resolves — SharePoint was returning the lookup under the bare 'ProjectReference' key (no LookupId suffix), so the previous reader and the scanner both missed it; reads now accept the bare key plus expanded { LookupId } shapes, and writes use the canonical 'ProjectReferenceLookupId' that matches the column",
+      "Removed the temporary console diagnostic — we got what we needed",
+    ],
+  },
+  {
+    version: "0.15.1",
+    date: "2026-05-20",
+    changes: [
+      "Added a one-time browser-console diagnostic that prints every field-name SharePoint returns for the first EIR — so we can see exactly what the project-reference column is called and stop guessing",
+    ],
+  },
+  {
+    version: "0.15.0",
+    date: "2026-05-20",
+    changes: [
+      "Attachments are here: tasks and EIRs now have an Attachments card on the detail page where you can list, upload, download, and delete files attached to the SharePoint list item — needs the admin to grant the app SharePoint REST permission and set VITE_SP_SITE_URL; if it's not granted, the section shows a friendly notice instead of crashing",
+      "Every loading screen now rotates through whimsical verbs (Wrangling, Coaxing, Reverse-engineering, Bamboozling…) so waiting feels less dead — same treatment for the task list, EIRs, test sheets, projects, admin, and every detail view",
+      "EIR project reference now scans every field key for a project-shaped lookup id (any internal name with 'Project' and ending 'LookupId') — works regardless of how the SharePoint column was provisioned, and shows the lookup id as a fallback when the title hasn't joined yet",
+    ],
+  },
+  {
+    version: "0.14.5",
+    date: "2026-05-20",
+    changes: [
+      "EIR Project Reference now resolves correctly — the field was being looked up under the wrong SharePoint internal name, so every EIR showed no project; reads now accept either name and writes use the canonical encoded-space form",
+      "EIR Where Used moved to its own card above Part Details and now renders HTML content as formatted text instead of showing raw <p> tags — same treatment we gave Engineering Response",
+    ],
+  },
+  {
+    version: "0.14.4",
+    date: "2026-05-20",
+    changes: [
+      "Dashboard's Mine / Company toggle is back, and it applies to whichever dataset you're looking at — flip to Company while focused on EIRs to see the team-wide EIR status breakdown, then flip back to Mine without losing your place",
+    ],
+  },
+  {
+    version: "0.14.3",
+    date: "2026-05-20",
+    changes: [
+      "EIR list now labels the people column 'Assigned' instead of 'Engineers' so it matches what the task list calls the same thing",
+      "EIR detail's Assigned picker is now a pill chooser — each assignee shows as a removable chip with an '+ Add person' expander, exactly like the task detail",
+      "EIR detail's Watchers section moved to the bottom of the sidebar, mirroring the task detail layout so it's not in the way while triaging",
+    ],
+  },
+  {
+    version: "0.14.2",
+    date: "2026-05-20",
+    changes: [
+      "Dashboard EIR card now counts EIRs assigned to you (not the team-wide open count) — and the Build Requests card is labelled to match the same 'assigned to you' framing",
+      "Dashboard ECN card now shows a team-wide total rather than a personal slice",
+      "Clicking the EIR card on the dashboard now pivots the status breakdown panel from Task statuses to EIR statuses — the breakdown follows whichever card you're focused on, with a ring around the active card",
+      "Project filter at the top of the dashboard now scopes every card (Tasks, EIRs, ECNs, Build Requests)",
+      "Removed the dated 'EIRs are mock' footer note — only ECNs and Build Requests are mock now",
+    ],
+  },
+  {
+    version: "0.14.1",
+    date: "2026-05-20",
+    changes: [
+      "List and Kanban now dim themselves on the EIRs and Test Sheets pages — they're controls for the Tasks dataset only, so they shouldn't look as prominent when you're looking at a different list",
+      "Every list (Tasks, Kanban columns, EIRs, Test Sheets) now sorts newest-first by creation date, so the freshly-added items are always at the top",
+      "EIR Engineering Response now renders HTML correctly — previously, edits that came in from the original Power Apps form showed up as raw `<p>` tags; now they read as formatted text",
+      "EIR detail sidebar tightened — each label now hugs its control properly, so dropdown choices no longer overlap the label above them",
+      "EIR Task Reference is now a real hyperlink — when the reference matches a task in this app, an 'Open task' link appears that jumps straight to that task's detail page",
+    ],
+  },
+  {
+    version: "0.14.0",
+    date: "2026-05-20",
+    changes: [
+      "Top nav reorganised — Dashboard / List / Kanban stay as direct links (they're all ways of looking at Tasks); EIRs and Test Sheets now live under a new 'Engineering Lists' dropdown so the nav doesn't get longer every time we add a SharePoint list",
+      "EIR list rows now match the task list rows pixel-for-pixel — same three-column layout (identity on the left, project + people in the middle, last-comment preview on the right) plus comment-count and attachment indicators",
+      "EIRs page has a header bar with the title and a short description, so it's obvious you're not looking at the task list",
+    ],
+  },
+  {
+    version: "0.13.0",
+    date: "2026-05-20",
+    changes: [
+      "EIRs (Engineering Information Requests) are now a first-class part of the app — new 'EIRs' tab in the top nav with a list view (status pills + filter bar: Project, Assigned Engineer, Reporter, search), a detail page that mirrors the task detail layout (sidebar of editable fields, Part Details card, comments thread with @-mentions), and a 'New EIR' button that opens a create form",
+      "Dashboard 'EIRs' card is no longer mock — it shows the real count of open EIRs (Status != Closed) and clicks through to the EIRs list scoped to your project filter",
+      "Every EIR field is optimistic with toast + Undo, same as tasks — status, resolution, request type, requested priority, reporter, assigned engineers, watchers, project, task reference, requested completion date, LTB date, and all the part-detail fields (MFG, MFG P/N, Altronic Part Number, EAU, Current Stock, Current Price, Where Used, Buyer Code) plus the Engineering Response block",
+      "User Manual has a new EIRs section with @-mention-friendly search keywords (ecr, temporary deviation, mfg eol, ltb, buyer code, where used, etc.) so questions like 'how do I create an EIR' or 'what is a request type' find the right place",
+    ],
+  },
+  {
+    version: "0.12.1",
+    date: "2026-05-19",
+    changes: [
+      "User Manual now has a search box that understands natural questions — typing 'how do I mention someone' jumps to the Comments & @-mentions section. Each section has a list of keywords/synonyms so 'ping', 'tag', 'at-mention', and '@' all find the same content",
+      "Matching sections are ranked best-first, the table-of-contents on the left re-orders to match, and a no-results state suggests alternative wordings",
+    ],
+  },
+  {
+    version: "0.12.0",
+    date: "2026-05-19",
+    changes: [
+      "New User Manual page in the app — organised by task (Quick start, Dashboard, List, Kanban, Tasks, Comments, Test Sheets, Filters, Notifications, Undo, Mobile, Troubleshooting) with a sticky table of contents",
+      "Link to the manual is the first item on the About page",
+      "CLAUDE.md now spells out 'update the manual in the same commit' for any user-visible change, alongside the existing rule for the system diagrams",
+    ],
+  },
+  {
+    version: "0.11.4",
+    date: "2026-05-19",
+    changes: [
+      "Mention email header simplified — solid black bar with just the 'Engineering Task System' wordmark; dropped the ALTRONIC line and the thin red accent stripe",
+    ],
+  },
+  {
+    version: "0.11.3",
+    date: "2026-05-19",
+    changes: [
+      "Mention email theme switched to black + white with red accents — header is now black with a thin Cooper Red accent line; red is reserved for the task-callout edge and the CTA button. No image-based logo so every email client renders the same without blocked-images problems",
+    ],
+  },
+  {
+    version: "0.11.2",
+    date: "2026-05-19",
+    changes: [
+      "@-mention emails redesigned: Cooper Red branded header with the ALTRONIC wordmark, the task title called out in its own block, the comment quoted in a card, and a proper red 'Open this task' button instead of a plain text link",
+      "Body line now reads 'You were mentioned in a task by X' (was 'in a comment') so it scans cleanly at a glance",
+      "Faint grey footer added: 'Do not reply to this email — it was automatically sent via the Engineering Task System'",
+      "Table-based layout throughout so the email looks the same in Outlook, Gmail, Apple Mail, and mobile clients",
+    ],
+  },
+  {
+    version: "0.11.1",
+    date: "2026-05-19",
+    changes: [
+      "Mentioning yourself now emails you — useful as a 'remind me later' that lands in your inbox. Previously self-mentions were silently filtered out",
+    ],
+  },
+  {
+    version: "0.11.0",
+    date: "2026-05-19",
+    changes: [
+      "@-mentions in comments — start typing `@` and a picker pops up with everyone on the team (assignees + watchers across tasks + yourself). Arrow keys / Enter to pick; the chosen name becomes a styled chip in the comment",
+      "Mentioning someone in a comment emails them automatically — subject 'You were mentioned in {task}', body greets them by name, quotes the comment, and includes a clickable link straight to the task. Image / file attachments on the comment ride along as email attachments",
+      "Emails go out from a shared mailbox (configurable via the new VITE_SHARED_MAILBOX repo variable) using the signed-in user's Send-As permission — so recipients see a consistent 'from' address. Requires the new Mail.Send.Shared Graph scope (one-time admin consent). See CLAUDE.md for the setup steps",
+      "Editing a comment only emails NEW mentions (people who weren't already pinged on the original post)",
+      "Mock mode shows the email payload in the console so you can demo the flow without an Exchange mailbox configured",
+    ],
+  },
+  {
+    version: "0.10.0",
+    date: "2026-05-19",
+    changes: [
+      "Every change you make now shows a small confirmation toast at the bottom-right of the screen — so you can see at a glance that something actually happened",
+      "Most toasts include an Undo button — click it within ~7 seconds of an accidental change (status, priority, category, due date, parent task/project, related projects, assignees, watchers, watch/unwatch, comment edit, test sheet edit) and the previous value is restored both in the UI and on SharePoint",
+      "Failures also surface as toasts — if a write was rejected the change rolls back automatically and a red toast tells you what happened",
+      "Comment-add and task/test-sheet creation get confirmation toasts but no Undo button (SharePoint doesn't expose delete-a-comment, and recreating a deleted task would shift NumberedTitle counts)",
+    ],
+  },
+  {
+    version: "0.9.0",
+    date: "2026-05-19",
+    changes: [
+      "Every SharePoint write is now optimistic — status changes, priority/category/due-date edits, parent task and parent project changes, related projects, Assigned, Watchers, watch/unwatch, edit a comment, delete a task, and test-sheet field edits all update the UI the moment you click. The Graph round-trip happens in the background; if it fails, the cache rolls back to the previous state",
+      "Previously only Kanban drag and adding a comment were optimistic — everywhere else, the UI waited for the server to round-trip before reflecting your change. That made detail-page edits feel laggy when SharePoint was slow",
+    ],
+  },
+  {
+    version: "0.8.2",
+    date: "2026-05-19",
+    changes: [
+      "Dashboard rearranged so 'All Open Tasks' sits directly next to the status breakdown — the two team-level views are read together. Top row is now My Tasks + EIRs + ECNs + Build Requests; second row is All Open Tasks alongside the breakdown panel",
+    ],
+  },
+  {
+    version: "0.8.1",
+    date: "2026-05-19",
+    changes: [
+      "Dashboard task-status breakdown now defaults to YOUR tasks (Mine), with a Mine / Company toggle in the panel header so you can flip to the full team view when you want to see how the workload is distributed",
+      "Clicking a status bar deep-links to the List view respecting the current toggle — Mine → ?assigned=me, Company → ?assigned= (Anyone)",
+    ],
+  },
+  {
+    version: "0.8.0",
+    date: "2026-05-19",
+    changes: [
+      "New Engineering Dashboard as the landing page after sign-in — big-number cards for My Open Tasks, All Open Tasks, EIRs, ECNs, and Build Requests, plus a visual task-status breakdown panel",
+      "Each dashboard card is filterable by Project Reference at the top of the page, and the task cards click through to the List view with the matching project + assignee + status filters pre-applied",
+      "EIRs, ECNs, and Build Requests are mock counts for now — their SharePoint lists don't exist yet. The scaffolding is in place so wiring up real data later is a single-file swap (src/data/dashboardMockData.ts → a real hook)",
+      "Header nav now has Dashboard + List as separate entries; bookmarked links to '/' show the dashboard, '/list' is the task list",
+    ],
+  },
+  {
+    version: "0.7.1",
+    date: "2026-05-19",
+    changes: [
+      "About page diagrams simplified — system flow now collapses Views / Hooks / API into one vertical lane instead of one node per view, and the data model uses a left-to-right layout that doesn't fan as many arrows across the same lines",
+    ],
+  },
+  {
+    version: "0.7.0",
+    date: "2026-05-19",
+    changes: [
+      "New 'About' page in the footer — a high-level system map and data-model diagram showing how the views, hooks, API layer, Microsoft Graph, and the three SharePoint lists connect to each other",
+      "Diagrams are rendered with Mermaid (lazy-loaded so the main bundle stays trim) and live as plain text inside src/views/AboutView.tsx — edit them in place when you add a structural piece",
+      "CLAUDE.md now spells out 'updating the About diagrams' as part of the recipe for adding a view, hook, API module, or SharePoint list so the chart stays in sync with reality",
+    ],
+  },
+  {
+    version: "0.6.12",
+    date: "2026-05-19",
+    changes: [
+      "NumberedTitle is back on new tasks — format T{n}-{projectRef}-{title} where n is the count of existing tasks under the chosen project + 1. Earlier we'd disabled the write thinking the column was read-only; it isn't, it was the people-field shape that was 400'ing. The list view, Kanban cards, detail page, and print view all already prefer NumberedTitle.",
+      "Kanban cards now show NumberedTitle instead of the plain title (the only surface that was still showing the bare title).",
+      "Internal: extracted multiPersonField/multiLookupField helpers in src/lib/graphFields.ts so every future form that writes a multi-person/multi-lookup field gets the @odata.type annotation for free — no more hand-built payloads and the same 400 trap waiting elsewhere.",
+    ],
+  },
+  {
+    version: "0.6.11",
+    date: "2026-05-19",
+    changes: [
+      "Internal: removed the temporary createTask payload log — v0.6.9's @odata.type fix is confirmed working",
+    ],
+  },
+  {
+    version: "0.6.10",
+    date: "2026-05-19",
+    changes: [
+      "Loading screen now rotates through whimsical verbs (Cogitating, Wrangling, Reticulating…) instead of a dry 'Loading tasks…', and explains that the first load is the slow one — subsequent loads come from cache",
+      "Project Reference dropdowns now sort 0000, 0001, 0002, … 0010 (natural-numeric order) across the filter bar, the new-task form, and the test-sheet form",
+      "Parent Task and Task Reference dropdowns sort the same way — T2 before T10, not the lexical T10 before T2",
+    ],
+  },
+  {
+    version: "0.6.9",
+    date: "2026-05-19",
+    changes: [
+      "Fix (attempt 3): multi-value Assigned and Watchers writes now include the '@odata.type: Collection(Edm.Int32)' annotation alongside the integer array — the documented Graph v1.0 format. The v0.6.7 plain-array shape still got rejected; this third try is the format Microsoft actually documents",
+    ],
+  },
+  {
+    version: "0.6.8",
+    date: "2026-05-19",
+    changes: [
+      "Internal: re-added the temporary createTask payload log — v0.6.7's fix didn't fully resolve the Graph 400, need another look at the body shape",
+    ],
+  },
+  {
+    version: "0.6.7",
+    date: "2026-05-18",
+    changes: [
+      "Fix: creating or editing a task with people in Assigned or Watchers no longer 400s — the multi-person field write was using the old SharePoint REST shape ({ results: [123] }) which Microsoft Graph v1.0 rejects; switched to the plain array shape ([123]) it actually wants",
+      "Removed the temporary debug log added in v0.6.6 — root cause identified",
+    ],
+  },
+  {
+    version: "0.6.6",
+    date: "2026-05-18",
+    changes: [
+      "Internal: temporary console.log on task creation so we can see exactly which fields are being sent to SharePoint — diagnosing a stubborn Graph 400 on create. Will be removed once we figure out which field shape is wrong.",
+    ],
+  },
+  {
+    version: "0.6.5",
+    date: "2026-05-18",
+    changes: [
+      "Fix: creating a task in real mode no longer 400s on the NumberedTitle field — it turns out that column is read-only / server-calculated on the live SharePoint list. The 0.6.4 attempt to write it directly was reverted. New tasks will display whatever SharePoint computes (which may be empty until the list's formula populates) and the mapper falls back to the plain Title in the meantime",
+    ],
+  },
+  {
+    version: "0.6.4",
+    date: "2026-05-18",
+    changes: [
+      "New tasks now get an auto-generated NumberedTitle like T12-0017-Endurance run (counting under the chosen project + the project's 4-char code prefix) — previously the column was left blank in real mode so new tasks displayed as just their plain title",
+      "Parent Project is now required on create — the dropdown opens to 'Select a project…' and the Create button stays disabled until you pick one",
+      "Assigned and Watchers on the new/edit task form now use a searchable dropdown — same pattern as the filter bar — instead of the pill chooser",
+      "Creating a task while your SharePoint identity is still resolving no longer aborts — the unresolved person is silently skipped on the wire rather than failing the whole submit",
+    ],
+  },
+  {
+    version: "0.6.3",
+    date: "2026-05-18",
+    changes: [
+      "Apply the same 'omit empty fields on create' fix to new test sheets so submitting one in real mode doesn't fail on SharePoint's strict 400",
+    ],
+  },
+  {
+    version: "0.6.2",
+    date: "2026-05-18",
+    changes: [
+      "Fix: creating a new task in real mode no longer fails with a Graph 400 — the API used to send null values for fields the user didn't pick (priority, category, due date, parent project) which SharePoint rejects on create; we now omit those fields instead",
+    ],
+  },
+  {
+    version: "0.6.1",
+    date: "2026-05-18",
+    changes: [
+      "Sending a comment now feels instant — the comment appears in the thread the moment you click Send, while SharePoint catches up in the background (previously you waited 2-4 seconds for three Graph calls to round-trip)",
+      "If the server rejects the comment, it's removed from the thread and an inline error appears above the composer so you can retry",
+      "Removed the 'someone else just commented, send anyway?' modal — the existing background poll and 'new comments' banner handle that case non-blockingly",
+    ],
+  },
+  {
+    version: "0.6.0",
+    date: "2026-05-18",
+    changes: [
+      "New 'Test Sheets' tab in the top nav — see, search, create, and edit test sheets stored in the SharePoint Test Results list",
+      "Each task now has a 'New Test Sheet' button on its detail page; click it to create a test sheet pre-linked to that task and its parent project",
+      "Tasks that have test sheets show them as clickable pills on the task detail page",
+      "Test sheets carry all 11 SharePoint columns: Title, Product, Serial Number, Purpose, Test Date, Project + Task references, Tester, Testing Steps, Results, Firmware Version",
+    ],
+  },
+  {
+    version: "0.5.2",
+    date: "2026-05-18",
+    changes: [
+      "Filter dropdowns now have a search box at the top — type to narrow the options down instead of scrolling through every project or person",
+      "Created By dropdown matches the same style as Project Reference and Assigned for consistency (was a native dropdown before)",
+    ],
+  },
+  {
+    version: "0.5.1",
+    date: "2026-05-18",
+    changes: [
+      "Initial task load is meaningfully faster — we now only ask SharePoint for the ~15 columns the app actually uses, instead of all 200+ columns on the list",
+      "Tasks and projects are fetched in parallel on first load instead of one after the other, saving another round-trip of latency",
+      "Cached task list now stays 'fresh' for 2 minutes (was 30 seconds), so switching between List and Kanban or refocusing the tab doesn't trigger a refetch",
+    ],
+  },
+  {
+    version: "0.5.0",
+    date: "2026-05-18",
+    changes: [
+      "Project Reference and Assigned filters now accept multiple selections — pick a set of projects or a set of people and the list/board shows tasks matching any of them",
+      "Status pill counts at the top of the list view now reflect what the other filters select — they answer 'of the tasks matching my filters, how many are in each status' instead of always showing the global counts",
+      "Each multi-select shows an ✕ when you have selections; click it to clear that filter in one step",
+    ],
+  },
+  {
+    version: "0.4.3",
+    date: "2026-05-18",
+    changes: [
+      "Task detail page no longer scrolls sideways when a comment or description contains a very long URL or unbroken string — long content now wraps to the column width",
+      "Code blocks and tables inside comments now scroll inside themselves rather than pushing the whole page wider",
+    ],
+  },
+  {
+    version: "0.4.2",
+    date: "2026-05-18",
+    changes: [
+      "Task detail page now shows 'Created By' in the sidebar — the person who created the task, taken from SharePoint's built-in created-by record (no extra Graph calls)",
+      "Printable task view also includes Created By for documentation/audit purposes",
+    ],
+  },
+  {
+    version: "0.4.1",
+    date: "2026-05-18",
+    changes: [
+      "Kanban board's horizontal scrollbar now stays at the bottom of the screen — previously you had to scroll the whole page down past tall columns to reach it",
+    ],
+  },
+  {
+    version: "0.4.0",
+    date: "2026-05-18",
+    changes: [
+      "Home page now filters to 'Assigned to me' by default — the first thing you see is your tasks, not everyone's; pick 'Anyone' in the dropdown to clear it",
+      "Kanban board now has the same filter bar as the list view; filters apply to the cards in each column",
+      "Filter state is shared between List and Kanban — switching views keeps your filters, and refreshing the page preserves them too",
+      "Filters live in the URL so a link you share carries the same view the recipient sees",
+    ],
+  },
+  {
+    version: "0.3.5",
+    date: "2026-05-15",
+    changes: [
+      "Fix a subtle bug where editing a comment would prepend a stray '0' record to the SharePoint Communication field (visible only in the raw stored data; the comment thread still rendered correctly, but the field grew slightly larger with each edit)",
+      "Internal: backfill src/lib to 100% unit-test coverage (parser, sanitiser, mappers, graph helpers) as the first step toward the 100%-everywhere project standard",
+    ],
+  },
+  {
+    version: "0.3.4",
+    date: "2026-05-15",
+    changes: [
+      "Edit your own comments in-place on the task detail page — a pencil icon next to your comment opens an inline editor with Save / Cancel; Esc cancels, Ctrl+Enter saves",
+      "Edits preserve the original timestamp and author so the audit trail stays intact; only the body text changes",
+      "Edit is limited to the comment's own author (matched by email); attachments on edited comments are preserved",
+    ],
+  },
+  {
+    version: "0.3.3",
+    date: "2026-05-15",
+    changes: [
+      "Real-mode prep: request the narrower Sites.Selected Graph scope at sign-in instead of Sites.ReadWrite.All, matching the planned Entra app registration",
+    ],
+  },
+  {
+    version: "0.3.2",
+    date: "2026-05-14",
+    changes: [
+      "Add the Altronic brandmark and wordmark to the top of the printable task view",
+      "Add a confidential-information footer to the printable view ('Confidential — Altronic internal use only. Not to be shared externally.') plus a Confidential badge in the header",
+    ],
+  },
+  {
+    version: "0.3.1",
+    date: "2026-05-14",
+    changes: [
+      "Fix Print button bouncing to the sign-in screen — the printable view now opens directly without re-asking for a demo bypass in the new tab",
+    ],
+  },
+  {
+    version: "0.3.0",
+    date: "2026-05-14",
+    changes: [
+      "Add a Print button on the task detail page that opens a clean printable view in a new tab and auto-opens the browser's print dialog — use 'Save as PDF' there to export the task",
+      "The printable view includes the title, full metadata block (priority, dates, assignees, watchers, projects, labels, parent task, etc.), description, child tasks, and the complete comment thread with author and timestamp",
+      "Print layout uses light styling regardless of the app theme so PDFs look the same whether you're in light or dark mode",
+    ],
+  },
+  {
+    version: "0.2.6",
+    date: "2026-05-14",
+    changes: [
+      "When someone else comments on a task you're viewing, a banner appears above the thread (e.g. 'New comment from Bob') with a 'Show new' button — the comments stay frozen until you choose to refresh, so you don't lose your place mid-reply",
+      "Background poll runs every 20 seconds while a task detail page is open; pauses when the tab is hidden",
+      "Pre-flight check on Send: if someone else commented in the last minute, you'll be asked to confirm before posting (mitigates the Communication-field lost-update race without realtime infrastructure)",
+    ],
+  },
+  {
     version: "0.2.5",
     date: "2026-05-13",
     changes: [

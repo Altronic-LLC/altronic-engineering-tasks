@@ -32,14 +32,23 @@ export function buildMsalConfig(): Configuration {
     }
   }
 
+  // Pin the redirect URI to the app's BASE URL (e.g.
+  // https://altronic-llc.github.io/altronic-engineering-tasks/), NOT the
+  // current pathname. The Entra app registration only has the base URL
+  // registered — using window.location.pathname meant any page that
+  // triggered a token refresh from /task/123, /eir/456, /list, etc. would
+  // send Entra an unregistered URI and fail with AADSTS50011.
+  const baseUri =
+    typeof window !== "undefined"
+      ? `${window.location.origin}${import.meta.env.BASE_URL ?? "/"}`
+      : "/";
+
   return {
     auth: {
       clientId: clientId ?? "demo-mode-no-client-id",
       authority: `https://login.microsoftonline.com/${tenantId ?? "common"}`,
-      redirectUri:
-        typeof window !== "undefined" ? window.location.origin + window.location.pathname : "/",
-      postLogoutRedirectUri:
-        typeof window !== "undefined" ? window.location.origin + window.location.pathname : "/",
+      redirectUri: baseUri,
+      postLogoutRedirectUri: baseUri,
       navigateToLoginRequestUrl: true,
     },
     cache: {
@@ -53,10 +62,25 @@ export function buildMsalConfig(): Configuration {
 }
 
 /**
- * The Graph scopes the app requests. Adjust if the admin grants Sites.Selected
- * rather than Sites.ReadWrite.All; the scope name on the wire is the same.
+ * The Graph scopes the app requests. Must match what's consented on the
+ * Entra app registration — if the app is registered with Sites.Selected,
+ * asking for Sites.ReadWrite.All here will fail token acquisition.
  *
- * Note: User.Read is included so we can show the signed-in user's name in
- * the header without needing extra permissions.
+ * We use Sites.Selected (narrowest scope). A SharePoint admin grants the
+ * app explicit write access to just the Altronic Engineering site via a
+ * one-time POST to /sites/{id}/permissions — see the IT setup brief.
+ * Additional sites can be added later with the same per-site grant; no
+ * code change needed unless we ever outgrow Sites.Selected and switch to
+ * Sites.ReadWrite.All.
+ *
+ * User.Read is included so the header can show the signed-in user's name
+ * and email without an extra permission.
  */
-export const graphScopes = ["User.Read", "Sites.ReadWrite.All"];
+export const graphScopes = [
+  "User.Read",
+  "Sites.Selected",
+  // Mail.Send.Shared lets the app send mail FROM a shared mailbox on behalf
+  // of the signed-in user (Exchange Send-As permission required for each
+  // user on the mailbox). Used for @-mention email notifications.
+  "Mail.Send.Shared",
+];

@@ -9,8 +9,9 @@ import type {
   Task,
 } from "@/types/task";
 import { toTask } from "@/lib/taskMapper";
-import { appendComment } from "@/lib/communicationParser";
+import { appendComment, replaceComment } from "@/lib/communicationParser";
 import { attachProjectTitles, attachTaskRelationships } from "@/lib/taskGraph";
+import { multiPersonField } from "@/lib/graphFields";
 import { MOCK_PROJECTS, MOCK_TASKS } from "@/data/mockData";
 
 // =============================================================================
@@ -22,6 +23,33 @@ import { MOCK_PROJECTS, MOCK_TASKS } from "@/data/mockData";
 // The mock implementation simulates a small delay so loading states and
 // optimistic updates can be verified visually during development.
 // =============================================================================
+
+// SharePoint internal column names we actually consume in taskMapper.ts.
+// Passed to `$expand=fields($select=…)` so the list endpoint only returns
+// these fields instead of all 200+ columns on the Project Task List. Cuts
+// payload size dramatically and speeds up initial load. Keep this list in
+// sync with `taskMapper.toTask()` — any new field the mapper reads has to
+// be added here too, otherwise it'll come back undefined in real mode.
+const TASK_FIELD_SELECT = [
+  "Title",
+  "NumberedTitle",
+  "Description",
+  "Status",
+  "Priority",
+  "Category",
+  "Labels",
+  "DueDate",
+  "AuthorLookupId",
+  "EditorLookupId",
+  "Parent_x0020_Project_x0020_ReferLookupId",
+  "ProjectReference",
+  "ParentTaskLookupId",
+  "Assigned",
+  "Watchers",
+  "SoftwareRevision",
+  "Attachments",
+  "Communication",
+].join(",");
 
 // In demo mode we keep the task list in memory but also persist to
 // localStorage so changes survive page refresh. Each tab reads from
@@ -40,6 +68,10 @@ function loadMockStoreFromStorage(): Task[] | null {
     // Re-hydrate Date fields (JSON.parse leaves them as strings).
     return parsed.map((t) => ({
       ...t,
+      // Backwards compat: localStorage from before the `author` field was
+      // added won't have it. Default to null so the type stays satisfied
+      // and the UI shows "Unknown" for those grandfathered tasks.
+      author: t.author ?? null,
       createdAt: new Date(t.createdAt),
       modifiedAt: new Date(t.modifiedAt),
       dueDate: t.dueDate ? new Date(t.dueDate) : null,
@@ -137,18 +169,41 @@ export async function listTasks(): Promise<Task[]> {
     return delay(copy);
   }
 
-  const path = `/sites/${SP_SITE_ID}/lists/${SP_LIST_ID}/items?$expand=fields&$top=200`;
-  const items = await graphFetchAll<GraphListItem>(path);
+  const path = `/sites/${SP_SITE_ID}/lists/${SP_LIST_ID}/items?$expand=fields($select=${TASK_FIELD_SELECT})&$top=200`;
+  // Kick the items + projects requests off in parallel — they're
+  // independent until we merge titles in below. Saves one round-trip
+  // worth of latency on the initial load.
+  const [items, projects] = await Promise.all([
+    graphFetchAll<GraphListItem>(path),
+    listProjects(),
+  ]);
   const tasks = items.map(toTask);
   attachTaskRelationships(tasks);
   // Resolve project titles. Tolerates missing VITE_SP_PROJECTS_LIST_ID
   // (listProjects returns []) by leaving titles empty.
-  const projects = await listProjects();
   attachProjectTitles(tasks, projects);
   return tasks;
 }
 
 /** Fetch a single task by its list-item ID. */
+/**
+ * Fetch the raw SharePoint `fields` bag for a single task item, with no
+ * `$select` filter so every column on the list is in the response. Used
+ * by feature UIs (e.g. the PCB checklist) that need columns the typed
+ * mapper doesn't surface.
+ */
+export async function getTaskRawFields(id: number): Promise<Record<string, unknown>> {
+  if (USE_MOCK) {
+    const t = mockStore.find((x) => x.id === id);
+    return (t?.rawFields ?? {}) as Record<string, unknown>;
+  }
+  if (!SP_LIST_ID) return {};
+  const item = await graphFetch<GraphListItem>(
+    `/sites/${SP_SITE_ID}/lists/${SP_LIST_ID}/items/${id}?$expand=fields`,
+  );
+  return (item.fields ?? {}) as Record<string, unknown>;
+}
+
 export async function getTask(id: number): Promise<Task | null> {
   // We always fetch via listTasks to ensure parent/child links are populated;
   // the cost is small in mock mode and a single Graph call won't return the
@@ -263,15 +318,19 @@ export async function setAssigned(id: number, people: Person[]): Promise<Task> {
   if (USE_MOCK) {
     return updateTaskFields(id, { Assigned: people });
   }
-  // Real Graph: person-multi field expects { results: [lookupId, ...] }
-  const lookupIds = people.map((p) => p.lookupId).filter((x): x is number => !!x);
-  if (people.length > 0 && lookupIds.length === 0) {
+  // Multi-person writes go through the shared helper so the @odata.type
+  // annotation is never forgotten (see src/lib/graphFields.ts for the
+  // history of why this matters). The helper always emits the annotated
+  // shape; passing only-unresolved people would silently clear the field,
+  // so we guard that case here.
+  const resolved = people.filter((p) => !!p.lookupId);
+  if (people.length > 0 && resolved.length === 0) {
     throw new Error(
       "Cannot update Assigned: none of the selected people had a resolved SharePoint lookupId. " +
         "Try refreshing the page and signing in again.",
     );
   }
-  return updateTaskFields(id, { AssignedLookupId: { results: lookupIds } });
+  return updateTaskFields(id, multiPersonField("Assigned", people));
 }
 
 /** Replace the Watchers list. */
@@ -279,14 +338,14 @@ export async function setWatchers(id: number, people: Person[]): Promise<Task> {
   if (USE_MOCK) {
     return updateTaskFields(id, { Watchers: people });
   }
-  const lookupIds = people.map((p) => p.lookupId).filter((x): x is number => !!x);
-  if (people.length > 0 && lookupIds.length === 0) {
+  const resolved = people.filter((p) => !!p.lookupId);
+  if (people.length > 0 && resolved.length === 0) {
     throw new Error(
       "Cannot update Watchers: none of the watchers had a resolved SharePoint lookupId. " +
         "Try refreshing the page and signing in again.",
     );
   }
-  return updateTaskFields(id, { WatchersLookupId: { results: lookupIds } });
+  return updateTaskFields(id, multiPersonField("Watchers", people));
 }
 
 /** Add the given person to the watchers list (if not already there). */
@@ -379,6 +438,47 @@ export async function addComment(
 }
 
 /**
+ * Edit the body of an existing comment on a task. Matched by the original
+ * timestamp + author email — those are kept unchanged so the audit trail
+ * (who said it and when) stays intact; only the bodyHtml changes.
+ *
+ * Authorisation: the caller is expected to check that the current user is
+ * the comment's author before invoking this. The API layer doesn't enforce
+ * it; it's a UI affordance, mirroring how SharePoint itself secures the
+ * Communication field as a whole (anyone with list-write access can edit
+ * any record). Locking down by author would mean splitting comments into
+ * their own list with per-item permissions — a bigger lift, not done here.
+ */
+export async function editComment(
+  id: number,
+  target: { timestamp: Date; authorEmail: string },
+  newBodyHtml: string,
+): Promise<Task> {
+  if (USE_MOCK) {
+    const idx = mockStore.findIndex((t) => t.id === id);
+    if (idx < 0) throw new Error(`Task ${id} not found`);
+    const next = { ...mockStore[idx] };
+    const targetEmail = target.authorEmail.toLowerCase();
+    next.comments = next.comments.map((c) =>
+      c.timestamp.getTime() === target.timestamp.getTime() &&
+      c.authorEmail.toLowerCase() === targetEmail
+        ? { ...c, bodyHtml: newBodyHtml }
+        : c,
+    );
+    next.modifiedAt = new Date();
+    mockStore = [...mockStore.slice(0, idx), next, ...mockStore.slice(idx + 1)];
+    saveMockStoreToStorage();
+    return delay({ ...next });
+  }
+
+  const path = `/sites/${SP_SITE_ID}/lists/${SP_LIST_ID}/items/${id}?$expand=fields($select=Communication)`;
+  const existing = await graphFetch<GraphListItem>(path);
+  const existingRaw = (existing.fields.Communication as string | undefined) ?? "";
+  const newRaw = replaceComment(existingRaw, target, newBodyHtml);
+  return updateTaskFields(id, { Communication: newRaw });
+}
+
+/**
  * Create a new task. Title is required; everything else is optional.
  *
  * All accepted fields are written in a single POST. Person and lookup
@@ -386,6 +486,14 @@ export async function addComment(
  */
 export async function createTask(input: {
   title: string;
+  /**
+   * Optional pre-computed NumberedTitle (e.g. "T12-0017-EMI sweep"). When
+   * the caller has the task list to count from (the form does, via
+   * useTasks), it can pass this and we'll write it directly. Per the
+   * project-task-numbering memory, NumberedTitle is NOT a SharePoint
+   * calculated column — the app is responsible for filling it in.
+   */
+  numberedTitle?: string;
   description?: string;
   status?: Status;
   priority?: string | null;
@@ -405,7 +513,9 @@ export async function createTask(input: {
       : null;
     const task: Task = {
       id: nextId,
-      numberedTitle: `T${nextId}-${parentProject?.title.slice(0, 4) ?? "0000"}-${input.title}`,
+      numberedTitle:
+        input.numberedTitle ??
+        `T${nextId}-${parentProject?.title.slice(0, 4) ?? "0000"}-${input.title}`,
       title: input.title,
       description: input.description ?? "",
       status: input.status ?? "BACKLOG",
@@ -416,6 +526,7 @@ export async function createTask(input: {
       createdAt: now,
       modifiedAt: now,
       authorLookupId: 0,
+      author: null,
       editorLookupId: 0,
       parentProject,
       relatedProjects: [],
@@ -433,38 +544,38 @@ export async function createTask(input: {
   }
 
   const path = `/sites/${SP_SITE_ID}/lists/${SP_LIST_ID}/items`;
+  // On create, only send fields the user actually filled in. SharePoint
+  // rejects null/empty values on POST (especially for lookup columns) — it
+  // wants the field omitted instead. The TaskFormModal hands us null/[] for
+  // unspecified choices so the equivalent guards live here.
   const fields: Record<string, unknown> = { Title: input.title };
-  if (input.description !== undefined) fields.Description = input.description;
+  // NumberedTitle is a writable text column (the v0.6.4 attempt 400'd, but
+  // that turned out to be the AssignedLookupId shape — the schema dump in
+  // v0.6.10 confirmed NumberedTitle is readonly=False, type=text). The
+  // form computes it as T{n}-{projectRef}-{title} where n is the count
+  // of existing tasks under the parent project + 1.
+  if (input.numberedTitle) fields.NumberedTitle = input.numberedTitle;
+  if (input.description) fields.Description = input.description;
   if (input.status) fields.Status = input.status;
-  if (input.priority !== undefined) fields.Priority = input.priority;
-  if (input.category !== undefined) fields.Category = input.category;
-  if (input.labels) fields.Labels = input.labels;
-  if (input.dueDate !== undefined) {
-    fields.DueDate = input.dueDate ? input.dueDate.toISOString() : null;
-  }
-  if (input.parentProjectLookupId !== undefined) {
+  if (input.priority) fields.Priority = input.priority;
+  if (input.category) fields.Category = input.category;
+  if (input.labels && input.labels.length > 0) fields.Labels = input.labels;
+  if (input.dueDate) fields.DueDate = input.dueDate.toISOString();
+  if (input.parentProjectLookupId) {
     fields.Parent_x0020_Project_x0020_ReferLookupId = input.parentProjectLookupId;
   }
-  if (input.softwareRevision !== undefined) {
+  if (input.softwareRevision) {
     fields.SoftwareRevision = input.softwareRevision;
   }
-  if (input.assigned && input.assigned.length > 0) {
-    const lookupIds = input.assigned.map((p) => p.lookupId).filter((x): x is number => !!x);
-    if (lookupIds.length === 0) {
-      throw new Error(
-        "Cannot set Assigned: none of the selected people had a resolved SharePoint lookupId.",
-      );
-    }
-    fields.AssignedLookupId = { results: lookupIds };
+  // Person fields: only include real lookup IDs. The current user's
+  // lookupId is resolved async — if it isn't ready yet (lookupId === 0)
+  // we just skip the field rather than failing the entire create. The
+  // user can re-assign afterward once their identity is known.
+  if (input.assigned?.some((p) => !!p.lookupId)) {
+    Object.assign(fields, multiPersonField("Assigned", input.assigned));
   }
-  if (input.watchers && input.watchers.length > 0) {
-    const lookupIds = input.watchers.map((p) => p.lookupId).filter((x): x is number => !!x);
-    if (lookupIds.length === 0) {
-      throw new Error(
-        "Cannot set Watchers: none of the selected people had a resolved SharePoint lookupId.",
-      );
-    }
-    fields.WatchersLookupId = { results: lookupIds };
+  if (input.watchers?.some((p) => !!p.lookupId)) {
+    Object.assign(fields, multiPersonField("Watchers", input.watchers));
   }
 
   const created = await graphFetch<GraphListItem>(path, {
@@ -496,7 +607,12 @@ export async function deleteTask(id: number): Promise<void> {
  * lookup IDs on tasks and for the admin page's project listing.
  */
 export async function listProjects(): Promise<ProjectReference[]> {
-  if (USE_MOCK) return delay([...mockProjectStore]);
+  if (USE_MOCK) {
+    const sorted = [...mockProjectStore].sort((a, b) =>
+      a.title.localeCompare(b.title, undefined, { numeric: true }),
+    );
+    return delay(sorted);
+  }
 
   const projectsListId = import.meta.env.VITE_SP_PROJECTS_LIST_ID;
   if (!projectsListId) {
@@ -506,12 +622,18 @@ export async function listProjects(): Promise<ProjectReference[]> {
     return [];
   }
 
-  const path = `/sites/${SP_SITE_ID}/lists/${projectsListId}/items?$expand=fields&$top=200`;
+  // Projects list — we only need the Title for resolving lookup labels.
+  const path = `/sites/${SP_SITE_ID}/lists/${projectsListId}/items?$expand=fields($select=Title)&$top=200`;
   const items = await graphFetchAll<GraphListItem>(path);
-  return items.map((item) => ({
+  const projects = items.map((item) => ({
     lookupId: parseInt(item.id, 10),
     title: (item.fields.Title as string) ?? `(project #${item.id})`,
   }));
+  // Sort by title using natural (numeric-aware) ordering so projects appear
+  // in 0000, 0001, ... order in every dropdown. This is the source of truth
+  // for the FilterBar and TaskFormModal pickers.
+  projects.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true }));
+  return projects;
 }
 
 /**

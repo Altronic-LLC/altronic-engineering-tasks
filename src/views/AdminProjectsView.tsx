@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Shield } from "lucide-react";
 import { useCreateProject, useProjects } from "@/hooks/useTasks";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { LoadingTasks } from "@/components/LoadingTasks";
 
 /**
  * Admin page for managing Project References.
@@ -63,17 +64,25 @@ export function AdminProjectsView() {
         Back
       </button>
 
-      <div className="mb-6">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">
-          <Shield className="h-3.5 w-3.5" />
-          Admin
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+            <Shield className="h-3.5 w-3.5" />
+            Admin
+          </div>
+          <h1 className="mt-1 font-display text-2xl font-semibold text-fg">Project References</h1>
+          <p className="mt-1 text-sm text-fg-muted">
+            Manage entries in the Project Overview SharePoint list. New projects
+            added here become available immediately as parent / related project
+            choices on every task.
+          </p>
         </div>
-        <h1 className="mt-1 font-display text-2xl font-semibold text-fg">Project References</h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          Manage entries in the Project Overview SharePoint list. New projects
-          added here become available immediately as parent / related project
-          choices on every task.
-        </p>
+        <Link
+          to="/admin/admins"
+          className="shrink-0 text-xs text-accent underline-offset-2 hover:underline"
+        >
+          Admins →
+        </Link>
       </div>
 
       <section className="mb-6 rounded-lg border border-border bg-surface p-4 sm:p-5">
@@ -110,7 +119,7 @@ export function AdminProjectsView() {
           Existing projects ({projects.length})
         </h2>
         {isLoading ? (
-          <div className="py-8 text-center text-sm text-fg-muted">Loading…</div>
+          <LoadingTasks noun="projects" />
         ) : sorted.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border py-8 text-center text-sm text-fg-muted">
             No projects yet. Add one above.

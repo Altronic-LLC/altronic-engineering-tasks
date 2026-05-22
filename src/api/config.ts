@@ -8,6 +8,43 @@ export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 export const SP_SITE_ID = import.meta.env.VITE_SP_SITE_ID;
 export const SP_LIST_ID = import.meta.env.VITE_SP_LIST_ID;
 export const SP_PROJECTS_LIST_ID = import.meta.env.VITE_SP_PROJECTS_LIST_ID;
+/** "Test Results" list on the same Altronic Engineering site. */
+export const SP_TEST_RESULTS_LIST_ID = import.meta.env.VITE_SP_TEST_RESULTS_LIST_ID;
+
+/** "Engineering Information Request" (EIR) list on the same site. */
+export const SP_EIRS_LIST_ID = import.meta.env.VITE_SP_EIRS_LIST_ID;
+
+/**
+ * Admins list — single-column ("Email" Title-field) SharePoint list that
+ * controls who sees admin UI in this app. Optional; if unset, falls back
+ * to a small hardcoded set in `useIsAdmin`.
+ */
+export const SP_ADMINS_LIST_ID = import.meta.env.VITE_SP_ADMINS_LIST_ID;
+
+/**
+ * SharePoint site web URL — used to call the SP REST API (specifically for
+ * list-item attachments, which Graph v1.0 doesn't surface cleanly).
+ * Example: https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering
+ * If unset, attachment features degrade gracefully.
+ */
+export const SP_SITE_URL = import.meta.env.VITE_SP_SITE_URL as string | undefined;
+
+/**
+ * Email address of the shared mailbox @-mention notifications send FROM.
+ * Each user who can post comments must have Send-As permission on this
+ * mailbox in Exchange. Leave blank to disable email notifications — they
+ * fall back to console.log entries instead.
+ */
+export const SHARED_MAILBOX = import.meta.env.VITE_SHARED_MAILBOX as string | undefined;
+
+/**
+ * Email address of the app maintainer — recipient of "Notify app manager"
+ * error reports. Falls back to a sensible default if unset so the button
+ * still works on day one even before the env var is wired up.
+ */
+export const APP_MANAGER_EMAIL =
+  (import.meta.env.VITE_APP_MANAGER_EMAIL as string | undefined) ??
+  "ray.white@altronic-llc.com";
 
 export const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 

@@ -1,0 +1,796 @@
+import { ArrowDown, ArrowLeft, BookOpen, ExternalLink, Info } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { CURRENT_VERSION } from "@/data/changelog";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { cn } from "@/lib/cn";
+
+// =============================================================================
+// About page — high-level system map.
+//
+// IMPORTANT: this page is the source of truth for "how does this app fit
+// together." If you add a view, route, hook category, API surface, or
+// SharePoint list, edit the data arrays below in the same commit.
+//
+// We used to render this with Mermaid; the parser kept tripping over any
+// shape that mixed quotes, parens, or <br/> tags. Replaced with a hand-laid
+// HTML + Tailwind layout — same information, easier to read, and zero
+// chance of "syntax error in text" on the live page.
+// =============================================================================
+
+/**
+ * Visual palette — kept in one place so colour stays consistent across both
+ * diagrams. Each kind maps to a Tailwind class set (border + background +
+ * text) tuned for both light and dark themes.
+ */
+const PALETTE = {
+  ui: "border-cooper-red/40 bg-cooper-red/15 text-fg",
+  auth: "border-superior-blue/40 bg-superior-blue/15 text-fg",
+  gateway: "border-superior-blue/40 bg-superior-blue/10 text-fg",
+  list: "border-cooper-green/40 bg-cooper-green/15 text-fg",
+  mock: "border-border bg-surface-2 text-fg-muted",
+  entity: "border-cooper-red/40 bg-cooper-red/15 text-fg",
+  shared: "border-superior-blue/40 bg-superior-blue/15 text-fg",
+} as const;
+
+type PaletteKey = keyof typeof PALETTE;
+
+interface NodeSpec {
+  label: string;
+  /** Optional second line — a short subtitle in muted text. */
+  hint?: string;
+  palette: PaletteKey;
+}
+
+// =============================================================================
+// System flow tiers — top-down, browser at the top, SharePoint at the bottom.
+// =============================================================================
+
+interface Tier {
+  label: string;
+  nodes: NodeSpec[];
+}
+
+const SYSTEM_TIERS: Tier[] = [
+  {
+    label: "User",
+    nodes: [{ label: "User in browser", hint: "altronic-llc.github.io", palette: "ui" }],
+  },
+  {
+    label: "React SPA",
+    nodes: [
+      { label: "Views", hint: "Dashboard · List · Kanban · Detail · EIRs · Test Sheets · Admin", palette: "ui" },
+      { label: "React Query hooks", hint: "useTasks · useEirs · useTestSheets · useAdmins · useTaskFiles", palette: "ui" },
+      { label: "API layer", hint: "src/api/tasks · eirs · testSheets · admins · projectFiles · attachments · email · errorReport", palette: "ui" },
+    ],
+  },
+  {
+    label: "Auth & transport",
+    nodes: [
+      { label: "MSAL Entra ID", hint: "Sites.Selected · Mail.Send.Shared (AllSites.Manage optional)", palette: "auth" },
+      { label: "Microsoft Graph v1.0", hint: "Lists, items, drives, users, mail", palette: "gateway" },
+      { label: "SharePoint REST", hint: "EIR list-item attachments only (optional)", palette: "gateway" },
+      { label: "Mock store", hint: "in-memory + localStorage (demo mode)", palette: "mock" },
+      { label: "Shared mailbox", hint: "@-mention notifications", palette: "mock" },
+    ],
+  },
+  {
+    label: "SharePoint storage",
+    nodes: [
+      { label: "Project Task List", palette: "list" },
+      { label: "Projects", palette: "list" },
+      { label: "Test Results", palette: "list" },
+      { label: "EIRs", palette: "list" },
+      { label: "Admins", palette: "list" },
+      { label: "Documents library", hint: "General/Project Folders/* — task attachments route here", palette: "list" },
+    ],
+  },
+];
+
+// =============================================================================
+// Data model — drawn as a real ER diagram on a single SVG canvas.
+// Each table is positioned by hand on a 1280x880 canvas, with crow's-foot
+// connectors drawn between FK columns and their targets (one-end on the
+// PK side, many-end on the FK side).
+//
+// To add a column or relationship: bump the row count in SCHEMA_TABLES,
+// adjust the table's `y` if it pushes neighbours, and add a row to
+// CONNECTIONS. The renderer computes port positions from row index.
+// =============================================================================
+
+type ColumnKind = "pk" | "field" | "fk";
+
+interface SchemaColumn {
+  name: string;
+  type: string;
+  kind: ColumnKind;
+  /** Where this FK points, e.g. "Project.id" or "Person.id[]". */
+  references?: string;
+}
+
+interface SchemaTable {
+  name: string;
+  /** SharePoint list display name (or "Concept" for shared/derived ones). */
+  source: string;
+  palette: PaletteKey;
+  columns: SchemaColumn[];
+  /** Top-left x position on the ER canvas. */
+  x: number;
+  /** Top-left y position on the ER canvas. */
+  y: number;
+  /** Card width. */
+  width: number;
+}
+
+// ----- ER canvas geometry --------------------------------------------------
+const HEADER_HEIGHT = 50;
+const ROW_HEIGHT = 22;
+
+/** Compute the table's total rendered height. */
+function tableHeight(t: SchemaTable): number {
+  return HEADER_HEIGHT + t.columns.length * ROW_HEIGHT + 6;
+}
+
+/** Y coordinate of a column's center (used for connection endpoints). */
+function rowCenterY(t: SchemaTable, columnName: string): number {
+  const idx = t.columns.findIndex((c) => c.name === columnName);
+  return t.y + HEADER_HEIGHT + idx * ROW_HEIGHT + ROW_HEIGHT / 2;
+}
+
+const SCHEMA_TABLES: SchemaTable[] = [
+  {
+    name: "Project",
+    source: "Projects list",
+    palette: "entity",
+    x: 530, y: 20, width: 240,
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "title", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "Person",
+    source: "Concept (User Info list)",
+    palette: "shared",
+    x: 960, y: 20, width: 290,
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "displayName", type: "text", kind: "field" },
+      { name: "email", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "Task",
+    source: "Project Task List",
+    palette: "entity",
+    x: 20, y: 220, width: 360,
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "title", type: "text", kind: "field" },
+      { name: "numberedTitle", type: "text", kind: "field" },
+      { name: "status", type: "choice", kind: "field" },
+      { name: "priority", type: "choice", kind: "field" },
+      { name: "category", type: "choice", kind: "field" },
+      { name: "dueDate", type: "datetime", kind: "field" },
+      { name: "parentProjectId", type: "int", kind: "fk", references: "Project.id" },
+      { name: "parentTaskId", type: "int", kind: "fk", references: "Task.id" },
+      { name: "relatedProjects", type: "int[]", kind: "fk", references: "Project.id" },
+      { name: "assigned", type: "int[]", kind: "fk", references: "Person.id" },
+      { name: "watchers", type: "int[]", kind: "fk", references: "Person.id" },
+    ],
+  },
+  {
+    name: "EIR",
+    source: "Engineering Information Request",
+    palette: "entity",
+    x: 410, y: 220, width: 420,
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "eirNo", type: "text", kind: "field" },
+      { name: "title", type: "text", kind: "field" },
+      { name: "requestType", type: "choice", kind: "field" },
+      { name: "status", type: "choice", kind: "field" },
+      { name: "resolution", type: "choice", kind: "field" },
+      { name: "requestedPriority", type: "choice", kind: "field" },
+      { name: "projectReferences", type: "int[]", kind: "fk", references: "Project.id" },
+      { name: "taskReference", type: "text", kind: "field" },
+      { name: "reporter", type: "int", kind: "fk", references: "Person.id" },
+      { name: "assignedEngineers", type: "int[]", kind: "fk", references: "Person.id" },
+      { name: "watchers", type: "int[]", kind: "fk", references: "Person.id" },
+    ],
+  },
+  {
+    name: "Admin",
+    source: "Admins list",
+    palette: "entity",
+    x: 960, y: 240, width: 290,
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "email", type: "text", kind: "fk", references: "Person.email" },
+      { name: "displayName", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "Comment",
+    source: "Concept (Communication field)",
+    palette: "shared",
+    x: 960, y: 380, width: 290,
+    columns: [
+      { name: "parentId", type: "int", kind: "fk", references: "Task / EIR" },
+      { name: "timestamp", type: "datetime", kind: "field" },
+      { name: "authorName", type: "text", kind: "field" },
+      { name: "bodyHtml", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "TestSheet",
+    source: "Test Results",
+    palette: "entity",
+    x: 20, y: 540, width: 360,
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "title", type: "text", kind: "field" },
+      { name: "product", type: "text", kind: "field" },
+      { name: "serialNumber", type: "text", kind: "field" },
+      { name: "parentProjectId", type: "int", kind: "fk", references: "Project.id" },
+      { name: "parentTaskId", type: "int", kind: "fk", references: "Task.id" },
+      { name: "tester", type: "int", kind: "fk", references: "Person.id" },
+    ],
+  },
+  {
+    name: "Attachment",
+    source: "EIR list-item attachment (SP REST)",
+    palette: "shared",
+    x: 960, y: 540, width: 290,
+    columns: [
+      { name: "parentId", type: "int", kind: "fk", references: "EIR.id" },
+      { name: "fileName", type: "text", kind: "field" },
+      { name: "serverRelativeUrl", type: "text", kind: "field" },
+    ],
+  },
+  {
+    name: "ProjectFolder",
+    source: "Documents / General / Project Folders",
+    palette: "shared",
+    x: 410, y: 540, width: 420,
+    columns: [
+      { name: "id", type: "driveItemId", kind: "pk" },
+      { name: "name", type: "text", kind: "field" },
+      { name: "webUrl", type: "text", kind: "field" },
+      { name: "projectReference", type: "int", kind: "fk", references: "Project.id" },
+    ],
+  },
+  {
+    name: "ProjectFile",
+    source: "Files inside a ProjectFolder",
+    palette: "shared",
+    x: 20, y: 760, width: 360,
+    columns: [
+      { name: "id", type: "driveItemId", kind: "pk" },
+      { name: "folderId", type: "driveItemId", kind: "fk", references: "ProjectFolder.id" },
+      { name: "name", type: "text", kind: "field" },
+      { name: "webUrl", type: "text", kind: "field" },
+      { name: "lastModified", type: "datetime", kind: "field" },
+    ],
+  },
+];
+
+// ----- Connections (FK → target). Cardinality at each end: "one" | "many" --
+interface Connection {
+  fromTable: string;
+  fromColumn: string;
+  toTable: string;
+  toColumn: string;
+  fromCard: "one" | "many";
+  toCard: "one" | "many";
+}
+
+const CONNECTIONS: Connection[] = [
+  // Task → Project, Person
+  { fromTable: "Task", fromColumn: "parentProjectId", toTable: "Project", toColumn: "id", fromCard: "many", toCard: "one" },
+  { fromTable: "Task", fromColumn: "relatedProjects", toTable: "Project", toColumn: "id", fromCard: "many", toCard: "many" },
+  { fromTable: "Task", fromColumn: "assigned", toTable: "Person", toColumn: "id", fromCard: "many", toCard: "many" },
+  { fromTable: "Task", fromColumn: "watchers", toTable: "Person", toColumn: "id", fromCard: "many", toCard: "many" },
+  // EIR → Project, Person
+  { fromTable: "EIR", fromColumn: "projectReferences", toTable: "Project", toColumn: "id", fromCard: "many", toCard: "many" },
+  { fromTable: "EIR", fromColumn: "reporter", toTable: "Person", toColumn: "id", fromCard: "many", toCard: "one" },
+  { fromTable: "EIR", fromColumn: "assignedEngineers", toTable: "Person", toColumn: "id", fromCard: "many", toCard: "many" },
+  { fromTable: "EIR", fromColumn: "watchers", toTable: "Person", toColumn: "id", fromCard: "many", toCard: "many" },
+  // TestSheet → Project, Task, Person
+  { fromTable: "TestSheet", fromColumn: "parentProjectId", toTable: "Project", toColumn: "id", fromCard: "many", toCard: "one" },
+  { fromTable: "TestSheet", fromColumn: "parentTaskId", toTable: "Task", toColumn: "id", fromCard: "many", toCard: "one" },
+  { fromTable: "TestSheet", fromColumn: "tester", toTable: "Person", toColumn: "id", fromCard: "many", toCard: "one" },
+  // Admin → Person
+  { fromTable: "Admin", fromColumn: "email", toTable: "Person", toColumn: "email", fromCard: "one", toCard: "one" },
+  // Comment → Task & EIR
+  { fromTable: "Comment", fromColumn: "parentId", toTable: "Task", toColumn: "id", fromCard: "many", toCard: "one" },
+  { fromTable: "Comment", fromColumn: "parentId", toTable: "EIR", toColumn: "id", fromCard: "many", toCard: "one" },
+  // Attachment (EIR only — Tasks use ProjectFolder routing instead)
+  { fromTable: "Attachment", fromColumn: "parentId", toTable: "EIR", toColumn: "id", fromCard: "many", toCard: "one" },
+  // ProjectFolder routing: every Project has one folder, every folder
+  // holds many files. Tasks discover their folder by project lookupId.
+  { fromTable: "ProjectFolder", fromColumn: "projectReference", toTable: "Project", toColumn: "id", fromCard: "one", toCard: "one" },
+  { fromTable: "ProjectFile", fromColumn: "folderId", toTable: "ProjectFolder", toColumn: "id", fromCard: "many", toCard: "one" },
+];
+
+export function AboutView() {
+  const navigate = useNavigate();
+  const isAdmin = useIsAdmin();
+
+  return (
+    <div className="mx-auto max-w-[1100px] px-4 py-4 sm:px-6 sm:py-6">
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-fg-muted transition-colors hover:text-fg"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </button>
+
+      <div className="mb-6 rounded-lg border border-border bg-surface p-5">
+        <div className="mb-2 flex items-center gap-2">
+          <Info className="h-4 w-4 text-fg-muted" />
+          <h1 className="font-display text-xl font-semibold text-fg sm:text-2xl">
+            About this app
+          </h1>
+          <span className="ml-auto text-xs text-fg-muted">v{CURRENT_VERSION}</span>
+        </div>
+        <p className="text-sm leading-relaxed text-fg-muted">
+          The Altronic Engineering Task System is a SharePoint-backed task
+          tracker, kanban board, EIR log, and test-sheet log for the
+          engineering team. It runs as a static React SPA on GitHub Pages,
+          signs you in through Microsoft Entra ID, and reads/writes a handful
+          of SharePoint lists via Microsoft Graph (plus the SharePoint REST
+          API for list-item attachments).
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+          <Link
+            to="/manual"
+            className="inline-flex items-center gap-1 rounded-md border border-accent bg-accent/10 px-2 py-1 font-medium text-accent transition-colors hover:bg-accent/20"
+          >
+            <BookOpen className="h-3 w-3" /> User Manual
+          </Link>
+          <a
+            href="https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering/Lists/Project%20Task%20List/AllItems.aspx"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-fg-muted hover:border-fg-muted hover:text-fg"
+          >
+            <ExternalLink className="h-3 w-3" /> Project Task List
+          </a>
+          <a
+            href="https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering/Lists/Test%20Results/AllItems.aspx"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-fg-muted hover:border-fg-muted hover:text-fg"
+          >
+            <ExternalLink className="h-3 w-3" /> Test Results
+          </a>
+          <a
+            href="https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering/Lists/EIREngineering%20Information%20Request/AllItems.aspx"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-fg-muted hover:border-fg-muted hover:text-fg"
+          >
+            <ExternalLink className="h-3 w-3" /> EIRs
+          </a>
+          {isAdmin && (
+            <a
+              href="https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering/Lists/Admins/AllItems.aspx"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-fg-muted hover:border-fg-muted hover:text-fg"
+            >
+              <ExternalLink className="h-3 w-3" /> Admins
+            </a>
+          )}
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-fg-muted hover:border-fg-muted hover:text-fg"
+          >
+            Back to tasks
+          </Link>
+        </div>
+      </div>
+
+      <Section
+        title="System flow"
+        description="Top-down. A request starts in the browser, travels through the SPA's view → hook → API layers, then either short-circuits to the mock store (demo mode) or out to Graph / SharePoint REST. Tokens come from MSAL."
+      >
+        <div className="flex flex-col items-stretch gap-2">
+          {SYSTEM_TIERS.map((tier, i) => (
+            <div key={tier.label}>
+              <TierBlock label={tier.label} nodes={tier.nodes} />
+              {i < SYSTEM_TIERS.length - 1 && <TierArrow />}
+            </div>
+          ))}
+        </div>
+        <Legend
+          items={[
+            { palette: "ui", label: "SPA" },
+            { palette: "auth", label: "Entra ID" },
+            { palette: "gateway", label: "Graph / SP REST" },
+            { palette: "list", label: "SharePoint list" },
+            { palette: "mock", label: "Demo / mailbox" },
+          ]}
+        />
+      </Section>
+
+      <Section
+        title="Data model"
+        description="ER diagram of the SharePoint schema. Each table is one entity (a list, or a derived concept). PK rows are flagged in red; FK rows are flagged blue. Connectors show foreign-key relationships with crow's-foot cardinality at each end (○ = one, ⋖ = many). The diagram is wide — scroll horizontally on small screens."
+      >
+        <ErDiagram />
+        <Legend
+          items={[
+            { palette: "entity", label: "Entity (SharePoint list)" },
+            { palette: "shared", label: "Shared concept" },
+          ]}
+        />
+      </Section>
+
+      <div className="mt-6 rounded-lg border border-dashed border-border bg-surface-2/40 p-4 text-xs text-fg-muted">
+        <strong className="text-fg">For contributors:</strong> if you add a
+        new view, route, hook category, API surface, or SharePoint list, edit
+        the data arrays at the top of{" "}
+        <code className="rounded bg-bg px-1 py-0.5">src/views/AboutView.tsx</code>{" "}
+        in the same commit.
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-6 rounded-lg border border-border bg-surface p-4 sm:p-5">
+      <h2 className="font-display text-base font-semibold text-fg sm:text-lg">{title}</h2>
+      <p className="mt-1 text-xs text-fg-muted">{description}</p>
+      <div className="mt-4">{children}</div>
+    </div>
+  );
+}
+
+function TierBlock({ label, nodes }: Tier) {
+  return (
+    <div className="rounded-md border border-border bg-bg p-3 sm:p-4">
+      <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
+        {label}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {nodes.map((n) => (
+          <DiagramNode key={n.label} node={n} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TierArrow() {
+  return (
+    <div className="flex justify-center py-1">
+      <ArrowDown className="h-4 w-4 text-fg-muted" />
+    </div>
+  );
+}
+
+function DiagramNode({
+  node,
+  className,
+}: {
+  node: NodeSpec;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border px-3 py-2 shadow-sm",
+        PALETTE[node.palette],
+        className,
+      )}
+    >
+      <div className="text-sm font-semibold">{node.label}</div>
+      {node.hint && <div className="mt-0.5 text-[11px] text-fg-muted">{node.hint}</div>}
+    </div>
+  );
+}
+
+/**
+ * Three-tier reference hierarchy. Project at top → Task in the middle →
+ * EIR + Test Sheet at the bottom. Between each tier we render a labelled
+ * "reference bar" showing the exact SharePoint columns carrying the
+ * relationship (and which source entity sets each one).
+ *
+ * Visual cue: every arrow points UPWARD because references in SharePoint
+ * point at the parent (the child stores the lookup id).
+ */
+/**
+ * ER diagram drawn as a single SVG canvas. Tables are positioned by hand
+ * in SCHEMA_TABLES; connectors come from CONNECTIONS. Crow's-foot markers
+ * (`one` = open circle, `many` = three-prong) carry cardinality at each
+ * end. Lines route as a simple right-angle: source → midpoint → target.
+ */
+function ErDiagram() {
+  // Compute canvas dimensions from the table footprints.
+  const maxX = Math.max(...SCHEMA_TABLES.map((t) => t.x + t.width)) + 30;
+  const maxY = Math.max(...SCHEMA_TABLES.map((t) => t.y + tableHeight(t))) + 30;
+  const byName = Object.fromEntries(SCHEMA_TABLES.map((t) => [t.name, t]));
+
+  return (
+    <div className="overflow-x-auto rounded-md border border-border bg-bg p-3">
+      <svg
+        viewBox={`0 0 ${maxX} ${maxY}`}
+        width={maxX}
+        height={maxY}
+        style={{ minWidth: "100%", maxWidth: `${maxX}px` }}
+        role="img"
+        aria-label="Entity-relationship diagram for the Altronic Engineering Task System"
+      >
+        <defs>
+          {/* "many" crow's-foot — three lines fanning from the table edge. */}
+          <marker
+            id="er-many"
+            markerWidth="14"
+            markerHeight="14"
+            refX="13"
+            refY="7"
+            orient="auto"
+            markerUnits="userSpaceOnUse"
+          >
+            <path
+              d="M 13,7 L 2,0 M 13,7 L 2,7 M 13,7 L 2,14"
+              stroke="rgb(var(--fg-muted))"
+              strokeWidth="1.4"
+              fill="none"
+            />
+          </marker>
+          {/* "one" — open circle just outside the table edge. */}
+          <marker
+            id="er-one"
+            markerWidth="14"
+            markerHeight="14"
+            refX="13"
+            refY="7"
+            orient="auto"
+            markerUnits="userSpaceOnUse"
+          >
+            <circle
+              cx="6"
+              cy="7"
+              r="3"
+              stroke="rgb(var(--fg-muted))"
+              strokeWidth="1.4"
+              fill="rgb(var(--bg))"
+            />
+            <line
+              x1="9"
+              y1="7"
+              x2="13"
+              y2="7"
+              stroke="rgb(var(--fg-muted))"
+              strokeWidth="1.4"
+            />
+          </marker>
+        </defs>
+
+        {/* Connectors first so they sit behind the table cards. */}
+        {CONNECTIONS.map((c, i) => (
+          <ConnectionPath key={i} c={c} byName={byName} />
+        ))}
+
+        {/* Tables on top. */}
+        {SCHEMA_TABLES.map((t) => (
+          <SchemaTableSvg key={t.name} table={t} />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function ConnectionPath({
+  c,
+  byName,
+}: {
+  c: Connection;
+  byName: Record<string, SchemaTable>;
+}) {
+  const from = byName[c.fromTable];
+  const to = byName[c.toTable];
+  if (!from || !to) return null;
+
+  // Pick the port side (left / right of each table) based on which
+  // direction the connector is travelling.
+  const fromRight = from.x + from.width / 2 < to.x + to.width / 2;
+  const srcX = fromRight ? from.x + from.width : from.x;
+  const tgtX = fromRight ? to.x : to.x + to.width;
+  const srcY = rowCenterY(from, c.fromColumn);
+  const tgtY = rowCenterY(to, c.toColumn);
+
+  // Right-angle path with the bend in the midline between the two
+  // tables. A small offset away from each table edge keeps the markers
+  // from clipping the table border.
+  const midX = (srcX + tgtX) / 2;
+  const d = `M ${srcX} ${srcY} L ${midX} ${srcY} L ${midX} ${tgtY} L ${tgtX} ${tgtY}`;
+
+  return (
+    <path
+      d={d}
+      stroke="rgb(var(--fg-muted))"
+      strokeWidth="1.2"
+      fill="none"
+      markerStart={`url(#er-${c.fromCard})`}
+      markerEnd={`url(#er-${c.toCard})`}
+    />
+  );
+}
+
+function SchemaTableSvg({ table }: { table: SchemaTable }) {
+  const h = tableHeight(table);
+  const isEntity = table.palette === "entity";
+  const headerFill = isEntity ? "#CB2C30" : "#1C60AC";
+
+  // Index of the last PK row so we can draw the dashed separator after it.
+  const lastPkIdx = table.columns.findIndex((c) => c.kind !== "pk") - 1;
+
+  return (
+    <g>
+      {/* Outer border */}
+      <rect
+        x={table.x}
+        y={table.y}
+        width={table.width}
+        height={h}
+        rx="6"
+        ry="6"
+        fill="rgb(var(--surface))"
+        stroke="rgb(var(--border))"
+      />
+
+      {/* Header band */}
+      <path
+        d={`M ${table.x} ${table.y + HEADER_HEIGHT}
+            L ${table.x} ${table.y + 6}
+            Q ${table.x} ${table.y} ${table.x + 6} ${table.y}
+            L ${table.x + table.width - 6} ${table.y}
+            Q ${table.x + table.width} ${table.y} ${table.x + table.width} ${table.y + 6}
+            L ${table.x + table.width} ${table.y + HEADER_HEIGHT} Z`}
+        fill={headerFill}
+      />
+      <text
+        x={table.x + table.width / 2}
+        y={table.y + 22}
+        fontSize="14"
+        fontWeight="700"
+        fill="#fff"
+        textAnchor="middle"
+      >
+        {table.name}
+      </text>
+      <text
+        x={table.x + table.width / 2}
+        y={table.y + 40}
+        fontSize="10"
+        fill="rgba(255,255,255,0.85)"
+        textAnchor="middle"
+      >
+        {table.source}
+      </text>
+
+      {/* Rows */}
+      {table.columns.map((col, i) => {
+        const rowY = table.y + HEADER_HEIGHT + i * ROW_HEIGHT;
+        return (
+          <g key={col.name}>
+            {/* PK badge */}
+            {col.kind === "pk" && (
+              <>
+                <rect
+                  x={table.x + 8}
+                  y={rowY + 4}
+                  width={26}
+                  height={14}
+                  rx="3"
+                  fill="#CB2C30"
+                />
+                <text
+                  x={table.x + 21}
+                  y={rowY + 14}
+                  fontSize="9"
+                  fontWeight="700"
+                  fill="#fff"
+                  textAnchor="middle"
+                >
+                  PK
+                </text>
+              </>
+            )}
+            {col.kind === "fk" && (
+              <>
+                <rect
+                  x={table.x + 8}
+                  y={rowY + 4}
+                  width={26}
+                  height={14}
+                  rx="3"
+                  fill="#1C60AC"
+                />
+                <text
+                  x={table.x + 21}
+                  y={rowY + 14}
+                  fontSize="9"
+                  fontWeight="700"
+                  fill="#fff"
+                  textAnchor="middle"
+                >
+                  FK
+                </text>
+              </>
+            )}
+            <text
+              x={table.x + 42}
+              y={rowY + 15}
+              fontSize="11"
+              fill="rgb(var(--fg))"
+              fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+            >
+              {col.name}
+            </text>
+            <text
+              x={table.x + table.width - 8}
+              y={rowY + 15}
+              fontSize="10"
+              fill="rgb(var(--fg-muted))"
+              textAnchor="end"
+              fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+            >
+              {col.type}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Dashed separator under the PK rows (Visio convention). */}
+      {lastPkIdx >= 0 && (
+        <line
+          x1={table.x + 8}
+          y1={table.y + HEADER_HEIGHT + (lastPkIdx + 1) * ROW_HEIGHT - 1}
+          x2={table.x + table.width - 8}
+          y2={table.y + HEADER_HEIGHT + (lastPkIdx + 1) * ROW_HEIGHT - 1}
+          stroke="rgb(var(--border))"
+          strokeDasharray="2 3"
+        />
+      )}
+    </g>
+  );
+}
+
+function Legend({
+  items,
+}: {
+  items: { palette: PaletteKey; label: string }[];
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-3 text-[11px]">
+      <span className="font-semibold uppercase tracking-wider text-fg-muted">
+        Legend
+      </span>
+      {items.map((it) => (
+        <span key={it.label} className="inline-flex items-center gap-1.5">
+          <span
+            className={cn(
+              "inline-block h-3 w-3 rounded-sm border",
+              PALETTE[it.palette],
+            )}
+          />
+          <span className="text-fg-muted">{it.label}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
