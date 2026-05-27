@@ -1,6 +1,15 @@
 import { graphFetch } from "./graph";
 import { SP_SITE_ID, USE_MOCK } from "./config";
 
+// Module-level dedup map. Multiple components (DetailView, CommentComposer,
+// Header) can call useCurrentUser on first page mount, each firing its own
+// resolveCurrentUserLookupId concurrently. Without dedup, all three fire
+// parallel Graph token requests — MSAL only allows one interactive auth at
+// a time, so the second/third hit `interaction_in_progress` and the popup
+// fallback gets blocked. Sharing a single in-flight promise per email means
+// concurrent callers await the same resolution.
+const inflight = new Map<string, Promise<number>>();
+
 /**
  * Resolve the signed-in user's SharePoint user lookupId for the site.
  *
@@ -24,6 +33,20 @@ export async function resolveCurrentUserLookupId(email: string): Promise<number>
   if (USE_MOCK) return 0;
   if (!email) return 0;
 
+  // Coalesce concurrent callers onto a single in-flight Graph call.
+  const existing = inflight.get(email);
+  if (existing) return existing;
+
+  const promise = doResolve(email);
+  inflight.set(email, promise);
+  try {
+    return await promise;
+  } finally {
+    inflight.delete(email);
+  }
+}
+
+async function doResolve(email: string): Promise<number> {
   // The hidden User Information List has the well-known name "User Information List"
   // but is referenced by its system path. Easiest: query the site's /sites/{id}/lists
   // and find it, or query directly with the list title.

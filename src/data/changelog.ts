@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.22.4",
+    date: "2026-05-27",
+    changes: [
+      "Fixed the 'interaction_in_progress' + 'popup_window_error' cascade on first page load. The signed-in user's SharePoint LookupId is resolved by three different components on mount (DetailView, CommentComposer, Header) and each was firing its own Graph token request in parallel. MSAL only allows one interactive auth at a time, so the 2nd/3rd hit `interaction_in_progress` and the popup fallback got blocked. Concurrent callers now share a single in-flight promise per email — one Graph call instead of three, no popup fights.",
+    ],
+  },
+  {
     version: "0.22.3",
     date: "2026-05-27",
     changes: [
