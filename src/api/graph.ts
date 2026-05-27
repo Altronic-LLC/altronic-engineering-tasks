@@ -98,8 +98,20 @@ export async function graphFetch<T>(path: string, init: RequestInit = {}): Promi
     throw new GraphError(response.status, response.statusText, body, url);
   }
 
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  // Some Graph endpoints return success with NO body — e.g. /sendMail returns
+  // 202 Accepted with an empty body, 204 No Content speaks for itself. Trying
+  // to .json() those throws "Unexpected end of JSON input", which the caller
+  // would then mis-report as a failure. Read as text first and parse only if
+  // there's content.
+  const text = await response.text();
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // Non-JSON response on a 2xx (rare — would be a Graph bug). Return the
+    // raw text so callers can decide what to do.
+    return text as unknown as T;
+  }
 }
 
 /**

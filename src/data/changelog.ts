@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.22.3",
+    date: "2026-05-27",
+    changes: [
+      "Fixed a cosmetic but loud bug: @-mention and Report-issue sends were succeeding (the email actually went out) but the app reported them as failures in the console because Graph returns 202 Accepted with an empty body for sendMail, and our HTTP helper unconditionally called response.json(), which threw on the empty body. Empty 2xx responses now resolve cleanly to undefined",
+    ],
+  },
+  {
     version: "0.22.2",
     date: "2026-05-22",
     changes: [
