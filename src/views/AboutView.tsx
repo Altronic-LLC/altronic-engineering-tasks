@@ -59,8 +59,8 @@ const SYSTEM_TIERS: Tier[] = [
     label: "React SPA",
     nodes: [
       { label: "Views", hint: "Dashboard · List · Kanban · Detail · EIRs · Test Sheets · Admin", palette: "ui" },
-      { label: "React Query hooks", hint: "useTasks · useEirs · useTestSheets · useAdmins · useTaskFiles", palette: "ui" },
-      { label: "API layer", hint: "src/api/tasks · eirs · testSheets · admins · projectFiles · attachments · email · errorReport", palette: "ui" },
+      { label: "React Query hooks", hint: "useTasks · useEirs · useTestSheets · useAdmins · useEirRoles · useTaskFiles", palette: "ui" },
+      { label: "API layer", hint: "src/api/tasks · eirs · testSheets · admins · eirRoles · projectFiles · attachments · email · errorReport", palette: "ui" },
     ],
   },
   {
@@ -81,6 +81,7 @@ const SYSTEM_TIERS: Tier[] = [
       { label: "Test Results", palette: "list" },
       { label: "EIRs", palette: "list" },
       { label: "Admins", palette: "list" },
+      { label: "EIR Roles", hint: "engineer / supply-chain field permissions", palette: "list" },
       { label: "Documents library", hint: "General/Project Folders/* — task & comment files land here", palette: "list" },
       { label: "List-item attachments", hint: "SharePoint REST · per-item files on Tasks & EIRs", palette: "list" },
     ],
@@ -211,6 +212,18 @@ const SCHEMA_TABLES: SchemaTable[] = [
     ],
   },
   {
+    name: "EirRole",
+    source: "EIR Roles list",
+    palette: "entity",
+    x: 960, y: 660, width: 290,
+    columns: [
+      { name: "id", type: "int", kind: "pk" },
+      { name: "email", type: "text", kind: "fk", references: "Person.email" },
+      { name: "displayName", type: "text", kind: "field" },
+      { name: "roles", type: "csv", kind: "field" },
+    ],
+  },
+  {
     name: "Comment",
     source: "Concept (Communication field)",
     palette: "shared",
@@ -302,6 +315,8 @@ const CONNECTIONS: Connection[] = [
   { fromTable: "TestSheet", fromColumn: "tester", toTable: "Person", toColumn: "id", fromCard: "many", toCard: "one" },
   // Admin → Person
   { fromTable: "Admin", fromColumn: "email", toTable: "Person", toColumn: "email", fromCard: "one", toCard: "one" },
+  // EirRole → Person
+  { fromTable: "EirRole", fromColumn: "email", toTable: "Person", toColumn: "email", fromCard: "one", toCard: "one" },
   // Comment → Task & EIR
   { fromTable: "Comment", fromColumn: "parentId", toTable: "Task", toColumn: "id", fromCard: "many", toCard: "one" },
   { fromTable: "Comment", fromColumn: "parentId", toTable: "EIR", toColumn: "id", fromCard: "many", toCard: "one" },

@@ -77,12 +77,20 @@ export function AdminProjectsView() {
             choices on every task.
           </p>
         </div>
-        <Link
-          to="/admin/admins"
-          className="shrink-0 text-xs text-accent underline-offset-2 hover:underline"
-        >
-          Admins →
-        </Link>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <Link
+            to="/admin/admins"
+            className="text-xs text-accent underline-offset-2 hover:underline"
+          >
+            Admins →
+          </Link>
+          <Link
+            to="/admin/eir-roles"
+            className="text-xs text-accent underline-offset-2 hover:underline"
+          >
+            EIR Roles →
+          </Link>
+        </div>
       </div>
 
       <section className="mb-6 rounded-lg border border-border bg-surface p-4 sm:p-5">

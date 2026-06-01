@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.23.0",
+    date: "2026-06-01",
+    changes: [
+      "New Admin → EIR Roles page (/admin/eir-roles) where admins tag users as Engineer and/or Supply Chain. Only admins can manage the list",
+      "EIR fields are now permission-gated: only Engineers can edit an EIR's Engineering Response, and only Supply Chain can edit the Buyer Code. Everyone else can still edit every other EIR field. Locked fields show a small lock icon explaining which role is needed",
+      "Gating stays off until the EIR Roles list is set up in SharePoint, so nothing changes for existing users until an admin configures it",
+    ],
+  },
+  {
     version: "0.22.8",
     date: "2026-06-01",
     changes: [

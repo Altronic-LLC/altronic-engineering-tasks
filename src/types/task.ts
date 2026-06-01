@@ -110,6 +110,29 @@ export interface AdminEntry {
 }
 
 /**
+ * EIR role tags. These gate which fields a user may edit on an EIR:
+ *   - "engineer"     → may edit the Engineering Response field
+ *   - "supply chain" → may edit the Buyer Code field
+ * A user can hold both. The field→role map lives in EirDetailView.
+ */
+export const EIR_ROLES = ["engineer", "supply chain"] as const;
+export type EirRole = (typeof EIR_ROLES)[number];
+
+/**
+ * Row in the EIR Roles SharePoint list (admin-managed). One entry per user,
+ * keyed by email, carrying the set of role tags. `id` is the SP list item id
+ * (used for update/delete).
+ */
+export interface EirRoleEntry {
+  id: number;
+  email: string;
+  displayName: string;
+  roles: EirRole[];
+  /** Optional note — purely cosmetic. */
+  note: string;
+}
+
+/**
  * A bare reference to another task — just the bits we need to render a
  * pill/link without re-fetching the full task. Used for parent and child
  * task references.

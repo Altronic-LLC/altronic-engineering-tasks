@@ -22,6 +22,21 @@ export const SP_EIRS_LIST_ID = import.meta.env.VITE_SP_EIRS_LIST_ID;
 export const SP_ADMINS_LIST_ID = import.meta.env.VITE_SP_ADMINS_LIST_ID;
 
 /**
+ * EIR Roles list — one row per user (Title = email) with a `Roles` text
+ * column (CSV of "engineer" / "supply chain"). Controls which EIR fields a
+ * user may edit. Managed at /admin/eir-roles by admins.
+ */
+export const SP_EIR_ROLES_LIST_ID = import.meta.env.VITE_SP_EIR_ROLES_LIST_ID;
+
+/**
+ * Whether EIR field-level role gating is active. Off in real mode until the
+ * EIR Roles list is configured, so nobody is locked out of editing the gated
+ * fields before an admin has set the list up and added people. Always on in
+ * mock mode so the feature is demoable.
+ */
+export const EIR_ROLES_ENFORCED = USE_MOCK || !!SP_EIR_ROLES_LIST_ID;
+
+/**
  * SharePoint site web URL — used to call the SP REST API (specifically for
  * list-item attachments, which Graph v1.0 doesn't surface cleanly).
  * Example: https://coopermachineryservices.sharepoint.com/sites/Altronic_Engineering

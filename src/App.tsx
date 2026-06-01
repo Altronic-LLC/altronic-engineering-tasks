@@ -11,6 +11,7 @@ import { PrintTaskView } from "@/views/PrintTaskView";
 import { ProjectView } from "@/views/ProjectView";
 import { AdminProjectsView } from "@/views/AdminProjectsView";
 import { AdminAdminsView } from "@/views/AdminAdminsView";
+import { AdminEirRolesView } from "@/views/AdminEirRolesView";
 import { TestSheetsView } from "@/views/TestSheetsView";
 import { TestSheetDetailView } from "@/views/TestSheetDetailView";
 import { EirsView } from "@/views/EirsView";
@@ -47,6 +48,7 @@ export function App() {
           <Route path="/project/:id" element={<ProjectView />} />
           <Route path="/admin/projects" element={<AdminProjectsView />} />
           <Route path="/admin/admins" element={<AdminAdminsView />} />
+          <Route path="/admin/eir-roles" element={<AdminEirRolesView />} />
           <Route path="/admin" element={<Navigate to="/admin/admins" replace />} />
           <Route path="/test-sheets" element={<TestSheetsView />} />
           <Route path="/test-sheet/:id" element={<TestSheetDetailView />} />

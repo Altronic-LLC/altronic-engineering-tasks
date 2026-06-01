@@ -1,37 +1,69 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Shield, Trash2, UserPlus } from "lucide-react";
-import { useAddAdmin, useAdmins, useRemoveAdmin } from "@/hooks/useAdmins";
+import { ArrowLeft, Plus, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import {
+  useAddEirRole,
+  useEirRoles,
+  useRemoveEirRole,
+  useUpdateEirRole,
+} from "@/hooks/useEirRoles";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { LoadingTasks } from "@/components/LoadingTasks";
-import { SP_ADMINS_LIST_ID } from "@/api/config";
-import { USE_MOCK } from "@/api/config";
+import { EIR_ROLES, type EirRole } from "@/types/task";
+import { SP_EIR_ROLES_LIST_ID, USE_MOCK } from "@/api/config";
+
+const ROLE_LABELS: Record<EirRole, string> = {
+  engineer: "Engineer",
+  "supply chain": "Supply Chain",
+};
+
+const ROLE_GATES: Record<EirRole, string> = {
+  engineer: "Can edit Engineering Response",
+  "supply chain": "Can edit Buyer Code",
+};
 
 /**
- * Admin → Admins page. Lists every entry in the Admins SharePoint list
- * and lets admins add / remove. Users with an email on this list see the
- * Admin link in the header and can reach this page; everyone else sees a
- * "not authorised" notice.
+ * Admin → EIR Roles page. Lists every entry in the EIR Roles SharePoint list
+ * and lets admins add / remove users and toggle their role tags. Roles gate
+ * which fields a user may edit on an EIR (Engineering Response = engineer,
+ * Buyer Code = supply chain). Access gated by useIsAdmin().
  */
-export function AdminAdminsView() {
+export function AdminEirRolesView() {
   const navigate = useNavigate();
   const isAdmin = useIsAdmin();
   const currentUser = useCurrentUser();
-  const { data: admins = [], isLoading } = useAdmins();
-  const add = useAddAdmin();
-  const remove = useRemoveAdmin();
+  const { data: entries = [], isLoading } = useEirRoles();
+  const add = useAddEirRole();
+  const update = useUpdateEirRole();
+  const remove = useRemoveEirRole();
   const [showNew, setShowNew] = useState(false);
 
   if (!isAdmin) {
     return (
-      <div className="mx-auto max-w-[800px] px-4 py-12">
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-fg-muted">
-          You don't have admin access. Ask another admin to add{" "}
-          <code>{currentUser.email}</code> to the admin list.
-        </div>
+      <div className="mx-auto max-w-2xl px-4 py-12 text-center">
+        <ShieldCheck className="mx-auto h-10 w-10 text-fg-muted" />
+        <h1 className="mt-4 font-display text-xl font-semibold text-fg">Admin access required</h1>
+        <p className="mt-2 text-sm text-fg-muted">
+          The EIR Roles admin page is restricted to authorised users. If you
+          need access, contact your administrator.
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          className="mt-4 inline-flex items-center gap-1.5 text-sm text-accent underline-offset-2 hover:underline"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to task list
+        </button>
       </div>
     );
+  }
+
+  function toggleRole(id: number, current: EirRole[], role: EirRole) {
+    const next = current.includes(role)
+      ? current.filter((r) => r !== role)
+      : [...current, role];
+    update.mutate({ id, roles: next });
   }
 
   return (
@@ -45,39 +77,34 @@ export function AdminAdminsView() {
 
       <header className="flex items-center gap-3">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-cooper-red/10 text-cooper-red">
-          <Shield className="h-5 w-5" />
+          <ShieldCheck className="h-5 w-5" />
         </span>
         <div>
           <h1 className="font-display text-xl font-semibold text-fg sm:text-2xl">
-            Admins
+            EIR Roles
           </h1>
           <p className="text-xs text-fg-muted">
-            People with this email appear in the Admin section and can manage
-            projects, the admin list, and any future admin-gated features.
+            Tag users with elevated EIR permissions. Engineers can edit the
+            Engineering Response; Supply Chain can edit the Buyer Code. Everyone
+            else can still edit all other EIR fields.
           </p>
         </div>
         <div className="ml-auto flex flex-col items-end gap-1">
-          <Link
-            to="/admin/projects"
-            className="text-xs text-accent underline-offset-2 hover:underline"
-          >
-            Projects admin →
+          <Link to="/admin/admins" className="text-xs text-accent underline-offset-2 hover:underline">
+            Admins →
           </Link>
-          <Link
-            to="/admin/eir-roles"
-            className="text-xs text-accent underline-offset-2 hover:underline"
-          >
-            EIR Roles admin →
+          <Link to="/admin/projects" className="text-xs text-accent underline-offset-2 hover:underline">
+            Projects admin →
           </Link>
         </div>
       </header>
 
-      {!USE_MOCK && !SP_ADMINS_LIST_ID && (
+      {!USE_MOCK && !SP_EIR_ROLES_LIST_ID && (
         <div className="rounded-md border border-ajax-yellow/40 bg-ajax-yellow/5 p-3 text-xs text-fg">
-          <span className="font-semibold text-ajax-yellow">Admins list not configured.</span>{" "}
-          Create a SharePoint list (Title = email, plus DisplayName + Note text columns) and
-          set <code>VITE_SP_ADMINS_LIST_ID</code>. Until then this page only shows the bootstrap
-          admins from the code.
+          <span className="font-semibold text-ajax-yellow">EIR Roles list not configured.</span>{" "}
+          Create a SharePoint list (Title = email, plus DisplayName, Note, and Roles text columns)
+          and set <code>VITE_SP_EIR_ROLES_LIST_ID</code>. Until then, EIR field gating is OFF
+          (everyone can edit every field) and this page can't store changes.
         </div>
       )}
 
@@ -86,15 +113,15 @@ export function AdminAdminsView() {
           onClick={() => setShowNew(true)}
           className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent/90"
         >
-          <UserPlus className="h-4 w-4" /> Add admin
+          <UserPlus className="h-4 w-4" /> Add user
         </button>
       </div>
 
       {isLoading ? (
-        <LoadingTasks noun="admins" />
-      ) : admins.length === 0 ? (
+        <LoadingTasks noun="EIR roles" />
+      ) : entries.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-12 text-center text-fg-muted">
-          No admins on the list yet. Click "Add admin" to seed it.
+          No users tagged yet. Click "Add user" to grant EIR permissions.
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border">
@@ -103,18 +130,19 @@ export function AdminAdminsView() {
               <tr className="border-b border-border bg-surface-2 text-left text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
                 <th className="px-3 py-2">Name</th>
                 <th className="px-3 py-2">Email</th>
+                <th className="px-3 py-2">Roles</th>
                 <th className="px-3 py-2">Note</th>
                 <th className="px-3 py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {admins.map((a) => {
+              {entries.map((e) => {
                 const isSelf =
-                  (currentUser.email ?? "").toLowerCase() === a.email.toLowerCase();
-                const name = a.displayName || deriveNameFromEmail(a.email);
+                  (currentUser.email ?? "").toLowerCase() === e.email.toLowerCase();
+                const name = e.displayName || deriveNameFromEmail(e.email);
                 return (
                   <tr
-                    key={a.id}
+                    key={e.id}
                     className="border-b border-border last:border-b-0 odd:bg-surface even:bg-surface-2/40"
                   >
                     <td className="px-3 py-2 font-medium text-fg">
@@ -125,26 +153,40 @@ export function AdminAdminsView() {
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 font-mono text-xs text-fg-muted">
-                      {a.email}
+                    <td className="px-3 py-2 font-mono text-xs text-fg-muted">{e.email}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-3">
+                        {EIR_ROLES.map((role) => (
+                          <label
+                            key={role}
+                            className="inline-flex items-center gap-1.5 text-xs text-fg"
+                            title={ROLE_GATES[role]}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={e.roles.includes(role)}
+                              disabled={update.isPending}
+                              onChange={() => toggleRole(e.id, e.roles, role)}
+                              className="h-3.5 w-3.5 accent-accent"
+                            />
+                            {ROLE_LABELS[role]}
+                          </label>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-xs text-fg-muted">
-                      {a.note || <span className="opacity-50">—</span>}
+                      {e.note || <span className="opacity-50">—</span>}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <button
                         onClick={() => {
-                          if (
-                            window.confirm(
-                              `Remove ${name} from the admin list?`,
-                            )
-                          ) {
-                            remove.mutate(a.id);
+                          if (window.confirm(`Remove ${name} from the EIR Roles list?`)) {
+                            remove.mutate(e.id);
                           }
                         }}
-                        disabled={remove.isPending || isSelf}
-                        title={isSelf ? "You can't remove yourself" : "Remove admin"}
-                        className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-xs text-fg-muted transition-colors hover:border-cooper-red hover:text-cooper-red disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-fg-muted"
+                        disabled={remove.isPending}
+                        title="Remove user"
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-xs text-fg-muted transition-colors hover:border-cooper-red hover:text-cooper-red disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         <Trash2 className="h-3 w-3" />
                         Remove
@@ -159,7 +201,7 @@ export function AdminAdminsView() {
       )}
 
       {showNew && (
-        <NewAdminModal
+        <NewEirRoleModal
           onClose={() => {
             setShowNew(false);
             add.reset();
@@ -169,9 +211,7 @@ export function AdminAdminsView() {
               await add.mutateAsync(input);
               setShowNew(false);
             } catch (err) {
-              // Don't close — leave the modal open so the user can read the
-              // error message rendered below and retry without re-typing.
-              console.error("Failed to add admin:", err);
+              console.error("Failed to add EIR role:", err);
             }
           }}
           submitting={add.isPending}
@@ -181,27 +221,42 @@ export function AdminAdminsView() {
 
       {remove.error && (
         <div className="rounded-md border border-cooper-red/40 bg-cooper-red/10 p-3 text-xs text-cooper-red">
-          Couldn't remove admin: {(remove.error as Error).message}
+          Couldn't remove user: {(remove.error as Error).message}
+        </div>
+      )}
+      {update.error && (
+        <div className="rounded-md border border-cooper-red/40 bg-cooper-red/10 p-3 text-xs text-cooper-red">
+          Couldn't update roles: {(update.error as Error).message}
         </div>
       )}
     </div>
   );
 }
 
-function NewAdminModal({
+function NewEirRoleModal({
   onClose,
   onSubmit,
   submitting,
   error,
 }: {
   onClose: () => void;
-  onSubmit: (input: { email: string; displayName: string; note: string }) => void;
+  onSubmit: (input: {
+    email: string;
+    displayName: string;
+    roles: EirRole[];
+    note: string;
+  }) => void;
   submitting: boolean;
   error: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [note, setNote] = useState("");
+  const [roles, setRoles] = useState<EirRole[]>([]);
+
+  function toggle(role: EirRole) {
+    setRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
+  }
 
   return (
     <div
@@ -209,57 +264,68 @@ function NewAdminModal({
       onClick={onClose}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
+        onClick={(ev) => ev.stopPropagation()}
         className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-xl"
       >
         <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-semibold text-fg">
-          <Plus className="h-4 w-4 text-accent" /> Add admin
+          <Plus className="h-4 w-4 text-accent" /> Add user to EIR Roles
         </h2>
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
+          onSubmit={(ev) => {
+            ev.preventDefault();
             if (!email.trim()) return;
             onSubmit({
               email: email.trim().toLowerCase(),
               displayName: displayName.trim(),
+              roles,
               note: note.trim(),
             });
           }}
           className="flex flex-col gap-3"
         >
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold uppercase tracking-wider text-fg-muted">
-              Email
-            </span>
+            <span className="font-semibold uppercase tracking-wider text-fg-muted">Email</span>
             <input
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(ev) => setEmail(ev.target.value)}
               placeholder="someone@altronic-llc.com"
               className="rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold uppercase tracking-wider text-fg-muted">
-              Display Name
-            </span>
+            <span className="font-semibold uppercase tracking-wider text-fg-muted">Display Name</span>
             <input
               type="text"
               value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              onChange={(ev) => setDisplayName(ev.target.value)}
               placeholder="Jane Smith"
               className="rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </label>
+          <fieldset className="flex flex-col gap-1.5 text-xs">
+            <span className="font-semibold uppercase tracking-wider text-fg-muted">Roles</span>
+            <div className="flex flex-wrap gap-4">
+              {EIR_ROLES.map((role) => (
+                <label key={role} className="inline-flex items-center gap-1.5 text-sm text-fg" title={ROLE_GATES[role]}>
+                  <input
+                    type="checkbox"
+                    checked={roles.includes(role)}
+                    onChange={() => toggle(role)}
+                    className="h-3.5 w-3.5 accent-accent"
+                  />
+                  {ROLE_LABELS[role]}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold uppercase tracking-wider text-fg-muted">
-              Note (optional)
-            </span>
+            <span className="font-semibold uppercase tracking-wider text-fg-muted">Note (optional)</span>
             <input
               type="text"
               value={note}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={(ev) => setNote(ev.target.value)}
               placeholder="Role / context for granting access"
               className="rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
@@ -282,7 +348,7 @@ function NewAdminModal({
               disabled={submitting || !email.trim()}
               className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent/90 disabled:opacity-50"
             >
-              {submitting ? "Adding…" : "Add admin"}
+              {submitting ? "Adding…" : "Add user"}
             </button>
           </div>
         </form>
@@ -292,10 +358,8 @@ function NewAdminModal({
 }
 
 /**
- * Make a readable "First Last" out of an email address when the user
- * didn't bother filling in the Display Name field. Handles the common
- * altronic-llc.com pattern `first.last@…` (capitalises each segment) and
- * falls back to the raw local part for unusual formats.
+ * Make a readable "First Last" out of an email when no Display Name was set.
+ * Mirrors the helper in AdminAdminsView.
  */
 function deriveNameFromEmail(email: string): string {
   const local = email.split("@")[0] ?? email;

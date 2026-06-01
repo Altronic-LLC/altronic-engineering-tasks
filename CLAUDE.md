@@ -277,8 +277,37 @@ Already confirmed (don't change without re-verifying):
 - **Projects List ID:** `6280c711-14f6-4546-b730-8781b9d3c960` (env: `VITE_SP_PROJECTS_LIST_ID`)
 - **Test Results List ID:** `52173cd3-74ca-4d30-95c4-7a6b2d765edc` (env: `VITE_SP_TEST_RESULTS_LIST_ID`) — drives the Test Sheets view and the "Create Test Sheet" button on tasks. Both Project Reference and Task Reference columns point back to the lists above, so creating from a task is just two `LookupId` writes.
 - **EIRs List ID:** `8d00a762-288c-4678-afc4-cba2f24ac965` (env: `VITE_SP_EIRS_LIST_ID`) — Engineering Information Request list. Has its own Status / Resolution / Request Type workflows + a Communication field for comments. Project Reference is a lookup to the same Projects list; Task Reference is free-text. See `src/lib/eirMapper.ts` for the field-name quirks (`MFGP_x002f_N`, `Current_x0020_Price`, truncated `Requested_x0020_Completion_x0020`, the `Priority` choice column vs `Priority0` numeric column).
+- **EIR Roles List ID** (env: `VITE_SP_EIR_ROLES_LIST_ID`) — admin-managed list (Title = email, plus `DisplayName`, `Note`, and `Roles` text columns). `Roles` holds a lowercase CSV of role tags (`engineer`, `supply chain`). Gates which EIR fields a user may edit (see "EIR field permissions" below). Not yet created — set the env var once the list exists. Managed at `/admin/eir-roles`.
 - **Shared mailbox** (env: `VITE_SHARED_MAILBOX`) — email address that @-mention notifications send FROM. See setup below.
 - **App manager email** (env: `VITE_APP_MANAGER_EMAIL`) — recipient of "Report issue" reports sent from the life-buoy button in the header. Falls back to `ray.white@altronic-llc.com` if unset, so the button works on day one. Sent FROM the same shared mailbox, with the reporter CC'd. See `src/api/errorReport.ts`.
+
+## EIR field permissions (roles)
+
+Two EIR fields are edit-gated by role tags from the **EIR Roles** list:
+
+- **Engineering Response** → requires the `engineer` role.
+- **Buyer Code** → requires the `supply chain` role.
+
+Every other EIR field stays editable by any signed-in user. A user can hold
+both roles. This is **UI-level gating only** — it disables/locks the controls;
+it is not a server-side security boundary (a user with SharePoint write access
+could still edit the column directly in SharePoint).
+
+Pieces:
+
+- `src/api/eirRoles.ts` + `src/hooks/useEirRoles.ts` — CRUD over the EIR Roles
+  list (mock + real), mirroring the Admins feature. `useMyEirRoles()` resolves
+  the current user's `{ isEngineer, isSupplyChain, enforced }`.
+- `src/views/AdminEirRolesView.tsx` (`/admin/eir-roles`) — admin-gated UI to
+  tag users. Only admins (`useIsAdmin`) can modify it.
+- The field→role map lives **inline in `src/views/EirDetailView.tsx`**: the
+  `EditableTextCard`/`InlineTextField` helpers take a `disabled`/`disabledHint`
+  prop, and the view passes `enforced && !isEngineer` / `enforced && !isSupplyChain`.
+  To gate another field, add the same `disabled` prop where it's rendered.
+- **Lockout safety:** `EIR_ROLES_ENFORCED` (in `src/api/config.ts`) is
+  `USE_MOCK || !!SP_EIR_ROLES_LIST_ID`. In real mode, until the list is
+  configured, gating is OFF so nobody is locked out. Admins are NOT auto-granted
+  roles — they must add themselves to the EIR Roles list to edit gated fields.
 
 ## @-mention email notifications
 

@@ -722,9 +722,14 @@ const SECTIONS: ManualSection[] = [
       "project references",
       "projects admin",
       "manage projects",
+      "eir roles",
+      "engineer role",
+      "supply chain role",
+      "field permissions",
+      "who can edit",
     ],
     searchText:
-      "Admins manage two things from the Admin section in the header: the list of admin users (/admin/admins) and the project references catalogue (/admin/projects). The Admin link only appears in the header for users on the admin list. Add an admin from the Admins page; their name appears in the header on their next sign-in. Removing yourself is disabled to prevent lockouts. A small hardcoded bootstrap set of admins stays in the code as a safety net.",
+      "Admins manage three things from the Admin section in the header: the list of admin users (/admin/admins), the project references catalogue (/admin/projects), and EIR roles (/admin/eir-roles) which control who can edit the Engineering Response (engineer role) and Buyer Code (supply chain role) fields on an EIR. The Admin link only appears in the header for users on the admin list. Add an admin from the Admins page; their name appears in the header on their next sign-in. Removing yourself is disabled to prevent lockouts. A small hardcoded bootstrap set of admins stays in the code as a safety net.",
     render: () => (
       <>
         <P>
@@ -751,6 +756,23 @@ const SECTIONS: ManualSection[] = [
           navigate to <code>/admin/projects</code> directly) opens the Project
           References editor. Add new projects there and they immediately
           become available as parent / related project choices on every task.
+        </P>
+        <H3>EIR Roles admin</H3>
+        <P>
+          The <strong>EIR Roles admin →</strong> link (or{" "}
+          <code>/admin/eir-roles</code>) controls who can edit the two
+          restricted EIR fields. Add a user, then tick <strong>Engineer</strong>{" "}
+          (lets them edit an EIR's <strong>Engineering Response</strong>) and/or{" "}
+          <strong>Supply Chain</strong> (lets them edit the{" "}
+          <strong>Buyer Code</strong>). A user can hold both. Everyone signed in
+          can still edit every other EIR field — only those two are gated. The
+          checkboxes save instantly; remove a user to drop all their EIR roles.
+        </P>
+        <P>
+          On the EIR itself, a locked field shows a small lock icon and a
+          tooltip explaining which role is required. Until the EIR Roles list is
+          set up in SharePoint (real mode), gating stays off and everyone can
+          edit both fields.
         </P>
         <Tip>
           If you're trying to add yourself and the modal closes silently with

@@ -8,6 +8,7 @@ import {
   Flag,
   FolderOpen,
   HardHat,
+  Lock,
   Pencil,
   Tag,
   User,
@@ -24,6 +25,7 @@ import {
 } from "@/hooks/useEirs";
 import { useTasks, useProjects } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useMyEirRoles } from "@/hooks/useEirRoles";
 import {
   EIR_REQUEST_TYPES,
   EIR_REQUESTED_PRIORITIES,
@@ -53,6 +55,10 @@ export function EirDetailView() {
   const { data: eir, isLoading } = useEir(eirId);
   const { data: tasks = [] } = useTasks();
   const currentUser = useCurrentUser();
+  // EIR field-level role gating. Engineering Response = engineer,
+  // Buyer Code = supply chain. `enforced` is false (gating off) when the
+  // EIR Roles list isn't configured in real mode — see useMyEirRoles.
+  const { isEngineer, isSupplyChain, enforced } = useMyEirRoles();
 
   const updateFields = useUpdateEirFields();
   const setReporter = useSetEirReporter();
@@ -209,6 +215,8 @@ export function EirDetailView() {
           <EditableTextCard
             title="Engineering Response"
             value={eir.engineeringResponse}
+            disabled={enforced && !isEngineer}
+            disabledHint="Only users with the Engineer role can edit the Engineering Response."
             onSave={(next) =>
               updateFields.mutate({ id: eir.id, fields: { EngineeringResponse: next } })
             }
@@ -270,6 +278,8 @@ export function EirDetailView() {
               <InlineTextField
                 label="Buyer Code"
                 value={eir.buyerCode}
+                disabled={enforced && !isSupplyChain}
+                disabledHint="Only users with the Supply Chain role can edit the Buyer Code."
                 onSave={(v) => updateFields.mutate({ id: eir.id, fields: { BuyerCode: v } })}
               />
             </div>
@@ -556,20 +566,35 @@ function EditableTextCard({
   title,
   value,
   onSave,
+  disabled = false,
+  disabledHint,
 }: {
   title: string;
   value: string;
   onSave: (next: string) => void;
+  /** When true, the field is read-only: no Edit button, a lock badge instead. */
+  disabled?: boolean;
+  /** Tooltip explaining why editing is locked (shown on the lock badge). */
+  disabledHint?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
+  // Never stay in editing mode if the field becomes locked.
+  const isEditing = editing && !disabled;
   return (
     <div className="rounded-lg border border-border bg-surface p-4 sm:p-5">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-fg-muted">
           {title}
         </h2>
-        {!editing ? (
+        {disabled ? (
+          <span
+            className="inline-flex items-center gap-1 text-xs text-fg-muted"
+            title={disabledHint}
+          >
+            <Lock className="h-3 w-3" /> Locked
+          </span>
+        ) : !isEditing ? (
           <button
             onClick={() => {
               setDraft(value);
@@ -599,7 +624,7 @@ function EditableTextCard({
           </div>
         )}
       </div>
-      {editing ? (
+      {isEditing ? (
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -815,12 +840,18 @@ function InlineTextField({
   onSave,
   mono,
   placeholder,
+  disabled = false,
+  disabledHint,
 }: {
   label: string;
   value: string;
   onSave: (next: string) => void;
   mono?: boolean;
   placeholder?: string;
+  /** When true, the input is read-only and a lock icon sits beside the label. */
+  disabled?: boolean;
+  /** Tooltip explaining why editing is locked. */
+  disabledHint?: string;
 }) {
   const [draft, setDraft] = useState(value);
   if (draft !== value && document.activeElement?.tagName !== "INPUT") {
@@ -829,18 +860,21 @@ function InlineTextField({
   return (
     <label className="flex flex-col gap-1">
       {label && (
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+        <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
           {label}
+          {disabled && <Lock className="h-3 w-3" aria-label="Locked" />}
         </span>
       )}
       <input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
-          if (draft !== value) onSave(draft);
+          if (!disabled && draft !== value) onSave(draft);
         }}
         placeholder={placeholder}
-        className={`w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 ${
+        disabled={disabled}
+        title={disabled ? disabledHint : undefined}
+        className={`w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60 ${
           mono ? "font-mono" : ""
         }`}
       />
