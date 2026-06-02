@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.24.0",
+    date: "2026-06-02",
+    changes: [
+      "Added workflow View tabs to the EIRs list: 'New' (EIRs with no project reference and no engineer assigned) and 'Needs Assigned' (a project reference is set but no engineer yet), alongside 'All'. Each tab shows a live count",
+      "The selected view is saved in the URL alongside the existing status and filter selections, so a view is shareable as a link",
+    ],
+  },
+  {
     version: "0.23.1",
     date: "2026-06-02",
     changes: [

@@ -586,9 +586,14 @@ const SECTIONS: ManualSection[] = [
       "where used",
       "create eir",
       "new eir",
+      "views",
+      "view tabs",
+      "needs assigned",
+      "unassigned",
+      "triage",
     ],
     searchText:
-      "The EIRs tab shows Engineering Information Requests with status pills (Under Review, Response Accepted, Closed, etc.) and a filter bar for Project, Assigned Engineer, Reporter, and search. Click an EIR to open the detail page with Description, Engineering Response, Part Details (MFG, P/N, EAU, etc.), Comments, and a sidebar to edit Status, Resolution, Request Type, Priority, Reporter, Assigned Engineers, Watchers, Project, Task Reference, Requested Completion Date, LTB Date.",
+      "The EIRs tab shows Engineering Information Requests with workflow View tabs (All, New, Needs Assigned), status pills (Under Review, Response Accepted, Closed, etc.) and a filter bar for Project, Assigned Engineer, Reporter, and search. New = no project reference and no engineer assigned; Needs Assigned = has a project reference but still no engineer. Click an EIR to open the detail page with Description, Engineering Response, Part Details (MFG, P/N, EAU, etc.), Comments, and a sidebar to edit Status, Resolution, Request Type, Priority, Reporter, Assigned Engineers, Watchers, Project, Task Reference, Requested Completion Date, LTB Date.",
     render: () => (
       <>
         <P>
@@ -600,11 +605,18 @@ const SECTIONS: ManualSection[] = [
         </P>
         <H3>List view</H3>
         <P>
-          Status pills at the top (Open, Under Review, Response Accepted,
-          Closed, etc.) for quick filtering, plus a filter bar with Project
-          Reference (multi-select), Assigned Engineer (multi-select), free-text
-          Search across title / EIR No / MFG / P/N / description, and Reporter
-          (single-select). Filters live in the URL so views are shareable.
+          <strong>View tabs</strong> at the top group EIRs by triage stage:
+          <strong> All</strong>, <strong>New</strong> (no project reference{" "}
+          <em>and</em> no engineer assigned — freshly submitted, needs triage),
+          and <strong>Needs Assigned</strong> (a project reference has been set
+          but no engineer is assigned yet). Each tab shows a live count.
+        </P>
+        <P>
+          Below the tabs, status pills (Open, Under Review, Response Accepted,
+          Closed, etc.) and a filter bar with Project Reference (multi-select),
+          Assigned Engineer (multi-select), free-text Search across title / EIR
+          No / MFG / P/N / description, and Reporter (single-select). The view,
+          status, and filters all live in the URL so a view is shareable.
         </P>
         <H3>Creating one</H3>
         <P>

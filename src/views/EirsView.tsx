@@ -22,6 +22,24 @@ function isOpen(status: EirStatus): boolean {
   return status !== "Closed";
 }
 
+/** Workflow views (tabs above the status pills). */
+type EirView = "all" | "new" | "needs-assigned";
+
+/**
+ * Workflow buckets used by the view tabs:
+ *  - "new"            → no project reference AND no engineer assigned
+ *  - "needs-assigned" → has a project reference but still no engineer
+ *  - "all"            → everything (no extra predicate)
+ * Exported for unit testing.
+ */
+export function matchesEirView(e: Eir, view: EirView): boolean {
+  const noProject = e.parentProjects.length === 0;
+  const noEngineer = e.assignedEngineers.length === 0;
+  if (view === "new") return noProject && noEngineer;
+  if (view === "needs-assigned") return !noProject && noEngineer;
+  return true;
+}
+
 export function EirsView() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -63,6 +81,16 @@ export function EirsView() {
     const sp = new URLSearchParams(searchParams);
     if (emails.length > 0) sp.set("engineer", emails.join(","));
     else sp.delete("engineer");
+    setSearchParams(sp, { replace: true });
+  };
+
+  const rawView = searchParams.get("view");
+  const view: EirView =
+    rawView === "new" || rawView === "needs-assigned" ? rawView : "all";
+  const setView = (next: EirView) => {
+    const sp = new URLSearchParams(searchParams);
+    if (next === "all") sp.delete("view");
+    else sp.set("view", next);
     setSearchParams(sp, { replace: true });
   };
 
@@ -112,9 +140,14 @@ export function EirsView() {
     [eirs, projectIds, reporterEmail, engineerEmails, query],
   );
 
+  const filteredByView = useMemo(
+    () => filteredByBar.filter((e) => matchesEirView(e, view)),
+    [filteredByBar, view],
+  );
+
   const filtered = useMemo(
     () =>
-      filteredByBar
+      filteredByView
         .filter((e) => {
           if (statusFilter === "ALL_OPEN") return isOpen(e.status);
           if (statusFilter) return e.status === statusFilter;
@@ -122,9 +155,21 @@ export function EirsView() {
         })
         // Newest first by creation date — matches the task list convention.
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
-    [filteredByBar, statusFilter],
+    [filteredByView, statusFilter],
   );
 
+  // View-tab counts reflect the bar filters but not the status pill, so each
+  // bucket shows its full size regardless of which status is selected.
+  const newCount = useMemo(
+    () => filteredByBar.filter((e) => matchesEirView(e, "new")).length,
+    [filteredByBar],
+  );
+  const needsAssignedCount = useMemo(
+    () => filteredByBar.filter((e) => matchesEirView(e, "needs-assigned")).length,
+    [filteredByBar],
+  );
+
+  // Status-pill counts reflect the active view.
   const countByStatus: Record<EirStatus, number> = {
     "Under Review": 0,
     "EIR Not Accepted": 0,
@@ -132,8 +177,8 @@ export function EirsView() {
     "Response Not Accepted": 0,
     Closed: 0,
   };
-  for (const e of filteredByBar) countByStatus[e.status]++;
-  const openCount = filteredByBar.filter((e) => isOpen(e.status)).length;
+  for (const e of filteredByView) countByStatus[e.status]++;
+  const openCount = filteredByView.filter((e) => isOpen(e.status)).length;
 
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:gap-5 sm:px-6 sm:py-6">
@@ -148,6 +193,23 @@ export function EirsView() {
           </p>
         </div>
       </header>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+          View
+        </span>
+        <div className="inline-flex flex-wrap gap-1 rounded-lg border border-border bg-surface p-1">
+          <ViewTab label="All" count={filteredByBar.length} active={view === "all"} onClick={() => setView("all")} />
+          <ViewTab label="New" count={newCount} active={view === "new"} onClick={() => setView("new")} />
+          <ViewTab
+            label="Needs Assigned"
+            count={needsAssignedCount}
+            active={view === "needs-assigned"}
+            onClick={() => setView("needs-assigned")}
+          />
+        </div>
+      </div>
+
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <Pill
@@ -290,6 +352,40 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{label}</span>
       {children}
     </label>
+  );
+}
+
+function ViewTab({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+        active
+          ? "bg-accent text-white shadow-sm"
+          : "text-fg-muted hover:bg-surface-2 hover:text-fg",
+      )}
+    >
+      {label}
+      <span
+        className={cn(
+          "rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+          active ? "bg-white/20 text-white" : "bg-surface-2 text-fg-muted",
+        )}
+      >
+        {count}
+      </span>
+    </button>
   );
 }
 
