@@ -21,7 +21,7 @@ interface EirFormModalProps {
  * coming from the SharePoint UI feel at home: General Information up top
  * (Request Type, Reporter, Requested Priority, Requested Completion Date,
  * Subject, Description) followed by Purchasing Information (EAU, Current
- * Stock, Current Price, MFG, LTB Date, MFG P/N, Altronic Part Number,
+ * Stock, Current Price, MFG, MFG P/N, LTB Date, Altronic Part Number,
  * Where Used).
  *
  * Required-field set matches the original form too: Request Type, Reporter,
@@ -291,20 +291,20 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
               />
             </FieldLabel>
 
-            <FieldLabel label="LTB Date">
-              <input
-                type="date"
-                value={ltbDate}
-                onChange={(e) => setLtbDate(e.target.value)}
-                className="input"
-              />
-            </FieldLabel>
-
             <FieldLabel label="MFG P/N">
               <input
                 value={mfgPartNumber}
                 onChange={(e) => setMfgPartNumber(e.target.value)}
                 placeholder="Enter Manufacturer Part Number"
+                className="input"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="LTB Date">
+              <input
+                type="date"
+                value={ltbDate}
+                onChange={(e) => setLtbDate(e.target.value)}
                 className="input"
               />
             </FieldLabel>

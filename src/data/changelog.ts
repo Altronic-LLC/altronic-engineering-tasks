@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.23.1",
+    date: "2026-06-02",
+    changes: [
+      "Reordered the New EIR form so LTB Date now sits after the MFG P/N field (was between MFG and MFG P/N)",
+    ],
+  },
+  {
     version: "0.23.0",
     date: "2026-06-01",
     changes: [
