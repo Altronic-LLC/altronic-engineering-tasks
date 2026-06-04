@@ -775,13 +775,14 @@ const SECTIONS: ManualSection[] = [
         <H3>EIR Roles admin</H3>
         <P>
           The <strong>EIR Roles admin →</strong> link (or{" "}
-          <code>/admin/eir-roles</code>) controls who can edit the two
-          restricted EIR fields. Add a user, then tick <strong>Engineer</strong>{" "}
-          (lets them edit an EIR's <strong>Engineering Response</strong>) and/or{" "}
-          <strong>Supply Chain</strong> (lets them edit the{" "}
-          <strong>Buyer Code</strong>). A user can hold both. Everyone signed in
-          can still edit every other EIR field — only those two are gated. The
-          checkboxes save instantly; remove a user to drop all their EIR roles.
+          <code>/admin/eir-roles</code>) controls who can edit the restricted
+          EIR fields. Add a user, then tick <strong>Engineer</strong> (lets them
+          edit an EIR's <strong>Engineering Response</strong> and{" "}
+          <strong>Technical Priority</strong>) and/or <strong>Supply Chain</strong>{" "}
+          (lets them edit <strong>Buyer Code</strong>, <strong>Risk Part</strong>,
+          and <strong>Risk Part Level</strong>). A user can hold both. Everyone
+          signed in can still edit every other EIR field — only those are gated.
+          The checkboxes save instantly; remove a user to drop all their EIR roles.
         </P>
         <P>
           On the EIR itself, a locked field shows a small lock icon and a

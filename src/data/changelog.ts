@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.28.0",
+    date: "2026-06-04",
+    changes: [
+      "Buyer Code is now a dropdown (choice) instead of free text, on both the EIR detail and the New EIR form's Purchasing section",
+      "Added Risk Part, Risk Part Level, and Technical Priority as editable choice fields on the EIR detail and the New EIR form",
+      "Role gating: Risk Part, Risk Part Level, and Buyer Code are editable by the Supply Chain role; Technical Priority by the Engineer role (locked for others, like Engineering Response)",
+    ],
+  },
+  {
     version: "0.27.2",
     date: "2026-06-04",
     changes: [

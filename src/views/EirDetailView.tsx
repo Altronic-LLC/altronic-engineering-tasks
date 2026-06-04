@@ -18,6 +18,7 @@ import {
   useAddEirComment,
   useEditEirComment,
   useEir,
+  useEirs,
   useSetEirAssignedEngineers,
   useSetEirReporter,
   useSetEirWatchers,
@@ -30,6 +31,8 @@ import {
   EIR_REQUEST_TYPES,
   EIR_REQUESTED_PRIORITIES,
   EIR_RESOLUTIONS,
+  EIR_RISK_LEVELS,
+  EIR_RISK_PARTS,
   EIR_STATUSES,
   type EirRequestType,
   type EirRequestedPriority,
@@ -54,6 +57,7 @@ export function EirDetailView() {
   const eirId = id ? parseInt(id, 10) : null;
   const { data: eir, isLoading } = useEir(eirId);
   const { data: tasks = [] } = useTasks();
+  const { data: allEirs = [] } = useEirs();
   const currentUser = useCurrentUser();
   // EIR field-level role gating. Engineering Response = engineer,
   // Buyer Code = supply chain. `enforced` is false (gating off) when the
@@ -125,6 +129,16 @@ export function EirDetailView() {
     }
     return [...map.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [tasks, currentUser]);
+
+  // Buyer Code is a choice column; until a canonical option list is hardcoded,
+  // build the dropdown from the distinct buyer codes across all EIRs, plus the
+  // current EIR's own value so it always appears even if it's the only one.
+  const buyerCodeOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of allEirs) if (e.buyerCode) set.add(e.buyerCode);
+    if (eir?.buyerCode) set.add(eir.buyerCode);
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [allEirs, eir?.buyerCode]);
 
   if (isLoading) {
     return <LoadingTasks noun="this EIR" />;
@@ -275,12 +289,45 @@ export function EirDetailView() {
                   updateFields.mutate({ id: eir.id, fields: { Current_x0020_Price: v } })
                 }
               />
-              <InlineTextField
+              <InlineSelectField
                 label="Buyer Code"
                 value={eir.buyerCode}
+                options={buyerCodeOptions}
                 disabled={enforced && !isSupplyChain}
                 disabledHint="Only users with the Supply Chain role can edit the Buyer Code."
-                onSave={(v) => updateFields.mutate({ id: eir.id, fields: { BuyerCode: v } })}
+                onChange={(v) =>
+                  updateFields.mutate({ id: eir.id, fields: { BuyerCode: v || null } })
+                }
+              />
+              <InlineSelectField
+                label="Risk Part"
+                value={eir.riskPart ?? ""}
+                options={EIR_RISK_PARTS}
+                disabled={enforced && !isSupplyChain}
+                disabledHint="Only users with the Supply Chain role can edit Risk Part."
+                onChange={(v) =>
+                  updateFields.mutate({ id: eir.id, fields: { RiskPart: v || null } })
+                }
+              />
+              <InlineSelectField
+                label="Risk Part Level"
+                value={eir.riskPartLevel ?? ""}
+                options={EIR_RISK_LEVELS}
+                disabled={enforced && !isSupplyChain}
+                disabledHint="Only users with the Supply Chain role can edit Risk Part Level."
+                onChange={(v) =>
+                  updateFields.mutate({ id: eir.id, fields: { RiskPartLevel: v || null } })
+                }
+              />
+              <InlineSelectField
+                label="Technical Priority"
+                value={eir.technicalPriority ?? ""}
+                options={EIR_RISK_LEVELS}
+                disabled={enforced && !isEngineer}
+                disabledHint="Only users with the Engineer role can edit Technical Priority."
+                onChange={(v) =>
+                  updateFields.mutate({ id: eir.id, fields: { TechnicalPriority: v || null } })
+                }
               />
             </div>
           </div>
@@ -878,6 +925,52 @@ function InlineTextField({
           mono ? "font-mono" : ""
         }`}
       />
+    </label>
+  );
+}
+
+/**
+ * Inline choice field for the Part Details grid — a labelled `<select>` that
+ * writes on change. Mirrors InlineTextField's `disabled`/`disabledHint`
+ * role-gating (lock icon + read-only select when the user lacks the role).
+ */
+function InlineSelectField({
+  label,
+  value,
+  options,
+  onChange,
+  disabled = false,
+  disabledHint,
+  emptyLabel = "Not set",
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (next: string) => void;
+  disabled?: boolean;
+  disabledHint?: string;
+  emptyLabel?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+        {label}
+        {disabled && <Lock className="h-3 w-3" aria-label="Locked" />}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        title={disabled ? disabledHint : undefined}
+        className="w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-fg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <option value="">{emptyLabel}</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

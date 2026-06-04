@@ -421,12 +421,14 @@ Already confirmed (don't change without re-verifying):
 
 ## EIR field permissions (roles)
 
-Two EIR fields are edit-gated by role tags from the **EIR Roles** list:
+Several EIR fields are edit-gated by role tags from the **EIR Roles** list:
 
-- **Engineering Response** → requires the `engineer` role.
-- **Buyer Code** → requires the `supply chain` role.
+- **Engineering Response**, **Technical Priority** → require the `engineer` role.
+- **Buyer Code**, **Risk Part**, **Risk Part Level** → require the `supply chain` role.
 
-Every other EIR field stays editable by any signed-in user. A user can hold
+These are editable on the EIR detail (the Part Details choice fields, gated via
+`InlineSelectField`'s `disabled` prop) and also appear on the New EIR form's
+Purchasing section. Every other EIR field stays editable by any signed-in user. A user can hold
 both roles. This is **UI-level gating only** — it disables/locks the controls;
 it is not a server-side security boundary (a user with SharePoint write access
 could still edit the column directly in SharePoint).

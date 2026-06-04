@@ -19,8 +19,8 @@ const ROLE_LABELS: Record<EirRole, string> = {
 };
 
 const ROLE_GATES: Record<EirRole, string> = {
-  engineer: "Can edit Engineering Response",
-  "supply chain": "Can edit Buyer Code",
+  engineer: "Can edit Engineering Response + Technical Priority",
+  "supply chain": "Can edit Buyer Code, Risk Part + Risk Part Level",
 };
 
 /**

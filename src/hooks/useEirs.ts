@@ -374,6 +374,11 @@ function applyFieldsLocally(
     next.altronicPartNumber = (fields.Altronic_x0020_Part_x0020_Number as string) ?? "";
   if ("TaskReference" in fields) next.taskReference = (fields.TaskReference as string) ?? "";
   if ("BuyerCode" in fields) next.buyerCode = (fields.BuyerCode as string) ?? "";
+  if ("RiskPart" in fields) next.riskPart = (fields.RiskPart as Eir["riskPart"]) ?? null;
+  if ("RiskPartLevel" in fields)
+    next.riskPartLevel = (fields.RiskPartLevel as Eir["riskPartLevel"]) ?? null;
+  if ("TechnicalPriority" in fields)
+    next.technicalPriority = (fields.TechnicalPriority as Eir["technicalPriority"]) ?? null;
   if ("Requested_x0020_Completion_x0020" in fields) {
     const v = fields.Requested_x0020_Completion_x0020;
     next.requestedCompletionDate = v ? new Date(v as string) : null;

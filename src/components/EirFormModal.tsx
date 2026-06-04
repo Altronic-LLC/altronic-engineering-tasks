@@ -2,11 +2,15 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HardHat, Info, Loader2, X } from "lucide-react";
 import { useTasks } from "@/hooks/useTasks";
-import { useCreateEir } from "@/hooks/useEirs";
+import { useCreateEir, useEirs } from "@/hooks/useEirs";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
   EIR_REQUESTED_PRIORITIES,
   EIR_REQUEST_TYPES,
+  EIR_RISK_LEVELS,
+  EIR_RISK_PARTS,
+  type EirRiskLevel,
+  type EirRiskPart,
   type Person,
 } from "@/types/task";
 import { SingleSelect } from "./SearchableSelect";
@@ -33,6 +37,7 @@ interface EirFormModalProps {
 export function EirFormModal({ onClose }: EirFormModalProps) {
   const navigate = useNavigate();
   const { data: tasks = [] } = useTasks();
+  const { data: eirs = [] } = useEirs();
   const currentUser = useCurrentUser();
   const createEir = useCreateEir();
 
@@ -56,6 +61,10 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
   const [mfgPartNumber, setMfgPartNumber] = useState("");
   const [altronicPartNumber, setAltronicPartNumber] = useState("");
   const [whereUsed, setWhereUsed] = useState("");
+  const [buyerCode, setBuyerCode] = useState("");
+  const [riskPart, setRiskPart] = useState("");
+  const [riskPartLevel, setRiskPartLevel] = useState("");
+  const [technicalPriority, setTechnicalPriority] = useState("");
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +88,15 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
     value: p.email ?? p.displayName,
     label: p.displayName,
   }));
+
+  // Buyer Code is a SharePoint choice column; until we hardcode the canonical
+  // option list, populate the dropdown from the distinct buyer codes already
+  // present on existing EIRs.
+  const buyerCodeOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of eirs) if (e.buyerCode) set.add(e.buyerCode);
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [eirs]);
 
   function findPerson(key: string | null): Person | null {
     if (!key) return null;
@@ -118,6 +136,10 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
         mfg,
         mfgPartNumber,
         altronicPartNumber,
+        buyerCode,
+        riskPart: riskPart ? (riskPart as EirRiskPart) : null,
+        riskPartLevel: riskPartLevel ? (riskPartLevel as EirRiskLevel) : null,
+        technicalPriority: technicalPriority ? (technicalPriority as EirRiskLevel) : null,
         requestedCompletionDate: requestedCompletionDate
           ? new Date(requestedCompletionDate)
           : null,
@@ -307,6 +329,66 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
                 onChange={(e) => setLtbDate(e.target.value)}
                 className="input"
               />
+            </FieldLabel>
+
+            <FieldLabel label="Buyer Code">
+              <select
+                value={buyerCode}
+                onChange={(e) => setBuyerCode(e.target.value)}
+                className="input"
+              >
+                <option value="">Select buyer code</option>
+                {buyerCodeOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </FieldLabel>
+
+            <FieldLabel label="Risk Part">
+              <select
+                value={riskPart}
+                onChange={(e) => setRiskPart(e.target.value)}
+                className="input"
+              >
+                <option value="">Not set</option>
+                {EIR_RISK_PARTS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </FieldLabel>
+
+            <FieldLabel label="Risk Part Level">
+              <select
+                value={riskPartLevel}
+                onChange={(e) => setRiskPartLevel(e.target.value)}
+                className="input"
+              >
+                <option value="">Not set</option>
+                {EIR_RISK_LEVELS.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </FieldLabel>
+
+            <FieldLabel label="Technical Priority">
+              <select
+                value={technicalPriority}
+                onChange={(e) => setTechnicalPriority(e.target.value)}
+                className="input"
+              >
+                <option value="">Not set</option>
+                {EIR_RISK_LEVELS.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
             </FieldLabel>
 
             <FieldLabel label="Altronic Part Number" className="sm:col-span-3">
