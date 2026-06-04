@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.26.1",
+    date: "2026-06-04",
+    changes: [
+      "The At Risk Parts view now groups EIRs by RiskPart Level (Unassigned first, then Level 1/2/3), each group with its own header and count — matching the SharePoint At Risk View layout",
+    ],
+  },
+  {
     version: "0.26.0",
     date: "2026-06-04",
     changes: [

@@ -7,7 +7,14 @@ import { LoadingTasks } from "@/components/LoadingTasks";
 import { MultiSelect, SingleSelect } from "@/components/SearchableSelect";
 import { EirFormModal } from "@/components/EirFormModal";
 import { EirRow } from "@/components/EirRow";
-import { EIR_STATUSES, type Eir, type EirStatus, type Person } from "@/types/task";
+import {
+  EIR_RISK_LEVELS,
+  EIR_STATUSES,
+  type Eir,
+  type EirRiskLevel,
+  type EirStatus,
+  type Person,
+} from "@/types/task";
 import { cn } from "@/lib/cn";
 
 // =============================================================================
@@ -180,6 +187,22 @@ export function EirsView() {
     [filteredByBar],
   );
 
+  // For the At Risk Parts view, group the filtered rows by RiskPart Level —
+  // Unassigned first, then Level 1/2/3 — mirroring the SharePoint At Risk View.
+  // Empty groups are dropped. `filtered` keeps its newest-first order within
+  // each group.
+  const atRiskGroups = useMemo(() => {
+    if (view !== "at-risk") return [];
+    const order: (EirRiskLevel | null)[] = [null, ...EIR_RISK_LEVELS];
+    return order
+      .map((level) => ({
+        key: level ?? "unassigned",
+        label: level ?? "Unassigned",
+        items: filtered.filter((e) => (e.riskPartLevel ?? null) === level),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [view, filtered]);
+
   // Status-pill counts reflect the active view.
   const countByStatus: Record<EirStatus, number> = {
     "Under Review": 0,
@@ -330,9 +353,23 @@ export function EirsView() {
           <div className="text-xs text-fg-muted">
             Showing {filtered.length} of {eirs.length} EIRs
           </div>
-          {filtered.map((e) => (
-            <EirRow key={e.id} eir={e} onOpen={() => navigate(`/eir/${e.id}`)} />
-          ))}
+          {view === "at-risk"
+            ? atRiskGroups.map((g) => (
+                <div key={g.key} className="flex flex-col gap-2">
+                  <h3 className="mt-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+                    RiskPart Level: {g.label}
+                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-bold tabular-nums text-fg-muted">
+                      {g.items.length}
+                    </span>
+                  </h3>
+                  {g.items.map((e) => (
+                    <EirRow key={e.id} eir={e} onOpen={() => navigate(`/eir/${e.id}`)} />
+                  ))}
+                </div>
+              ))
+            : filtered.map((e) => (
+                <EirRow key={e.id} eir={e} onOpen={() => navigate(`/eir/${e.id}`)} />
+              ))}
         </div>
       )}
 
