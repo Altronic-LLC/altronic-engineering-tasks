@@ -10,6 +10,60 @@ A web-based viewer and editor for the Altronic Engineering team's SharePoint
 same underlying data. Hosted on GitHub Pages, authenticated per-user via
 Microsoft Entra ID, reads/writes via Microsoft Graph.
 
+The Engineering tooling above is what exists **today**, but the project's scope
+is expanding — read the next section before reasoning about structure.
+
+## Project direction — company-wide platform (read this)
+
+This app is **no longer an Engineering-only tool.** It is becoming a single
+company-wide platform the whole company (200+ people) uses through **one login**
+(Entra ID SSO via MSAL, `Sites.Selected` on SharePoint via Microsoft Graph).
+One codebase, one app — replacing what would otherwise be separate per-department
+tools. Departments: Engineering (exists today), then Purchasing, Supply Chain,
+Operations, Customer Service, with more SharePoint lists added over time.
+
+### Data model — NOT department silos
+
+This is **not** five isolated department silos. There is heavy cross-department
+collaboration — multiple departments work on the same items. Some data is shared
+company-wide; some is department-specific. Therefore:
+
+- **Do not assume one-list-per-department isolation.** Assume a mix: some
+  SharePoint lists are shared across departments, some are department-scoped.
+  Permission scope is decided **per-list**, not by a blanket rule.
+- **Role-based field-level permissions are a core, load-bearing pattern** — not
+  an Engineering-only feature. The same item may be edited by multiple
+  departments, each able to edit only certain fields. The existing **EIR
+  field-permission system** (`useMyEirRoles` + the `disabled`/`disabledHint`
+  gating in `EirDetailView`, backed by the EIR Roles list) is the foundation to
+  **generalize from**.
+- **SSO/group membership drives UI navigation only** (which dashboards/tools a
+  user sees) — for UX, **not** security. The bundle is static and readable by
+  any authenticated user. **Real enforcement lives at the SharePoint/Graph
+  permission layer, per list.** Never treat client-side gating as a security
+  boundary.
+
+### Architecture rules as departments are added
+
+- **Each department is a lazy-loaded route bundle (code-split).** Do this when
+  adding the first new department — now, not "eventually." **No cross-department
+  imports** between department bundles.
+- **Shared layer** (auth, Graph client, React Query config, UI kit, shared
+  types) is imported *by* departments; **nothing in the shared layer imports
+  back into a department.** One-way dependency only.
+- **Keep the existing per-list pattern:** `api/<list>.ts` module + React Query
+  hooks (`use<List>`) + views, one set per SharePoint list. New lists follow it.
+- **Preserve the `USE_MOCK` boundary** so new department features can be built
+  and demoed against mock data before the real SharePoint list exists.
+
+### Default questions when adding a department or list
+
+When asked to add a department or a list, **default to asking first**:
+1. Is this list **shared** across departments or **department-scoped**?
+2. **Which fields are editable by which roles?**
+
+Don't assume isolation — confirm scope and per-field role permissions up front.
+
 ## The mock/real boundary
 
 The single most important architectural rule:
