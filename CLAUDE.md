@@ -453,7 +453,7 @@ When a user posts a comment with `@SomeoneName` chips (picked from the mention d
 
 **One-time setup for the shared mailbox (Exchange admin task):**
 
-1. Create the shared mailbox in the Exchange admin centre (e.g. `engineering-tasks@altronic-llc.com`).
+1. Create the shared mailbox in the Exchange admin centre (the app uses `automation@altronic-llc.com`).
 2. Under **Mailbox delegation → Send As**, add every user who can post comments.
 3. In the Entra ID app registration, ensure `Mail.Send.Shared` is included in the requested scopes (already in `src/auth/msalConfig.ts`). The first user to send mail will trigger an admin-consent prompt for this scope — an admin needs to consent.
 4. Set the repo variable `VITE_SHARED_MAILBOX` to the mailbox address.

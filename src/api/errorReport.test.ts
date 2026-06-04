@@ -15,7 +15,7 @@ vi.mock("./graph", () => ({
 
 const configMock = vi.hoisted(() => ({
   USE_MOCK: false,
-  SHARED_MAILBOX: "engineering-tasks@altronic-llc.com" as string | undefined,
+  SHARED_MAILBOX: "automation@altronic-llc.com" as string | undefined,
   APP_MANAGER_EMAIL: "ray.white@altronic-llc.com",
 }));
 
@@ -45,7 +45,7 @@ beforeEach(() => {
   graphFetchMock.mockReset();
   graphFetchMock.mockResolvedValue(undefined);
   configMock.USE_MOCK = false;
-  configMock.SHARED_MAILBOX = "engineering-tasks@altronic-llc.com";
+  configMock.SHARED_MAILBOX = "automation@altronic-llc.com";
 });
 
 afterEach(() => {
@@ -66,7 +66,7 @@ describe("sendErrorReport", () => {
     expect(graphFetchMock).toHaveBeenCalledTimes(1);
     const [path, init] = graphFetchMock.mock.calls[0]!;
     expect(path).toBe(
-      "/users/engineering-tasks%40altronic-llc.com/sendMail",
+      "/users/automation%40altronic-llc.com/sendMail",
     );
     expect(init.method).toBe("POST");
     const body = JSON.parse(init.body as string);
