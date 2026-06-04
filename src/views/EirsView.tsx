@@ -48,7 +48,10 @@ export function EirsView() {
   const [showNew, setShowNew] = useState(false);
 
   // Filters live in the URL so deep links share. Keys: status, q, project, reporter, engineer.
-  const statusFilter = (searchParams.get("status") as StatusFilter) ?? "ALL_OPEN";
+  // Default is NO status filter — every view (All / New / Needs Assigned) shows
+  // items of every status (open, under review, closed, …) until the user
+  // explicitly clicks a status pill. The "Open" pill is a one-click opt-in.
+  const statusFilter = (searchParams.get("status") as StatusFilter) ?? null;
   const setStatus = (next: StatusFilter) => {
     const sp = new URLSearchParams(searchParams);
     if (next == null) sp.delete("status");

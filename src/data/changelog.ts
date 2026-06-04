@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.25.2",
+    date: "2026-06-04",
+    changes: [
+      "Fixed the EIRs list hiding closed items by default: it no longer pre-applies an 'Open' status filter, so every view (All / New / Needs Assigned) now shows EIRs of every status until you click a status pill. Click 'Open' to narrow to open items",
+    ],
+  },
+  {
     version: "0.25.1",
     date: "2026-06-04",
     changes: [
