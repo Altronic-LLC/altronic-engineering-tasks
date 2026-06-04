@@ -390,7 +390,7 @@ const SECTIONS: ManualSection[] = [
       "thread",
     ],
     searchText:
-      "Type @ in the comment composer to open the mention picker. Arrow keys and Enter to pick. Mentioned people get an email with the task name, the comment quote, and a link. Attach files by drag-drop or click Attach. You can edit your own comments inline. Ctrl+Enter sends.",
+      "Type @ in the comment composer to open the mention picker. Arrow keys then Enter or Tab to pick. Comment boxes auto-grow as you type or paste. Mentioned people get an email with the task/EIR name, the comment quote, and a link. Attach files by drag-drop or click Attach. You can edit your own comments inline. Ctrl+Enter sends.",
     render: () => (
       <>
         <P>
@@ -400,10 +400,12 @@ const SECTIONS: ManualSection[] = [
         <H3>@-mentioning someone</H3>
         <P>
           Type <code>@</code> in the composer. A dropdown opens with everyone
-          who's been an assignee or watcher across the team. Use arrow keys to
-          highlight + Enter to pick, or click. The mention becomes a styled
-          chip in your comment and the mentioned person receives an email
-          notification when you send.
+          who's been an assignee or watcher across the team. Use the arrow keys
+          to highlight, then <strong>Enter or Tab</strong> to pick (or click).
+          The mention becomes a styled chip in your comment and the mentioned
+          person receives an email notification when you send. The comment box
+          also grows automatically as you type or paste, so long comments stay
+          fully visible.
         </P>
         <P>
           Anyone you @-mention also <strong>becomes a watcher</strong> on

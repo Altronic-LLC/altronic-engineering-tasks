@@ -231,6 +231,7 @@ src/
 │   ├── mentions.ts               @-mention parsing for comments
 │   ├── taskMapper.ts             Graph item → Task
 │   ├── eirMapper.ts              Graph item → Eir (field-name quirks)
+│   ├── eirNumber.ts              nextEirNo() — EIR_YYYY-#### auto-numbering
 │   ├── testSheetMapper.ts        Graph item → TestSheet
 │   ├── taskGraph.ts              Parent/child task relationships + cycle checks
 │   ├── taskFilters.ts            Pure task filter predicates
@@ -252,6 +253,7 @@ src/
 │   ├── StatusPills.tsx           Task list status counters
 │   ├── FilterBar.tsx             Task Project / Assigned / Search / Created By filters
 │   ├── SearchableSelect.tsx      Single/Multi select (summary + chips variants)
+│   ├── AutoGrowTextarea.tsx      <textarea> that grows to fit content (typed/pasted)
 │   ├── PersonMultiField.tsx      Multi-person picker (pills + add)
 │   ├── TaskRow.tsx               One task row (list view)
 │   ├── KanbanCard.tsx            One Kanban card
@@ -300,8 +302,8 @@ URL param. The bucket predicate is `matchesEirView(eir, view)` (exported from
 - **All** — no extra filter.
 - **New** — no project reference AND no engineer assigned (fresh, needs triage).
 - **Needs Assigned** — has a project reference but still no engineer assigned.
-- **At Risk Parts** — `riskPart === "Active"` (mirrors the SharePoint "At Risk View"); grouped by RiskPart Level (collapsible).
-- **LTB** — `ltbDate != null` (any EIR with a last-time-buy date set).
+- **At Risk Parts** — `riskPart === "Active"` (mirrors the SharePoint "At Risk View"); grouped by RiskPart Level (Unassigned, then Level 1/2/3), each group collapsible.
+- **LTB** — `ltbDate != null` (any EIR with a last-time-buy date set); sorted soonest-first. The LTB date also shows as a chip on EIR cards (`EirRow`).
 
 Views compose with the status pills and the filter bar; all three axes live in
 the URL so a view is shareable. To add another view: extend the `EirView` union
@@ -455,6 +457,8 @@ Pieces:
 ## @-mention email notifications
 
 When a user posts a comment with `@SomeoneName` chips (picked from the mention dropdown in CommentComposer), the app POSTs `/users/{shared-mailbox}/sendMail` for each mentioned person. The mail comes from the configured shared mailbox via Send-As, so every recipient sees a consistent "From" address rather than the sender's personal mailbox.
+
+This fires for comments on **both tasks and EIRs** — wired in `useTasks` / `useEirs` onSuccess → `notifyMentions()` in `src/api/email.ts`. The HTML template (`renderMentionEmail`) is shared and parametrised on `kind: "task" | "eir"` (wording, callout label, and the "Open this task/EIR" button). Design notes: the header bar is **Cooper Red** (a near-black header gets washed to muddy grey by Outlook dark mode; saturated red survives), with the ARC wordmark + intro + tagline; the button URL is built from `import.meta.env.BASE_URL` so it keeps the `/altronic-arc/` Pages sub-path. The Report-issue email (`src/api/errorReport.ts`) shares the same red-header styling.
 
 **One-time setup for the shared mailbox (Exchange admin task):**
 
