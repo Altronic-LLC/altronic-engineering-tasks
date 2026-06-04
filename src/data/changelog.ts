@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.28.1",
+    date: "2026-06-04",
+    changes: [
+      "Buyer Code dropdown now uses the official choice list (001 Patricia Scarnecchia, 002 Adele Riffle, 003 Katie Fleming, 004 Danielle Opatich, 005 Michelle Evans, 081 Panels) instead of inferring options from existing data",
+    ],
+  },
+  {
     version: "0.28.0",
     date: "2026-06-04",
     changes: [

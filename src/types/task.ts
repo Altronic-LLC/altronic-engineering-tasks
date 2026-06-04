@@ -308,6 +308,17 @@ export type EirRiskPart = (typeof EIR_RISK_PARTS)[number];
 export const EIR_MEETING_RELEVANTS = ["Yes", "No"] as const;
 export type EirMeetingRelevant = (typeof EIR_MEETING_RELEVANTS)[number];
 
+/** Buyer Code choice column on the EIR list (code - buyer name). */
+export const EIR_BUYER_CODES = [
+  "001 - Patricia Scarnecchia",
+  "002 - Adele Riffle",
+  "003 - Katie Fleming",
+  "004 - Danielle Opatich",
+  "005 - Michelle Evans",
+  "081 - Panels",
+] as const;
+export type EirBuyerCode = (typeof EIR_BUYER_CODES)[number];
+
 /** A single EIR row from the Engineering Information Request list. */
 export interface Eir {
   id: number;

@@ -2,9 +2,10 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HardHat, Info, Loader2, X } from "lucide-react";
 import { useTasks } from "@/hooks/useTasks";
-import { useCreateEir, useEirs } from "@/hooks/useEirs";
+import { useCreateEir } from "@/hooks/useEirs";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
+  EIR_BUYER_CODES,
   EIR_REQUESTED_PRIORITIES,
   EIR_REQUEST_TYPES,
   EIR_RISK_LEVELS,
@@ -37,7 +38,6 @@ interface EirFormModalProps {
 export function EirFormModal({ onClose }: EirFormModalProps) {
   const navigate = useNavigate();
   const { data: tasks = [] } = useTasks();
-  const { data: eirs = [] } = useEirs();
   const currentUser = useCurrentUser();
   const createEir = useCreateEir();
 
@@ -88,15 +88,6 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
     value: p.email ?? p.displayName,
     label: p.displayName,
   }));
-
-  // Buyer Code is a SharePoint choice column; until we hardcode the canonical
-  // option list, populate the dropdown from the distinct buyer codes already
-  // present on existing EIRs.
-  const buyerCodeOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of eirs) if (e.buyerCode) set.add(e.buyerCode);
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [eirs]);
 
   function findPerson(key: string | null): Person | null {
     if (!key) return null;
@@ -338,7 +329,7 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
                 className="input"
               >
                 <option value="">Select buyer code</option>
-                {buyerCodeOptions.map((c) => (
+                {EIR_BUYER_CODES.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>

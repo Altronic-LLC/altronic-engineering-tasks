@@ -18,7 +18,6 @@ import {
   useAddEirComment,
   useEditEirComment,
   useEir,
-  useEirs,
   useSetEirAssignedEngineers,
   useSetEirReporter,
   useSetEirWatchers,
@@ -28,6 +27,7 @@ import { useTasks, useProjects } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMyEirRoles } from "@/hooks/useEirRoles";
 import {
+  EIR_BUYER_CODES,
   EIR_REQUEST_TYPES,
   EIR_REQUESTED_PRIORITIES,
   EIR_RESOLUTIONS,
@@ -57,7 +57,6 @@ export function EirDetailView() {
   const eirId = id ? parseInt(id, 10) : null;
   const { data: eir, isLoading } = useEir(eirId);
   const { data: tasks = [] } = useTasks();
-  const { data: allEirs = [] } = useEirs();
   const currentUser = useCurrentUser();
   // EIR field-level role gating. Engineering Response = engineer,
   // Buyer Code = supply chain. `enforced` is false (gating off) when the
@@ -130,15 +129,14 @@ export function EirDetailView() {
     return [...map.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
   }, [tasks, currentUser]);
 
-  // Buyer Code is a choice column; until a canonical option list is hardcoded,
-  // build the dropdown from the distinct buyer codes across all EIRs, plus the
-  // current EIR's own value so it always appears even if it's the only one.
+  // Buyer Code options come from the canonical choice list, plus the current
+  // EIR's own value if it happens to be a legacy code not in the list (so we
+  // never silently drop an existing value).
   const buyerCodeOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of allEirs) if (e.buyerCode) set.add(e.buyerCode);
+    const set = new Set<string>(EIR_BUYER_CODES);
     if (eir?.buyerCode) set.add(eir.buyerCode);
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [allEirs, eir?.buyerCode]);
+    return [...set];
+  }, [eir?.buyerCode]);
 
   if (isLoading) {
     return <LoadingTasks noun="this EIR" />;
