@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CommentAttachment, Person } from "@/types/task";
 import { buildCommentHtml } from "@/lib/mentions";
 import { cn } from "@/lib/cn";
+import { AutoGrowTextarea } from "./AutoGrowTextarea";
 
 interface CommentComposerProps {
   onSubmit: (
@@ -295,8 +296,9 @@ export function CommentComposer({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <textarea
+      <AutoGrowTextarea
         ref={textareaRef}
+        style={{ minHeight: "6.5rem" }}
         value={text}
         onChange={(e) => handleTextChange(e.target.value)}
         onSelect={() => {

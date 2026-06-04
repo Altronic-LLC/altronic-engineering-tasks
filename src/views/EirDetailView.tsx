@@ -50,6 +50,7 @@ import { PersonMultiField } from "@/components/PersonMultiField";
 import { sanitiseHtml } from "@/lib/sanitiseHtml";
 import { multiLookupField } from "@/lib/graphFields";
 import { cn } from "@/lib/cn";
+import { AutoGrowTextarea } from "@/components/AutoGrowTextarea";
 
 export function EirDetailView() {
   const { id } = useParams<{ id: string }>();
@@ -673,7 +674,8 @@ function EditableTextCard({
         )}
       </div>
       {isEditing ? (
-        <textarea
+        <AutoGrowTextarea
+          style={{ minHeight: "8rem" }}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           rows={5}

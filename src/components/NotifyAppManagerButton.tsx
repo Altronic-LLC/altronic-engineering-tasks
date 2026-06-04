@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { LifeBuoy, X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { AutoGrowTextarea } from "./AutoGrowTextarea";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { sendErrorReport } from "@/api/errorReport";
 import {
@@ -169,8 +170,9 @@ function NotifyAppManagerModal({ onClose }: { onClose: () => void }) {
             <span className="text-xs font-medium text-fg-muted">
               What were you trying to do?
             </span>
-            <textarea
+            <AutoGrowTextarea
               autoFocus
+              style={{ minHeight: "8rem" }}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={5}

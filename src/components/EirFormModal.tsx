@@ -16,6 +16,7 @@ import {
   type Person,
 } from "@/types/task";
 import { SingleSelect } from "./SearchableSelect";
+import { AutoGrowTextarea } from "./AutoGrowTextarea";
 
 interface EirFormModalProps {
   mode: "create"; // future: "edit"
@@ -255,7 +256,8 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
             </FieldLabel>
 
             <FieldLabel label="Description" required className="sm:col-span-3">
-              <textarea
+              <AutoGrowTextarea
+                style={{ minHeight: "8rem" }}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={5}
@@ -395,7 +397,8 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
             </FieldLabel>
 
             <FieldLabel label="Where Used" className="sm:col-span-3">
-              <textarea
+              <AutoGrowTextarea
+                style={{ minHeight: "5rem" }}
                 value={whereUsed}
                 onChange={(e) => setWhereUsed(e.target.value)}
                 rows={3}

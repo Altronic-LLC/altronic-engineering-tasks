@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.31.0",
+    date: "2026-06-04",
+    changes: [
+      "Text boxes now auto-grow to fit what you type or paste instead of scrolling inside a fixed box — applies to task & EIR descriptions, the EIR Engineering Response, all comment boxes, and the test-sheet / report-issue fields",
+    ],
+  },
+  {
     version: "0.30.1",
     date: "2026-06-04",
     changes: [

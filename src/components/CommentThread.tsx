@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Paperclip, Pencil } from "lucide-react";
 import type { Comment, CommentAttachment } from "@/types/task";
 import { sanitiseHtml } from "@/lib/sanitiseHtml";
+import { AutoGrowTextarea } from "./AutoGrowTextarea";
 
 interface CommentThreadProps {
   comments: Comment[];
@@ -159,7 +160,8 @@ function CommentEditor({
 
   return (
     <div className="rounded-md border border-accent/40 bg-surface-2 p-3">
-      <textarea
+      <AutoGrowTextarea
+        style={{ minHeight: "6.5rem" }}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}

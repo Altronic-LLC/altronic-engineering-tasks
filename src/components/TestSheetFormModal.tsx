@@ -6,6 +6,7 @@ import { useCreateTestSheet, useUpdateTestSheetFields } from "@/hooks/useTestShe
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import type { Person, Task, TestSheet } from "@/types/task";
 import { SingleSelect } from "./SearchableSelect";
+import { AutoGrowTextarea } from "./AutoGrowTextarea";
 
 interface TestSheetFormModalProps {
   /** "create" opens an empty form; "edit" pre-fills from `sheet` and PATCHes. */
@@ -281,7 +282,8 @@ export function TestSheetFormModal({ mode, sheet, fromTask, onClose }: TestSheet
             </FieldShell>
 
             <FieldShell label="Purpose" className="sm:col-span-2">
-              <textarea
+              <AutoGrowTextarea
+                style={{ minHeight: "5rem" }}
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
                 rows={3}
@@ -290,7 +292,8 @@ export function TestSheetFormModal({ mode, sheet, fromTask, onClose }: TestSheet
             </FieldShell>
 
             <FieldShell label="Testing Steps" className="sm:col-span-2">
-              <textarea
+              <AutoGrowTextarea
+                style={{ minHeight: "8rem" }}
                 value={testingSteps}
                 onChange={(e) => setTestingSteps(e.target.value)}
                 rows={5}
@@ -299,7 +302,8 @@ export function TestSheetFormModal({ mode, sheet, fromTask, onClose }: TestSheet
             </FieldShell>
 
             <FieldShell label="Results" className="sm:col-span-2">
-              <textarea
+              <AutoGrowTextarea
+                style={{ minHeight: "6.5rem" }}
                 value={results}
                 onChange={(e) => setResults(e.target.value)}
                 rows={4}

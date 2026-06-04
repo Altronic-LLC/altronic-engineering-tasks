@@ -27,6 +27,7 @@ import {
 } from "@/types/task";
 import { wouldCreateCycle } from "@/lib/taskGraph";
 import { MultiSelect } from "./SearchableSelect";
+import { AutoGrowTextarea } from "./AutoGrowTextarea";
 import { cn } from "@/lib/cn";
 
 interface TaskFormModalProps {
@@ -363,7 +364,8 @@ export function TaskFormModal({ mode, task, onClose }: TaskFormModalProps) {
             </FieldLabel>
 
             <FieldLabel label="Description">
-              <textarea
+              <AutoGrowTextarea
+                style={{ minHeight: "6.5rem" }}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
