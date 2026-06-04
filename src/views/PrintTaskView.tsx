@@ -45,7 +45,7 @@ export function PrintTaskView() {
             <div className="flex flex-col leading-tight">
               <Wordmark className="h-3.5 w-auto" />
               <p className="mt-1 font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-                Engineering Task System
+                ARC · Resource Center
               </p>
             </div>
           </div>

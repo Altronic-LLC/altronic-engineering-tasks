@@ -1,16 +1,23 @@
-# Altronic Engineering Task System
+# ARC — Altronic Resource Center
 
-The unified web app for the Altronic Engineering team — and the home for
-every internal engineering tool going forward.
+**Every team. One ARC. Always forward.**
 
-The first three modules live here today: Task tracking (list + kanban),
-Engineering Information Requests (EIRs), and Test Sheets. They share
-authentication, a SharePoint backend, a single theme, and an in-app
-admin section. Any new engineering tool that would otherwise spawn its
-own Power App, Power Automate flow, or one-off SharePoint view should
-land here as a new view inside this app instead.
+A company-wide platform that brings every Altronic department's tools and
+processes into one web app, behind a single Microsoft sign-in. One codebase,
+one app — replacing what would otherwise be separate per-department tools.
 
-Hosted at <https://altronic-llc.github.io/altronic-engineering-tasks/>.
+**Engineering** is the first team aboard. Its modules live here today: Task
+tracking (list + kanban), Engineering Information Requests (EIRs), and Test
+Sheets, sharing authentication, a SharePoint backend, a single theme, and an
+in-app admin section. Purchasing, Supply Chain, Operations, and Customer
+Service follow, each as its own module over the same foundation. Any tool that
+would otherwise spawn its own Power App, Power Automate flow, or one-off
+SharePoint view should land here instead.
+
+> Note: the repository is still named `altronic-engineering-tasks` (and the
+> Pages URL is <https://altronic-llc.github.io/altronic-engineering-tasks/>)
+> pending the repo rename to `altronic-arc`.
+
 Built to be iterated on with [Claude Code](https://claude.com/claude-code).
 
 ## What's in the app today
@@ -150,8 +157,7 @@ modules added to this app should follow the same shape.
 
 ## Adding a new module
 
-Treat this app as the canonical home for any new engineering tool.
-Sketch:
+Treat ARC as the canonical home for any new department tool. Sketch:
 
 1. Add a SharePoint list (or reuse an existing one).
 2. Drop a new `src/api/<thing>.ts` with `list/get/create/update`

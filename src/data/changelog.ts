@@ -20,6 +20,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.25.0",
+    date: "2026-06-04",
+    changes: [
+      "Rebranded to ARC — the Altronic Resource Center: a company-wide platform that brings every department's tools into one app. 'Every team. One ARC. Always forward.' Engineering is the first team aboard; more departments to follow",
+      "Updated the app title, header, sign-in screen, print header, About page, User Manual, and notification emails to the ARC branding",
+    ],
+  },
+  {
     version: "0.24.0",
     date: "2026-06-02",
     changes: [

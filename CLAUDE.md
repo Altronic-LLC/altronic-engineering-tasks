@@ -5,13 +5,20 @@ Read it before making non-trivial changes.
 
 ## What this app is
 
-A web-based viewer and editor for the Altronic Engineering team's SharePoint
-"Project Task List". Two views — List (default) and Kanban — sit over the
-same underlying data. Hosted on GitHub Pages, authenticated per-user via
-Microsoft Entra ID, reads/writes via Microsoft Graph.
+**ARC — the Altronic Resource Center** (*"Every team. One ARC. Always forward."*)
+— a company-wide platform that unifies every Altronic department's tools behind
+one Microsoft sign-in. Hosted on GitHub Pages, authenticated per-user via
+Microsoft Entra ID, reads/writes SharePoint via Microsoft Graph.
 
-The Engineering tooling above is what exists **today**, but the project's scope
-is expanding — read the next section before reasoning about structure.
+**Engineering is the first team aboard** and is what's built **today**: a
+SharePoint "Project Task List" viewer/editor (List + Kanban), EIRs, and Test
+Sheets. The project's scope is expanding to more departments — read the next
+section before reasoning about structure.
+
+(Naming note: the repo is still `altronic-engineering-tasks` and the Pages base
+path `/altronic-engineering-tasks/` until the rename to `altronic-arc` is
+executed — the in-app/doc branding is ARC, but those two are coupled to the
+GitHub repo name and change together.)
 
 ## Project direction — company-wide platform (read this)
 

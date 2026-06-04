@@ -211,7 +211,7 @@ function renderMentionEmail(ctx: MentionEmailContext): string {
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
         <tr>
           <td style="background:#111827;padding:22px 28px;">
-            <div style="color:#ffffff;font-weight:800;font-size:18px;letter-spacing:0.18em;text-transform:uppercase;line-height:1.1;">Engineering Task System</div>
+            <div style="color:#ffffff;font-weight:800;font-size:18px;letter-spacing:0.18em;text-transform:uppercase;line-height:1.1;">ARC</div>
           </td>
         </tr>
         <tr>
@@ -240,7 +240,7 @@ function renderMentionEmail(ctx: MentionEmailContext): string {
         </tr>
         <tr>
           <td style="padding:14px 28px;background:#fafafa;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:11px;line-height:1.5;text-align:center;">
-            Do not reply to this email &mdash; it was automatically sent via the Engineering Task System.
+            Do not reply to this email &mdash; it was automatically sent via ARC (Altronic Resource Center).
           </td>
         </tr>
       </table>

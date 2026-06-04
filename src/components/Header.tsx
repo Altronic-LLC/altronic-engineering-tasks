@@ -81,7 +81,7 @@ export function Header() {
             <div className="flex min-w-0 flex-col leading-tight">
               <Wordmark className="h-3 w-auto sm:h-3.5" />
               <p className="mt-0.5 hidden font-display text-[10px] font-semibold uppercase tracking-[0.18em] text-fg-muted sm:mt-1 sm:inline sm:text-[11px]">
-                Engineering Task System
+                ARC · Resource Center
               </p>
             </div>
           </Link>

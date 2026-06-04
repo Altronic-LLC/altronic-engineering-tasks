@@ -354,12 +354,15 @@ export function AboutView() {
           <span className="ml-auto text-xs text-fg-muted">v{CURRENT_VERSION}</span>
         </div>
         <p className="text-sm leading-relaxed text-fg-muted">
-          The Altronic Engineering Task System is a SharePoint-backed task
-          tracker, kanban board, EIR log, and test-sheet log for the
-          engineering team. It runs as a static React SPA on GitHub Pages,
-          signs you in through Microsoft Entra ID, and reads/writes a handful
-          of SharePoint lists via Microsoft Graph (plus the SharePoint REST
-          API for list-item attachments).
+          <strong>ARC — the Altronic Resource Center</strong> — is a
+          company-wide platform that brings every department's tools and
+          processes into one app behind a single sign-in.{" "}
+          <em>Every team. One ARC. Always forward.</em> Engineering is the
+          first team aboard (task tracker, kanban board, EIR log, test-sheet
+          log), with more departments to follow. It runs as a static React SPA
+          on GitHub Pages, signs you in through Microsoft Entra ID, and
+          reads/writes SharePoint lists via Microsoft Graph (plus the
+          SharePoint REST API for list-item attachments).
         </p>
         <div className="mt-4 flex flex-wrap gap-2 text-xs">
           <Link
@@ -413,7 +416,7 @@ export function AboutView() {
 
       <Section
         title="What an SPA is"
-        description="Using the Altronic Engineering Task System as an example — a primer for anyone used to server-rendered apps like Power Apps."
+        description="Using ARC as an example — a primer for anyone used to server-rendered apps like Power Apps."
       >
         <SpaPrimer />
       </Section>
@@ -659,8 +662,8 @@ function SpaPrimer() {
           once it clicks.
         </p>
         <p>
-          For an internal tool with the interactivity needs of the
-          Altronic Engineering Task System, the SPA architecture is the
+          For an internal platform with the interactivity needs of
+          ARC, the SPA architecture is the
           right call. We get sub-100&nbsp;ms interactions, zero
           infrastructure cost, full control over UX, and a stack we can
           evolve over time. The trade-offs that hurt SPAs (SEO, first-load
@@ -753,7 +756,7 @@ function ErDiagram() {
         height={maxY}
         style={{ minWidth: "100%", maxWidth: `${maxX}px` }}
         role="img"
-        aria-label="Entity-relationship diagram for the Altronic Engineering Task System"
+        aria-label="Entity-relationship diagram for ARC (Altronic Resource Center)"
       >
         <defs>
           {/* "many" crow's-foot — three lines fanning from the table edge. */}

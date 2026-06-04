@@ -1152,7 +1152,7 @@ export function ManualView() {
           <span className="ml-auto text-xs text-fg-muted">v{CURRENT_VERSION}</span>
         </div>
         <p className="mb-4 text-sm leading-relaxed text-fg-muted">
-          How to use the Altronic Engineering Task System. Search for what you
+          How to use ARC (Altronic Resource Center). Search for what you
           need, or scroll through the sections.
         </p>
         <div className="relative">

@@ -77,15 +77,15 @@ export function SignInPage({ onDemoBypass }: SignInPageProps) {
               <div className="flex flex-col items-start leading-tight">
                 <Wordmark className="h-5 w-auto" />
                 <p className="mt-1 font-display text-[11px] font-semibold uppercase tracking-[0.18em] text-fg-muted">
-                  Engineering Task System
+                  ARC · Resource Center
                 </p>
               </div>
             </div>
 
             <p className="mt-8 max-w-sm text-sm text-fg-muted">
-              Sign in with your altronic-llc email to view and manage
-              engineering tasks. You'll only see data you already have access
-              to in SharePoint.
+              Sign in with your altronic-llc email to reach your team's tools
+              and resources. You'll only see data you already have access to in
+              SharePoint.
             </p>
 
             <button
@@ -129,15 +129,15 @@ export function SignInPage({ onDemoBypass }: SignInPageProps) {
             )}
 
             <div className="mt-12 text-[11px] text-fg-muted">
-              By signing in you agree that this app may read and write task
-              data on your behalf via Microsoft Graph.
+              By signing in you agree that this app may read and write data on
+              your behalf via Microsoft Graph.
             </div>
           </div>
         </div>
       </div>
 
       <footer className="border-t border-border bg-surface px-6 py-3 text-center text-xs text-fg-muted">
-        Altronic Engineering Task System &middot; Developed by{" "}
+        ARC — Altronic Resource Center &middot; Developed by{" "}
         <a
           href="mailto:ray.white@altronic-llc.com"
           className="text-fg underline-offset-2 hover:text-accent hover:underline"

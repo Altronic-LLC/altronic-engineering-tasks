@@ -26,7 +26,7 @@ export interface SendErrorReportInput {
 }
 
 export async function sendErrorReport(input: SendErrorReportInput): Promise<void> {
-  const subject = `[Engineering Tasks] Issue report${input.reporter ? ` from ${input.reporter.displayName}` : ""}`;
+  const subject = `[ARC] Issue report${input.reporter ? ` from ${input.reporter.displayName}` : ""}`;
   const html = renderReportEmail(input);
 
   if (USE_MOCK) {
@@ -126,7 +126,7 @@ function renderReportEmail(ctx: SendErrorReportInput): string {
       <tr>
         <td style="background:#111827;padding:22px 28px;">
           <div style="color:#ffffff;font-weight:800;font-size:18px;letter-spacing:0.18em;text-transform:uppercase;line-height:1.1;">Issue Report</div>
-          <div style="color:#9ca3af;margin-top:6px;font-size:12px;">Altronic Engineering Task System</div>
+          <div style="color:#9ca3af;margin-top:6px;font-size:12px;">ARC — Altronic Resource Center</div>
         </td>
       </tr>
       <tr>

@@ -276,7 +276,7 @@ function openMailtoDraft(input: {
   pageUrl: string;
   userAgent: string;
 }): void {
-  const subject = "[Engineering Tasks] Issue report";
+  const subject = "[ARC] Issue report";
 
   const lines: string[] = [];
   lines.push("Description:");
