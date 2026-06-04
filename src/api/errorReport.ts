@@ -124,9 +124,9 @@ function renderReportEmail(ctx: SendErrorReportInput): string {
   <tr><td align="center">
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:680px;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
       <tr>
-        <td style="background:#111827;padding:22px 28px;">
+        <td style="background:#CB2C30;padding:22px 28px;">
           <div style="color:#ffffff;font-weight:800;font-size:18px;letter-spacing:0.18em;text-transform:uppercase;line-height:1.1;">Issue Report</div>
-          <div style="color:#9ca3af;margin-top:6px;font-size:12px;">ARC — Altronic Resource Center</div>
+          <div style="color:#fbdcdc;margin-top:6px;font-size:12px;">ARC — Altronic Resource Center</div>
         </td>
       </tr>
       <tr>

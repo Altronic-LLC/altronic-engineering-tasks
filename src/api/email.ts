@@ -1,20 +1,19 @@
 import { graphFetch } from "./graph";
 import { SHARED_MAILBOX, USE_MOCK } from "./config";
-import type { CommentAttachment, Person, Task } from "@/types/task";
+import type { CommentAttachment, Person } from "@/types/task";
 
 // =============================================================================
 // Email notifications via Microsoft Graph sendMail.
 //
-// All notifications go through one entry point: notifyMentions(). It takes
-// the comment that was just posted, the recipients (extracted from the
-// mention chips in the body), the sender + task context, and any attachments
-// from the comment. Mail goes out FROM the shared mailbox configured via
-// VITE_SHARED_MAILBOX (requires Send-As permission for the signed-in user
-// in Exchange).
+// One entry point: notifyMentions(). It takes the comment that was just posted
+// on a task OR an EIR, the recipients (extracted from the mention chips in the
+// body), the sender + item context, and any attachments from the comment. Mail
+// goes out FROM the shared mailbox configured via VITE_SHARED_MAILBOX (requires
+// Send-As permission for the signed-in user in Exchange).
 //
-// Mock mode logs to console instead of sending — useful for demos. Real
-// mode without VITE_SHARED_MAILBOX set also falls back to console (loud
-// warning so the misconfiguration is obvious).
+// Mock mode logs to console instead of sending — useful for demos. Real mode
+// without VITE_SHARED_MAILBOX set also falls back to console (loud warning so
+// the misconfiguration is obvious).
 // =============================================================================
 
 export interface MentionRecipient {
@@ -22,10 +21,17 @@ export interface MentionRecipient {
   displayName: string;
 }
 
+/** What the mention is on — drives the wording, link, and button text. */
+export interface MentionTarget {
+  kind: "task" | "eir";
+  id: number;
+  title: string;
+}
+
 export interface NotifyMentionsInput {
   recipients: MentionRecipient[];
   sender: Person;
-  task: Task;
+  target: MentionTarget;
   /** Plain-text excerpt of the comment for the email body. */
   commentExcerpt: string;
   attachments: CommentAttachment[];
@@ -50,8 +56,9 @@ export async function notifyMentions(input: NotifyMentionsInput): Promise<void> 
       from: SHARED_MAILBOX ?? "(no shared mailbox configured)",
       to: recipients.map((r) => r.email),
       sender: input.sender.displayName,
-      task: input.task.numberedTitle || input.task.title,
-      url: taskUrl(input.task.id),
+      kind: input.target.kind,
+      item: input.target.title,
+      url: itemUrl(input.target.kind, input.target.id),
       attachmentCount: input.attachments.length,
     });
     return;
@@ -78,7 +85,7 @@ export async function notifyMentions(input: NotifyMentionsInput): Promise<void> 
       await sendOne({
         recipient,
         sender: input.sender,
-        task: input.task,
+        target: input.target,
         commentExcerpt: input.commentExcerpt,
         attachments: encoded,
       });
@@ -99,17 +106,18 @@ interface GraphFileAttachment {
 async function sendOne(input: {
   recipient: MentionRecipient;
   sender: Person;
-  task: Task;
+  target: MentionTarget;
   commentExcerpt: string;
   attachments: GraphFileAttachment[];
 }): Promise<void> {
-  const taskTitle = input.task.numberedTitle || input.task.title;
-  const subject = `You were mentioned in ${taskTitle}`;
-  const url = taskUrl(input.task.id);
+  const { target } = input;
+  const subject = `You were mentioned in ${target.title}`;
+  const url = itemUrl(target.kind, target.id);
   const bodyHtml = renderMentionEmail({
     recipientName: input.recipient.displayName,
     senderName: input.sender.displayName,
-    taskTitle,
+    kind: target.kind,
+    itemTitle: target.title,
     commentExcerpt: input.commentExcerpt,
     url,
   });
@@ -169,40 +177,49 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-function taskUrl(taskId: number): string {
-  // Match what the app's router uses. window.location is available in
-  // the browser; if for some reason it isn't, fall back to a relative URL.
-  if (typeof window === "undefined") return `/task/${taskId}`;
-  return `${window.location.origin}${window.location.pathname.replace(
-    /\/(list|task|kanban|test-sheets?|admin|about)?.*$/,
-    "",
-  )}/task/${taskId}`;
+/**
+ * Absolute URL to a task/EIR detail page. Built from the app's deploy base
+ * path (Vite's BASE_URL, e.g. "/altronic-arc/") so the link keeps the
+ * GitHub Pages sub-path instead of dropping it.
+ */
+function itemUrl(kind: "task" | "eir", id: number): string {
+  const seg = kind === "eir" ? "eir" : "task";
+  const base = import.meta.env.BASE_URL ?? "/"; // trailing slash, e.g. "/altronic-arc/"
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return `${origin}${base}${seg}/${id}`;
 }
 
 interface MentionEmailContext {
   recipientName: string;
   senderName: string;
-  taskTitle: string;
+  kind: "task" | "eir";
+  itemTitle: string;
   commentExcerpt: string;
   url: string;
 }
 
 /**
- * Build the full HTML email body. Table-based layout so Outlook (which
- * ignores most modern CSS) still renders cleanly. Inline styles only.
+ * Build the full HTML email body. Table-based layout with inline styles only,
+ * so Outlook (which ignores most modern CSS) renders cleanly.
  *
- * Black/white theme with Cooper Red (`#CB2C30`) accents — the header bar
- * is solid black with the wordmark in white, while the red accent is
- * reserved for the task callout's left border and the call-to-action
- * button. The wordmark is rendered as styled text rather than an image
- * so every client renders it the same without blocking remote images.
+ * The header bar uses Cooper Red (`#CB2C30`) with the ARC wordmark in white.
+ * Red is deliberate: a near-black header gets remapped to a muddy grey by
+ * Outlook's dark mode, whereas the saturated brand red survives intact in
+ * both light and dark. The same red drives the call-to-action button. The
+ * wordmark is styled text (not an image) so it renders identically everywhere
+ * without blocked-image problems.
  */
 function renderMentionEmail(ctx: MentionEmailContext): string {
   const recipient = escapeHtml(ctx.recipientName);
   const sender = escapeHtml(ctx.senderName);
-  const taskTitle = escapeHtml(ctx.taskTitle);
+  const itemTitle = escapeHtml(ctx.itemTitle);
   const excerpt = escapeHtml(ctx.commentExcerpt).replace(/\n/g, "<br/>");
   const url = escapeHtml(ctx.url);
+
+  const isEir = ctx.kind === "eir";
+  const phrase = isEir ? "an EIR" : "a task";
+  const calloutLabel = isEir ? "EIR" : "Task";
+  const buttonText = isEir ? "Open this EIR" : "Open this task";
 
   return `
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f3f4f6;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
@@ -210,17 +227,17 @@ function renderMentionEmail(ctx: MentionEmailContext): string {
     <td align="center">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
         <tr>
-          <td style="background:#111827;padding:22px 28px;">
+          <td style="background:#CB2C30;padding:22px 28px;">
             <div style="color:#ffffff;font-weight:800;font-size:18px;letter-spacing:0.18em;text-transform:uppercase;line-height:1.1;">ARC</div>
           </td>
         </tr>
         <tr>
           <td style="padding:28px 28px 8px 28px;color:#111827;font-size:15px;line-height:1.55;">
             <p style="margin:0 0 14px 0;font-size:16px;">Hello <strong>${recipient}</strong>,</p>
-            <p style="margin:0 0 18px 0;">You were mentioned in a task by <strong>${sender}</strong>.</p>
+            <p style="margin:0 0 18px 0;">You were mentioned in ${phrase} by <strong>${sender}</strong>.</p>
             <div style="margin:0 0 18px 0;padding:14px 16px;background:#f9fafb;border-left:3px solid #CB2C30;border-radius:0 6px 6px 0;">
-              <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Task</div>
-              <div style="font-weight:600;color:#111827;">${taskTitle}</div>
+              <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">${calloutLabel}</div>
+              <div style="font-weight:600;color:#111827;">${itemTitle}</div>
             </div>
             <div style="margin:0 0 22px 0;padding:14px 16px;background:#ffffff;border:1px solid #e5e7eb;border-radius:6px;color:#374151;">
               ${excerpt || "<em style=\"color:#9ca3af;\">(no message body)</em>"}
@@ -232,7 +249,7 @@ function renderMentionEmail(ctx: MentionEmailContext): string {
             <table role="presentation" cellspacing="0" cellpadding="0" border="0">
               <tr>
                 <td align="center" style="background:#CB2C30;border-radius:6px;">
-                  <a href="${url}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.01em;">Open this task</a>
+                  <a href="${url}" style="display:inline-block;padding:12px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.01em;">${buttonText}</a>
                 </td>
               </tr>
             </table>

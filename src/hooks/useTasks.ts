@@ -482,7 +482,7 @@ export function useAddComment() {
       void notifyMentions({
         recipients,
         sender,
-        task,
+        target: { kind: "task", id: task.id, title: task.numberedTitle || task.title },
         commentExcerpt: htmlToPlainText(comment.bodyHtml),
         attachments: comment.attachments ?? [],
       });
@@ -632,7 +632,7 @@ export function useEditComment() {
           void notifyMentions({
             recipients: newMentions,
             sender,
-            task,
+            target: { kind: "task", id: task.id, title: task.numberedTitle || task.title },
             commentExcerpt: htmlToPlainText(newBodyHtml),
             attachments: prevComment.attachments ?? [],
           });

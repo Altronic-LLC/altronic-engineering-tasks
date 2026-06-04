@@ -20,6 +20,7 @@ import type {
 import { pushToast } from "@/components/Toast";
 import { multiLookupField } from "@/lib/graphFields";
 import { extractMentionedRecipients } from "@/lib/mentions";
+import { notifyMentions } from "@/api/email";
 
 const EIRS_KEY = ["eirs", "list"] as const;
 
@@ -239,6 +240,20 @@ export function useAddEirComment() {
       const eir = eirs?.find((e) => e.id === id);
       if (!eir) return;
 
+      // Fire-and-forget @-mention emails (same as tasks). Failures are logged
+      // inside notifyMentions and never surface to the user.
+      void notifyMentions({
+        recipients,
+        sender: { displayName: comment.authorName, email: comment.authorEmail },
+        target: {
+          kind: "eir",
+          id: eir.id,
+          title: [eir.eirNo, eir.title].filter(Boolean).join(" — ") || eir.title,
+        },
+        commentExcerpt: eirCommentExcerpt(comment.bodyHtml),
+        attachments: [],
+      });
+
       const directory = eirs ? collectPeopleFromEirs(eirs) : [];
       const alreadyWatching = new Set(
         eir.watchers.map((w) => (w.email ?? w.displayName).toLowerCase()),
@@ -348,6 +363,21 @@ export function useEditEirComment() {
 // =============================================================================
 // Helpers
 // =============================================================================
+
+/** Strip a comment's HTML to a plain-text excerpt for the notification email. */
+function eirCommentExcerpt(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 function applyFieldsLocally(
   e: Eir,

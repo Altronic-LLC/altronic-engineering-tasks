@@ -20,6 +20,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.30.0",
+    date: "2026-06-04",
+    changes: [
+      "EIR comments now send @-mention email notifications, the same as tasks — mentioned people get an email with the EIR title, the comment, and an 'Open this EIR' button",
+      "Notification email header restyled to the Cooper Red brand bar (was a near-black bar that Outlook's dark mode washed out to muddy grey); applied to both the @-mention and Report-issue emails",
+      "Fixed the email's 'Open' button link dropping the /altronic-arc/ path — it now points at the correct deployed URL",
+    ],
+  },
+  {
     version: "0.29.0",
     date: "2026-06-04",
     changes: [
