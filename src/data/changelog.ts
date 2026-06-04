@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.29.0",
+    date: "2026-06-04",
+    changes: [
+      "New EIRs are now auto-numbered on submit as EIR_YYYY-#### — the next sequence for the current year — and written to the EIR No field (the calculated EIR Log No. derives from it)",
+    ],
+  },
+  {
     version: "0.28.2",
     date: "2026-06-04",
     changes: [

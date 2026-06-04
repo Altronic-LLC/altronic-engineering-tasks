@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HardHat, Info, Loader2, X } from "lucide-react";
 import { useTasks } from "@/hooks/useTasks";
-import { useCreateEir } from "@/hooks/useEirs";
+import { useCreateEir, useEirs } from "@/hooks/useEirs";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { nextEirNo } from "@/lib/eirNumber";
 import {
   EIR_BUYER_CODES,
   EIR_REQUESTED_PRIORITIES,
@@ -38,6 +39,7 @@ interface EirFormModalProps {
 export function EirFormModal({ onClose }: EirFormModalProps) {
   const navigate = useNavigate();
   const { data: tasks = [] } = useTasks();
+  const { data: eirs = [] } = useEirs();
   const currentUser = useCurrentUser();
   const createEir = useCreateEir();
 
@@ -114,6 +116,7 @@ export function EirFormModal({ onClose }: EirFormModalProps) {
     try {
       const created = await createEir.mutateAsync({
         title: subject.trim(),
+        eirNo: nextEirNo(eirs),
         description,
         requestType,
         status: "Under Review",

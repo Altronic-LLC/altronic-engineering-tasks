@@ -198,6 +198,8 @@ export async function getEir(id: number): Promise<Eir | null> {
 
 export interface CreateEirInput {
   title: string;
+  /** Pre-computed "EIR No" (EIR_YYYY-####). Written to the EIRNo column. */
+  eirNo?: string;
   description?: string;
   parentProjectLookupId?: number | null;
   requestType?: "EIR" | "ECR" | "Temporary Deviation";
@@ -229,7 +231,7 @@ export async function createEir(input: CreateEirInput): Promise<Eir> {
     const now = new Date();
     const eir: Eir = {
       id: nextId,
-      eirNo: `EIR-${now.getFullYear()}-${String(1000 + nextId).slice(-4)}`,
+      eirNo: input.eirNo ?? `EIR_${now.getFullYear()}-${String(1000 + nextId).slice(-4)}`,
       title: input.title,
       description: input.description ?? "",
       requestType: input.requestType ?? "EIR",
@@ -278,6 +280,7 @@ export async function createEir(input: CreateEirInput): Promise<Eir> {
   }
 
   const fields: Record<string, unknown> = { Title: input.title };
+  if (input.eirNo) fields.EIRNo = input.eirNo;
   if (input.description) fields.Description = input.description;
   if (input.requestType) fields.RequestType = input.requestType;
   if (input.status) fields.Status = input.status;
