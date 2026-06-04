@@ -1,4 +1,4 @@
-import { ChevronRight, FileText, FolderOpen, User } from "lucide-react";
+import { CalendarClock, ChevronRight, FileText, FolderOpen, User } from "lucide-react";
 import type { Eir } from "@/types/task";
 import {
   AttachmentIndicator,
@@ -57,6 +57,20 @@ export function EirRow({ eir, onOpen }: EirRowProps) {
             <PriorityFlag priority={eir.requestedPriority as "High" | "Medium" | "Low"} />
           )}
           <DueDateBadge due={eir.requestedCompletionDate} />
+          {eir.ltbDate && (
+            <span
+              title="Last-time-buy date"
+              className="inline-flex items-center gap-1 rounded border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-fg-muted"
+            >
+              <CalendarClock className="h-3 w-3" />
+              LTB{" "}
+              {eir.ltbDate.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+          )}
         </div>
       </div>
 

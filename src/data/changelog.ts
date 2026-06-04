@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.27.2",
+    date: "2026-06-04",
+    changes: [
+      "EIR cards now show the LTB (last-time-buy) date as a chip when one is set, so you can see it at a glance in any list/view",
+    ],
+  },
+  {
     version: "0.27.1",
     date: "2026-06-04",
     changes: [
