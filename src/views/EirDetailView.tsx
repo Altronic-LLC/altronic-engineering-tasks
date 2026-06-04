@@ -247,7 +247,10 @@ export function EirDetailView() {
             <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wider text-fg-muted">
               <HardHat className="h-4 w-4" /> Part details
             </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Even, content-independent columns: each field is one equal
+                grid track (minmax(0,1fr)), so a long Buyer Code option or
+                part number can't stretch its column wider than its siblings. */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <InlineTextField
                 label="MFG"
                 value={eir.mfg}
@@ -903,7 +906,7 @@ function InlineTextField({
     setDraft(value);
   }
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex min-w-0 flex-col gap-1">
       {label && (
         <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
           {label}
@@ -950,7 +953,7 @@ function InlineSelectField({
   emptyLabel?: string;
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex min-w-0 flex-col gap-1">
       <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
         {label}
         {disabled && <Lock className="h-3 w-3" aria-label="Locked" />}

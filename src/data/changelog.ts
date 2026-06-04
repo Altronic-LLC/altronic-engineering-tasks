@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.28.2",
+    date: "2026-06-04",
+    changes: [
+      "Tidied the Part Details layout on the EIR detail page — fields now sit in an even three-column grid with uniform widths, instead of two stretched columns sized to their potential contents",
+    ],
+  },
+  {
     version: "0.28.1",
     date: "2026-06-04",
     changes: [
