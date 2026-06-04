@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.26.2",
+    date: "2026-06-04",
+    changes: [
+      "The RiskPart Level groups in the At Risk Parts view can now be collapsed and expanded — click a group header (chevron) to toggle it",
+    ],
+  },
+  {
     version: "0.26.1",
     date: "2026-06-04",
     changes: [

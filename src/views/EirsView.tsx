@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FileText, Plus, Search as SearchIcon } from "lucide-react";
+import { ChevronDown, FileText, Plus, Search as SearchIcon } from "lucide-react";
 import { useProjects } from "@/hooks/useTasks";
 import { useEirs } from "@/hooks/useEirs";
 import { LoadingTasks } from "@/components/LoadingTasks";
@@ -55,6 +55,16 @@ export function EirsView() {
   const { data: eirs = [], isLoading, error: eirsError } = useEirs();
   const { data: projects = [], error: projectsError } = useProjects();
   const [showNew, setShowNew] = useState(false);
+  // Collapsed RiskPart-Level groups in the At Risk Parts view (keyed by group
+  // key). Default expanded; toggling adds/removes the key.
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   // Filters live in the URL so deep links share. Keys: status, q, project, reporter, engineer.
   // Default is NO status filter — every view (All / New / Needs Assigned) shows
@@ -354,19 +364,33 @@ export function EirsView() {
             Showing {filtered.length} of {eirs.length} EIRs
           </div>
           {view === "at-risk"
-            ? atRiskGroups.map((g) => (
-                <div key={g.key} className="flex flex-col gap-2">
-                  <h3 className="mt-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                    RiskPart Level: {g.label}
-                    <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-bold tabular-nums text-fg-muted">
-                      {g.items.length}
-                    </span>
-                  </h3>
-                  {g.items.map((e) => (
-                    <EirRow key={e.id} eir={e} onOpen={() => navigate(`/eir/${e.id}`)} />
-                  ))}
-                </div>
-              ))
+            ? atRiskGroups.map((g) => {
+                const collapsed = collapsedGroups.has(g.key);
+                return (
+                  <div key={g.key} className="flex flex-col gap-2">
+                    <button
+                      onClick={() => toggleGroup(g.key)}
+                      aria-expanded={!collapsed}
+                      className="mt-2 flex w-full items-center gap-2 text-left text-xs font-semibold uppercase tracking-wider text-fg-muted transition-colors hover:text-fg"
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "h-3.5 w-3.5 shrink-0 transition-transform",
+                          collapsed && "-rotate-90",
+                        )}
+                      />
+                      RiskPart Level: {g.label}
+                      <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-bold tabular-nums text-fg-muted">
+                        {g.items.length}
+                      </span>
+                    </button>
+                    {!collapsed &&
+                      g.items.map((e) => (
+                        <EirRow key={e.id} eir={e} onOpen={() => navigate(`/eir/${e.id}`)} />
+                      ))}
+                  </div>
+                );
+              })
             : filtered.map((e) => (
                 <EirRow key={e.id} eir={e} onOpen={() => navigate(`/eir/${e.id}`)} />
               ))}
