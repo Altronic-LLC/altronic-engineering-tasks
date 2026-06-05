@@ -27,6 +27,7 @@ import { cn } from "@/lib/cn";
 interface ManualSection {
   id: string;
   title: string;
+  group?: string;
   /** Synonyms / phrasings users might search for. Weighted highest in scoring. */
   keywords: string[];
   /** Plain-text summary used by the search scorer. */
@@ -125,6 +126,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "list-view",
     title: "Task List view",
+    group: "Tasks",
     keywords: [
       "list",
       "all tasks",
@@ -172,6 +174,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "kanban",
     title: "Kanban board",
+    group: "Tasks",
     keywords: [
       "kanban",
       "board",
@@ -210,6 +213,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "tasks",
     title: "Working with tasks",
+    group: "Tasks",
     keywords: [
       "create task",
       "new task",
@@ -300,6 +304,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "pcb-checklist",
     title: "PCB checklist",
+    group: "Tasks",
     keywords: [
       "pcb",
       "checklist",
@@ -462,6 +467,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "attachments",
     title: "Task attachments",
+    group: "Tasks",
     keywords: [
       "attachment",
       "attachments",
@@ -570,6 +576,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "eirs",
     title: "EIRs (Engineering Information Requests)",
+    group: "Engineering requests",
     keywords: [
       "eir",
       "eirs",
@@ -697,6 +704,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "test-sheets",
     title: "Test Sheets",
+    group: "Engineering requests",
     keywords: [
       "test sheet",
       "test sheets",
@@ -747,6 +755,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "ecns",
     title: "ECNs (Engineering Change Notices)",
+    group: "Engineering requests",
     keywords: [
       "ecn",
       "ecns",
@@ -790,6 +799,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "build-requests",
     title: "Build Requests",
+    group: "Engineering requests",
     keywords: [
       "build request",
       "build requests",
@@ -827,6 +837,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "admin",
     title: "Admin section",
+    group: "Admin",
     keywords: [
       "admin",
       "administrator",
@@ -905,6 +916,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "filters",
     title: "Filtering & search",
+    group: "General",
     keywords: [
       "filter",
       "search",
@@ -960,6 +972,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "notifications",
     title: "Notifications",
+    group: "General",
     keywords: [
       "email",
       "alert",
@@ -1026,6 +1039,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "undo",
     title: "Undo & confirmation",
+    group: "General",
     keywords: [
       "undo",
       "revert",
@@ -1070,6 +1084,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "mobile",
     title: "Using on mobile",
+    group: "General",
     keywords: [
       "mobile",
       "phone",
@@ -1110,6 +1125,7 @@ const SECTIONS: ManualSection[] = [
   {
     id: "troubleshooting",
     title: "Troubleshooting",
+    group: "General",
     keywords: [
       "error",
       "broken",
@@ -1264,6 +1280,27 @@ export function ManualView() {
       .map((x) => x.section);
   }, [tokens]);
 
+  const groupedSections = useMemo(() => {
+    const groups = new Map<string, ManualSection[]>();
+    for (const section of filtered) {
+      const group = section.group ?? "General";
+      if (!groups.has(group)) groups.set(group, []);
+      groups.get(group)!.push(section);
+    }
+    const orderedGroupNames = [
+      "Tasks",
+      "Engineering requests",
+      "Admin",
+      "General",
+      ...Array.from(groups.keys()).filter(
+        (name) => !["Tasks", "Engineering requests", "Admin", "General"].includes(name),
+      ),
+    ];
+    return orderedGroupNames
+      .filter((name) => groups.has(name))
+      .map((name) => ({ name, sections: groups.get(name)! }));
+  }, [filtered]);
+
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-4 sm:px-6 sm:py-6">
       <button
@@ -1321,21 +1358,30 @@ export function ManualView() {
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
               {tokens.length === 0 ? "Contents" : "Best matches"}
             </div>
-            <nav className="flex flex-col gap-0.5 text-sm">
+            <nav className="flex flex-col gap-3 text-sm">
               {filtered.length === 0 ? (
                 <div className="px-2 py-1 text-xs text-fg-muted">No matches</div>
               ) : (
-                filtered.map((s) => (
-                  <a
-                    key={s.id}
-                    href={`#${s.id}`}
-                    className={cn(
-                      "rounded-md px-2 py-1 transition-colors hover:bg-surface-2",
-                      "text-fg-muted hover:text-fg",
-                    )}
-                  >
-                    {s.title}
-                  </a>
+                groupedSections.map((group) => (
+                  <div key={group.name}>
+                    <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+                      {group.name}
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      {group.sections.map((s) => (
+                        <a
+                          key={s.id}
+                          href={`#${s.id}`}
+                          className={cn(
+                            "rounded-md px-2 py-1 transition-colors hover:bg-surface-2",
+                            "text-fg-muted hover:text-fg",
+                          )}
+                        >
+                          {s.title}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
                 ))
               )}
             </nav>
@@ -1387,9 +1433,9 @@ function Section({
 }) {
   return (
     <section id={id} className="scroll-mt-4">
-      <h2 className="mb-3 font-display text-lg font-semibold text-fg sm:text-xl">
+      <h3 className="mb-3 font-display text-lg font-semibold text-fg sm:text-xl">
         {title}
-      </h2>
+      </h3>
       <div className="flex flex-col gap-3">{children}</div>
     </section>
   );

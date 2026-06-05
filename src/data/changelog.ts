@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.32.2",
+    date: "2026-06-05",
+    changes: [
+      "Group task-specific manual sections under a Tasks heading so the company-wide app manual is easier to scan.",
+    ],
+  },
+  {
     version: "0.32.1",
     date: "2026-06-05",
     changes: [
