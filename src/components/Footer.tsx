@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { History, Info, Mail, X } from "lucide-react";
 import { CHANGELOG, CURRENT_VERSION } from "@/data/changelog";
+import { useVersionCheck } from "@/hooks/useVersionCheck";
 
 const MAINTAINER_EMAIL = "ray.white@altronic-llc.com";
 
 export function Footer() {
   const [showHistory, setShowHistory] = useState(false);
+  const { updateAvailable } = useVersionCheck();
 
   return (
     <>
@@ -35,10 +37,20 @@ export function Footer() {
             </Link>
             <button
               onClick={() => setShowHistory(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 font-mono text-[11px] text-fg-muted transition-colors hover:border-fg-muted hover:text-fg"
+              className={
+                "inline-flex items-center gap-1.5 rounded-md border bg-surface px-2.5 py-1 font-mono text-[11px] transition-colors " +
+                (updateAvailable
+                  ? "border-cooper-red text-cooper-red hover:border-cooper-red/80 hover:text-cooper-red/90"
+                  : "border-border text-fg-muted hover:border-fg-muted hover:text-fg")
+              }
             >
               <History className="h-3 w-3" />
               v{CURRENT_VERSION}
+              {updateAvailable && (
+                <span className="ml-1 rounded-full bg-cooper-red px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+                  NEW
+                </span>
+              )}
             </button>
           </div>
         </div>

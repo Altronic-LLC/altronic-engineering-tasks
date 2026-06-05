@@ -1438,7 +1438,7 @@ function Section({
 }) {
   return (
     <section id={id} className="scroll-mt-4">
-      <h3 className="mb-3 font-display text-lg font-semibold text-fg sm:text-xl">
+      <h3 className="mb-3 font-display text-lg font-semibold text-accent sm:text-xl">
         {title}
       </h3>
       <div className="flex flex-col gap-3">{children}</div>

@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { useVersionCheck } from "./useVersionCheck";
+import { CURRENT_VERSION } from "@/data/changelog";
+import { resetVersionCheck, useVersionCheck } from "./useVersionCheck";
 
 const fetchMock = vi.fn();
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  resetVersionCheck();
   fetchMock.mockReset();
   Object.defineProperty(globalThis, "fetch", {
     configurable: true,
@@ -30,13 +32,13 @@ describe("useVersionCheck", () => {
   });
 
   it("does not flag an update when the remote version matches", async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ version: "0.32.2" }) });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ version: CURRENT_VERSION }) });
 
     const { result, unmount } = renderHook(() => useVersionCheck());
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     await waitFor(() => expect(result.current.updateAvailable).toBe(false));
 
-    expect(result.current.remoteVersion).toBe("0.32.2");
+    expect(result.current.remoteVersion).toBe(CURRENT_VERSION);
     unmount();
   });
 

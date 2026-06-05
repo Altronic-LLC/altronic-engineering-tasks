@@ -1,8 +1,12 @@
 import { RefreshCw } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import { useVersionCheck } from "@/hooks/useVersionCheck";
 
 export function UpdateAvailableBanner() {
-  const { updateAvailable, remoteVersion } = useVersionCheck();
+  const location = useLocation();
+  const { updateAvailable, remoteVersion } = useVersionCheck(
+    `${location.pathname}${location.search}`,
+  );
   if (!updateAvailable) return null;
 
   return (

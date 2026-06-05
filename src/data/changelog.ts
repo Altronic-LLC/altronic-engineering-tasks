@@ -20,6 +20,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.33.3",
+    date: "2026-06-05",
+    changes: [
+      "Make every User Manual section heading red so the manual is easier to scan, and publish the new app version.",
+    ],
+  },
+  {
+    version: "0.32.3",
+    date: "2026-06-05",
+    changes: [
+      "Show a live version alert when a newer deployed ARC release is available, with a NEW badge on the footer version link and a top-page refresh banner.",
+    ],
+  },
+  {
     version: "0.32.2",
     date: "2026-06-05",
     changes: [
