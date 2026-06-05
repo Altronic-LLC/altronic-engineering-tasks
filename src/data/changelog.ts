@@ -23,6 +23,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: "0.32.2",
     date: "2026-06-05",
     changes: [
+      "Show a top-page banner when a newer deployed app version is available, with a Refresh button to load the latest build.",
       "Group task-specific manual sections under a Tasks heading so the company-wide app manual is easier to scan.",
     ],
   },

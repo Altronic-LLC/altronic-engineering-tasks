@@ -1197,6 +1197,11 @@ const SECTIONS: ManualSection[] = [
           CC'd, so you have a paper trail of exactly what was sent.
         </P>
         <P>
+          When a new app version is deployed, a banner appears at the top of
+          the page telling you the latest version is available. Click
+          <strong>Refresh</strong> to load the newest build.
+        </P>
+        <P>
           The maintainer contact is also in the footer if you'd rather send
           a screenshot directly.
         </P>

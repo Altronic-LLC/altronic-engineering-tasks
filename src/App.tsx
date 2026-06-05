@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ToastContainer } from "@/components/Toast";
+import { UpdateAvailableBanner } from "@/components/UpdateAvailableBanner";
 import { ListView } from "@/views/ListView";
 import { DashboardView } from "@/views/DashboardView";
 import { KanbanView } from "@/views/KanbanView";
@@ -38,6 +39,7 @@ export function App() {
   return (
     <div className="flex min-h-full flex-col bg-bg">
       {!isPrintRoute && <Header />}
+      {!isPrintRoute && <UpdateAvailableBanner />}
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<DashboardView />} />
