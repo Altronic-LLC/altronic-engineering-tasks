@@ -19,6 +19,7 @@ import { EirsView } from "@/views/EirsView";
 import { EirDetailView } from "@/views/EirDetailView";
 import { AboutView } from "@/views/AboutView";
 import { ManualView } from "@/views/ManualView";
+import { useMentionScanner } from "@/hooks/useUnseenMentions";
 
 export function App() {
   // The print route is intentionally chrome-less so the saved PDF doesn't
@@ -35,6 +36,11 @@ export function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
+
+  // Single subscription point for the @-mention badge state. Owning the
+  // scan here keeps each row's `useIsMentioned` cheap — rows just read a
+  // boolean from the shared store and no longer trigger the scan effect.
+  useMentionScanner();
 
   return (
     <div className="flex min-h-full flex-col bg-bg">

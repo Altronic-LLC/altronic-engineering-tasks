@@ -8,7 +8,7 @@ import {
   EirStatusBadge,
   PriorityFlag,
 } from "./atoms";
-import { useUnseenMentions } from "@/hooks/useUnseenMentions";
+import { markAsSeen, useIsMentioned } from "@/hooks/useUnseenMentions";
 
 interface EirRowProps {
   eir: Eir;
@@ -22,8 +22,7 @@ interface EirRowProps {
  */
 export function EirRow({ eir, onOpen }: EirRowProps) {
   const lastComment = eir.comments[0];
-  const { isUnseen, markAsSeen } = useUnseenMentions();
-  const hasMention = isUnseen(`eir:${eir.id}`);
+  const hasMention = useIsMentioned(`eir:${eir.id}`);
   const rowRef = useRef<HTMLButtonElement>(null);
   const assignedSummary =
     eir.assignedEngineers.length === 0
@@ -47,7 +46,7 @@ export function EirRow({ eir, onOpen }: EirRowProps) {
 
     observer.observe(rowRef.current);
     return () => observer.disconnect();
-  }, [hasMention, eir.id, markAsSeen]);
+  }, [hasMention, eir.id]);
 
   return (
     <button

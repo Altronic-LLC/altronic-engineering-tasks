@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.35.2",
+    date: "2026-06-05",
+    changes: [
+      "Fix UI freezing in the Tasks list, Kanban, and EIRs list — the mention-badge feature was rescanning every comment for every visible row on each interaction. Long lists are now smooth to click and scroll.",
+    ],
+  },
+  {
     version: "0.35.1",
     date: "2026-06-05",
     changes: [

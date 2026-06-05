@@ -12,7 +12,7 @@ import {
   LabelChip,
   PriorityFlag,
 } from "./atoms";
-import { useUnseenMentions } from "@/hooks/useUnseenMentions";
+import { markAsSeen, useIsMentioned } from "@/hooks/useUnseenMentions";
 
 interface KanbanCardProps {
   task: Task;
@@ -33,8 +33,7 @@ export function KanbanCard({ task, onOpen, dragDisabled = false }: KanbanCardPro
     disabled: dragDisabled,
   });
 
-  const { isUnseen, markAsSeen } = useUnseenMentions();
-  const hasMention = isUnseen(`task:${task.id}`);
+  const hasMention = useIsMentioned(`task:${task.id}`);
   const cardRef = useRef<HTMLDivElement | HTMLButtonElement>(null);
 
   const style = {
@@ -55,7 +54,7 @@ export function KanbanCard({ task, onOpen, dragDisabled = false }: KanbanCardPro
 
     observer.observe(cardRef.current);
     return () => observer.disconnect();
-  }, [hasMention, task.id, markAsSeen]);
+  }, [hasMention, task.id]);
 
   const handleOpen = () => {
     onOpen(task.id);

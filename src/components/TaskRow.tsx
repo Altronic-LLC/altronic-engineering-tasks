@@ -10,7 +10,7 @@ import {
   PriorityFlag,
   StatusBadge,
 } from "./atoms";
-import { useUnseenMentions } from "@/hooks/useUnseenMentions";
+import { markAsSeen, useIsMentioned } from "@/hooks/useUnseenMentions";
 
 interface TaskRowProps {
   task: Task;
@@ -19,8 +19,7 @@ interface TaskRowProps {
 
 export function TaskRow({ task, onOpen }: TaskRowProps) {
   const lastComment = task.comments[0];
-  const { isUnseen, markAsSeen } = useUnseenMentions();
-  const hasMention = isUnseen(`task:${task.id}`);
+  const hasMention = useIsMentioned(`task:${task.id}`);
   const rowRef = useRef<HTMLButtonElement>(null);
 
   const assignedSummary =
@@ -45,7 +44,7 @@ export function TaskRow({ task, onOpen }: TaskRowProps) {
 
     observer.observe(rowRef.current);
     return () => observer.disconnect();
-  }, [hasMention, task.id, markAsSeen]);
+  }, [hasMention, task.id]);
 
   return (
     <button
