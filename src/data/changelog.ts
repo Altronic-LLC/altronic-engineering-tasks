@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.32.1",
+    date: "2026-06-05",
+    changes: [
+      "Add standalone in-app manual sections describing ECNs and Build Requests alongside Tasks, EIRs, and Test Sheets.",
+    ],
+  },
+  {
     version: "0.32.0",
     date: "2026-06-04",
     changes: [

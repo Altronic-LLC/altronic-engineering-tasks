@@ -745,6 +745,86 @@ const SECTIONS: ManualSection[] = [
     ),
   },
   {
+    id: "ecns",
+    title: "ECNs (Engineering Change Notices)",
+    keywords: [
+      "ecn",
+      "ecns",
+      "engineering change notice",
+      "change notice",
+      "dashboard card",
+      "notification",
+      "count",
+      "mock data",
+      "build request",
+      "engineering request",
+    ],
+    searchText:
+      "The Dashboard shows ECN counts as part of the engineering metrics. ECNs are currently represented as dashboard metrics and will be wired to their SharePoint list when available. Use the dashboard to track ECN volume alongside EIRs and Build Requests.",
+    render: () => (
+      <>
+        <P>
+          The <strong>ECNs</strong> card on the Dashboard tracks Engineering
+          Change Notices alongside tasks, EIRs, and Build Requests.
+        </P>
+        <H3>What it means</H3>
+        <P>
+          ECNs are counted as a company-wide metric on the Dashboard. The card
+          shows how many ECNs are currently open in the system and is meant as
+          a quick way to see change activity at a glance.
+        </P>
+        <H3>Current status</H3>
+        <P>
+          Right now, <strong>ECNs are shown as dashboard metrics only</strong>.
+          The app is prepared to wire in the real ECN SharePoint list later,
+          at which point the count will switch from mock/demo data to live
+          data automatically.
+        </P>
+        <Tip>
+          When the ECN list is available, the same dashboard filter controls
+          and project scoping that already work for Tasks and EIRs will apply.
+        </Tip>
+      </>
+    ),
+  },
+  {
+    id: "build-requests",
+    title: "Build Requests",
+    keywords: [
+      "build request",
+      "build requests",
+      "request for build",
+      "assembly request",
+      "dashboard",
+      "engineering request",
+      "production request",
+      "mock count",
+    ],
+    searchText:
+      "Build Requests appear as a Dashboard metric today and will be connected to a real SharePoint list in a future update. The Dashboard card helps keep build activity visible while the rest of the app grows.",
+    render: () => (
+      <>
+        <P>
+          The <strong>Build Requests</strong> card on the Dashboard is the home
+          for requests to build or kit hardware. It lives alongside Tasks,
+          EIRs, and ECNs so you can see overall engineering workload at a glance.
+        </P>
+        <H3>How it works today</H3>
+        <P>
+          Today it is a <strong>dashboard-only metric</strong>. The app includes
+          the card to reserve the slot for Build Requests and to keep the
+          dashboard complete, even before the SharePoint list exists.
+        </P>
+        <H3>Future behavior</H3>
+        <P>
+          When the Build Requests list is added, this section will describe how
+          to create, edit, and cross-reference build requests just like the
+          existing Tasks, EIRs, and Test Sheets workflows.
+        </P>
+      </>
+    ),
+  },
+  {
     id: "admin",
     title: "Admin section",
     keywords: [
