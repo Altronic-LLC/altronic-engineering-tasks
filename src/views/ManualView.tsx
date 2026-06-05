@@ -1360,7 +1360,7 @@ export function ManualView() {
         {/* Sidebar TOC — mirrors the filtered set when searching */}
         <aside className="lg:sticky lg:top-4 lg:self-start">
           <div className="rounded-lg border border-border bg-surface p-3">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-accent">
               {tokens.length === 0 ? "Contents" : "Best matches"}
             </div>
             <nav className="flex flex-col gap-3 text-sm">
@@ -1369,7 +1369,7 @@ export function ManualView() {
               ) : (
                 groupedSections.map((group) => (
                   <div key={group.name}>
-                    <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+                    <div className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-accent">
                       {group.name}
                     </div>
                     <div className="flex flex-col gap-0.5">
