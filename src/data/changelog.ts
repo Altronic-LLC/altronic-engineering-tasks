@@ -20,6 +20,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.35.3",
+    date: "2026-06-09",
+    changes: [
+      "Harden the Admins and EIR Roles lists so only admins can add, remove, or change entries — the edit actions now refuse to run for non-admins, not just hide the buttons.",
+    ],
+  },
+  {
     version: "0.35.2",
     date: "2026-06-05",
     changes: [
